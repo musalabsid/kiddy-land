@@ -3,7 +3,7 @@ import type { CalendarStore } from "./calendar.ts";
 import type { SaleStore, TicketRecord } from "./sale.ts";
 
 export type TicketState = "waiting" | "active" | "completed" | "void" | "expired";
-export type SessionEvent = { type: "admitted" | "exited" | "auto-closed" | "expired"; ticketId: string; at: number; details?: unknown };
+export type SessionEvent = { type: "admitted" | "exited" | "auto-closed" | "expired" | "charge-waived"; ticketId: string; at: number; details?: unknown };
 export type PlaySession = { id: string; ticketId: string; enteredAt: number; exitedAt?: number; status: "active" | "completed" | "auto-closed"; overtimeMinutes: number; outstandingCharge: number; depositApplied: number; depositRefunded: number };
 export type ScanResult = { ok: boolean; state: TicketState | "unknown"; message: string; ticket?: TicketRecord; session?: PlaySession };
 
@@ -16,8 +16,9 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) 
   const recoveryCodes = new Map<string, string>();
 
   function findTicket(codeOrToken: string) {
+    const recoveredId = recoveryCodes.get(codeOrToken);
     for (const sale of sales.sales.values()) {
-      const ticket = sale.tickets.find((candidate) => candidate.code === codeOrToken || candidate.qrToken === codeOrToken);
+      const ticket = sale.tickets.find((candidate) => candidate.id === recoveredId || candidate.code === codeOrToken || candidate.qrToken === codeOrToken);
       if (ticket) return ticket;
     }
     return undefined;
@@ -59,6 +60,13 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) 
     const ticket = findTicket(code); if (!ticket || ticket.childId !== childId) throw new Error("Ticket recovery verification failed");
     const replacement = randomBytes(8).toString("hex").toUpperCase(); recoveryCodes.set(replacement, ticket.id); return { ticketId: ticket.id, code: replacement, qrToken: ticket.qrToken };
   }
+  function waiveOutstanding(ticketId: string, actorRole: string, reason: string, at = Date.now()) {
+    if (actorRole !== "Owner" || !reason.trim()) throw new Error("Owner reason required");
+    const session = sessions.get(ticketId); if (!session || session.outstandingCharge <= 0) throw new Error("No outstanding charge");
+    const amount = session.outstandingCharge; session.outstandingCharge = 0;
+    events.push({ type: "charge-waived", ticketId, at, details: { amount, reason } });
+    return { ticketId, amount, reason, waivedAt: at };
+  }
   function close(date: string, at: number) {
     const result: ScanResult[] = [];
     for (const sale of sales.sales.values()) if (sale.operatingDate === date) for (const ticket of sale.tickets) {
@@ -67,7 +75,7 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) 
     }
     return result;
   }
-  return { sessions, events, findTicket, admit, exit, recover, close };
+  return { sessions, events, findTicket, admit, exit, recover, waiveOutstanding, close };
 }
 
 export type LifecycleStore = ReturnType<typeof createLifecycleStore>;

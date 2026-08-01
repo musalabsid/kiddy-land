@@ -56,6 +56,11 @@ export function createApp(
       const body = await c.req.json<{ date: string; at?: number }>();
       return c.json(lifecycle.close(body.date, body.at ?? Date.now()));
     });
+    app.post("/tickets/:id/waive-charge", async (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      try { const body = await c.req.json<{ reason: string }>(); return c.json(lifecycle.waiveOutstanding(c.req.param("id"), current.user.role, body.reason)); } catch { return c.json({ error: "Charge cannot be waived" }, 409); }
+    });
     app.post("/tickets/recover", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || !identity?.can(current, "ticket:admit")) return c.json({ error: "Forbidden" }, 403);
