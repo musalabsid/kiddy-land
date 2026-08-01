@@ -18,12 +18,12 @@ describe("cashier ticket sale", () => {
   });
   test("duplicate submit returns original sale", () => {
     const { store, pkg } = fixture();
-    const input = { idempotencyKey: "same", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "QRIS" as const, lines: [{ childId: "child", packageId: pkg.id }] };
+    const input = { idempotencyKey: "same", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "QRIS" as const, lines: [{ childId: "child", packageId: pkg.id, paymentConfirmed: true }] };
     expect(store.complete(input)).toBe(store.complete(input));
   });
   test("artifacts and print attempts are separate from completion", () => {
     const { store, pkg } = fixture();
-    const sale = store.complete({ idempotencyKey: "print", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "bank-transfer", lines: [{ childId: "child", packageId: pkg.id }] });
+    const sale = store.complete({ idempotencyKey: "print", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "bank-transfer", lines: [{ childId: "child", packageId: pkg.id, paymentConfirmed: true }] });
     expect(store.artifact(sale.id, "tickets").body.startsWith("%PDF")).toBe(true);
     expect(store.artifact(sale.id, "receipt").filename).toContain("R-");
     store.recordPrintAttempt({ saleId: sale.id, artifact: "tickets", actorId: "cashier", status: "unknown" });

@@ -3,11 +3,13 @@ import type { CalendarStore, PackageSnapshot } from "./calendar.ts";
 
 export const PAYMENT_METHODS = ["cash", "QRIS", "bank-transfer"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
-export type TicketLineInput = { childId: string; childName?: string; packageId: string };
+export type TicketLineInput = { childId: string; childName?: string; packageId: string; paymentConfirmed?: boolean };
 export type SaleStatus = "completed" | "void";
 export type TicketRecord = { id: string; code: string; qrToken: string; childId: string; childName?: string; package: PackageSnapshot; status: "waiting" };
-export type ReceiptRecord = { id: string; number: string; saleId: string; locale: "id" | "en"; total: number };
-export type SaleRecord = { id: string; idempotencyKey: string; cashierId: string; operatingDate: string; paymentMethod: PaymentMethod; status: SaleStatus; tickets: TicketRecord[]; receipt: ReceiptRecord; total: number; createdAt: number };
+export type ReceiptLine = { ticketId: string; childId: string; packageName: string; price: number; deposit: number };
+export type DepositRecord = { ticketId: string; amount: number; status: "held" };
+export type ReceiptRecord = { id: string; number: string; saleId: string; locale: "id" | "en"; lines: ReceiptLine[]; total: number };
+export type SaleRecord = { id: string; idempotencyKey: string; cashierId: string; operatingDate: string; paymentMethod: PaymentMethod; paymentConfirmedAt: number; status: SaleStatus; tickets: TicketRecord[]; deposits: DepositRecord[]; receipt: ReceiptRecord; total: number; createdAt: number };
 export type PrintAttempt = { id: string; saleId: string; artifact: "tickets" | "receipt"; status: "requested" | "unknown" | "failed"; reprint: boolean; actorId: string; reason?: string; at: number };
 
 function id(prefix: string) { return `${prefix}_${randomBytes(12).toString("hex")}`; }
@@ -31,9 +33,12 @@ export function createSaleStore(calendar: CalendarStore) {
     });
     const total = snapshots.reduce((sum, item) => sum + item.price, 0);
     const saleId = id("sale");
-    const tickets = input.lines.map((line, index) => ({ id: id("ticket"), code: `T-${Date.now().toString(36).toUpperCase()}-${index + 1}`, qrToken: opaque(), childId: line.childId, childName: line.childName, package: snapshots[index]!, status: "waiting" as const }));
-    const receipt: ReceiptRecord = { id: id("receipt"), number: `R-${String(++receiptSequence).padStart(8, "0")}`, saleId, locale: input.locale ?? "id", total };
-    const sale: SaleRecord = { id: saleId, idempotencyKey: input.idempotencyKey, cashierId: input.cashierId, operatingDate: input.operatingDate, paymentMethod: input.paymentMethod, status: "completed", tickets, receipt, total, createdAt: Date.now() };
+    const tickets = input.lines.map((line, index) => ({ id: id("ticket"), code: `T-${randomBytes(6).toString("hex").toUpperCase()}`, qrToken: opaque(), childId: line.childId, childName: line.childName, package: snapshots[index]!, status: "waiting" as const }));
+    if (input.paymentMethod !== "cash" && input.lines.some((line) => line.paymentConfirmed !== true)) throw new Error("External payment requires manual confirmation");
+    const receiptLines = tickets.map((ticket) => ({ ticketId: ticket.id, childId: ticket.childId, packageName: ticket.package.name, price: ticket.package.price, deposit: ticket.package.deposit }));
+    const deposits = tickets.map((ticket) => ({ ticketId: ticket.id, amount: ticket.package.deposit, status: "held" as const }));
+    const receipt: ReceiptRecord = { id: id("receipt"), number: `R-${String(++receiptSequence).padStart(8, "0")}`, saleId, locale: input.locale ?? "id", lines: receiptLines, total };
+    const sale: SaleRecord = { id: saleId, idempotencyKey: input.idempotencyKey, cashierId: input.cashierId, operatingDate: input.operatingDate, paymentMethod: input.paymentMethod, paymentConfirmedAt: Date.now(), status: "completed", tickets, deposits, receipt, total, createdAt: Date.now() };
     sales.set(sale.id, sale); idempotency.set(input.idempotencyKey, sale);
     return sale;
   }

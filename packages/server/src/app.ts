@@ -43,8 +43,14 @@ export function createApp(
       if (!current || current.device.mode !== "Cashier" || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
       try { return c.json(sales.complete(await c.req.json()), 201); } catch { return c.json({ error: "Sale cannot be completed" }, 409); }
     });
-    app.get("/sales/:id", (c) => { const sale = sales.get(c.req.param("id")); return sale ? c.json(sale) : c.json({ error: "Sale not found" }, 404); });
+    app.get("/sales/:id", (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401);
+      const sale = sales.get(c.req.param("id")); return sale ? c.json(sale) : c.json({ error: "Sale not found" }, 404);
+    });
     app.get("/sales/:id/artifacts/:kind", (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401);
       try { const artifact = sales.artifact(c.req.param("id"), c.req.param("kind") as "tickets" | "receipt"); return new Response(artifact.body, { headers: { "Content-Type": artifact.contentType, "Content-Disposition": `inline; filename="${artifact.filename}"` } }); } catch { return c.json({ error: "Artifact unavailable" }, 404); }
     });
     app.post("/sales/:id/print-attempts", async (c) => {
@@ -52,6 +58,9 @@ export function createApp(
       if (!current || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
       try { return c.json(sales.recordPrintAttempt({ ...(await c.req.json()), saleId: c.req.param("id") }), 201); } catch { return c.json({ error: "Print attempt cannot be recorded" }, 409); }
     });
+  }
+
+  if (calendar) {
     app.get("/calendar/schedule", (c) => {
       const date = c.req.query("date");
       if (!date) return c.json({ error: "date is required" }, 400);
@@ -60,7 +69,7 @@ export function createApp(
     app.get("/calendar/packages/:id/snapshot", (c) => {
       const date = c.req.query("date");
       if (!date) return c.json({ error: "date is required" }, 400);
-      try { return c.json(calendar!.snapshot(c.req.param("id"), date)); } catch { return c.json({ error: "Package unavailable or venue closed" }, 409); }
+      try { return c.json(calendar.snapshot(c.req.param("id"), date)); } catch { return c.json({ error: "Package unavailable or venue closed" }, 409); }
     });
   }
 
