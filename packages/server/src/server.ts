@@ -2,12 +2,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { serve, type ServerType } from "@hono/node-server";
 import type { HealthReport } from "./app.ts";
 import { createApp } from "./app.ts";
+import { createIdentityStore, type IdentityStore } from "./identity.ts";
 
 export type LocalServerOptions = {
   dataDir: string;
   host?: string;
   port?: number;
   schemaVersion?: number;
+  identity?: IdentityStore;
 };
 
 export type LocalServer = {
@@ -35,7 +37,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   let database: HealthReport["database"] = "unhealthy";
   let httpServer: ServerType | undefined;
   const health = (): HealthReport => ({ status, service: "local-server", schemaVersion, database, uptimeMs: Math.max(0, now() - startedAt) });
-  const app = createApp(health);
+  const identity = options.identity ?? createIdentityStore();
+  const app = createApp(health, identity);
 
   return {
     app, health, url: `http://${host}:${port}`,
