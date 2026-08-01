@@ -32,7 +32,7 @@ export function createApp(getHealth: () => HealthReport, identity?: IdentityStor
     app.post("/pairing/redeem", async (c) => {
       const body = await c.req.json<{ token?: string; mode?: DeviceMode }>();
       if (!body.token || !body.mode) return c.json({ error: "token and mode are required" }, 400);
-      try { return c.json(identity.pair(body.token, body.mode), 201); }
+      try { return c.json(identity.pair(body.token, body.mode, c.req.header("Origin")), 201); }
       catch { return c.json({ error: "Enrollment invitation is invalid or expired" }, 409); }
     });
     app.post("/auth/login", async (c) => {
@@ -44,6 +44,11 @@ export function createApp(getHealth: () => HealthReport, identity?: IdentityStor
     app.get("/auth/session", (c) => {
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       return current ? c.json({ device: current.device, user: current.user ? { id: current.user.id, username: current.user.username, role: current.user.role } : undefined }) : c.json({ error: "Unauthorized" }, 401);
+    });
+    app.get("/auth/capability/:capability", (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current) return c.json({ error: "Unauthorized" }, 401);
+      return c.json({ allowed: identity.can(current, c.req.param("capability")) });
     });
   }
 

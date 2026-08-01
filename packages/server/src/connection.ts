@@ -8,9 +8,36 @@ export type WriteGate = {
 export function createConnectionState() {
   let state: ConnectionState = "connected";
   return {
-    get: (): WriteGate => ({ state, canWrite: state === "synchronized" || state === "connected" }),
-    disconnect: () => { state = "disconnected"; },
-    reconnect: () => { state = "reconnecting"; },
-    synchronized: () => { state = "synchronized"; },
+    get: (): WriteGate => ({
+      state,
+      canWrite: state === "connected" || state === "synchronized",
+    }),
+    disconnect: () => {
+      state = "disconnected";
+    },
+    reconnect: () => {
+      state = "reconnecting";
+    },
+    synchronized: () => {
+      state = "synchronized";
+    },
+  };
+}
+
+export type ConnectionRegistry = ReturnType<typeof createConnectionRegistry>;
+
+export function createConnectionRegistry() {
+  const connections = new Map<string, Set<{ close: () => void }>>();
+  return {
+    register(deviceId: string, connection: { close: () => void }) {
+      const current = connections.get(deviceId) ?? new Set();
+      current.add(connection);
+      connections.set(deviceId, current);
+      return () => current.delete(connection);
+    },
+    closeDevice(deviceId: string) {
+      for (const connection of connections.get(deviceId) ?? []) connection.close();
+      connections.delete(deviceId);
+    },
   };
 }

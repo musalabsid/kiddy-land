@@ -10,13 +10,14 @@ export type StaffUser = { id: string; username: string; role: Role; passwordHash
 export type PairedDevice = { id: string; mode: DeviceMode; kind: PairingKind; revokedAt?: number };
 export type Session = { token: string; deviceId: string; userId?: string; createdAt: number };
 export type Enrollment = { token: string; origin: string; kind: PairingKind; expiresAt: number; usedAt?: number };
+export type IdentityEvents = { deviceRevoked: (deviceId: string) => void };
 
 export type IdentityStore = ReturnType<typeof createIdentityStore>;
 
 const capabilities: Record<Role | "Public", ReadonlySet<string>> = {
-  Owner: new Set(["read", "write", "admin"]),
-  Cashier: new Set(["read", "write"]),
-  Staff: new Set(["read"]),
+  Owner: new Set(["read", "write", "admin", "ticket:admit", "ticket:exit", "inventory:write"]),
+  Cashier: new Set(["read", "write", "ticket:admit", "ticket:exit", "inventory:write"]),
+  Staff: new Set(["read", "ticket:admit", "ticket:exit"]),
   Public: new Set(["public:read"]),
 };
 
@@ -31,7 +32,7 @@ function verifyPassword(password: string, encoded: string) {
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-export function createIdentityStore(initial?: { ownerPassword?: string }) {
+export function createIdentityStore(initial?: { ownerPassword?: string; events?: Partial<IdentityEvents> }) {
   const users = new Map<string, StaffUser>();
   const devices = new Map<string, PairedDevice>();
   const enrollments = new Map<string, Enrollment>();
@@ -44,9 +45,9 @@ export function createIdentityStore(initial?: { ownerPassword?: string }) {
     enrollments.set(invitation.token, invitation);
     return { ...invitation, qrPayload: JSON.stringify({ origin, token: invitation.token, kind }) };
   }
-  function pair(enrollmentToken: string, mode: DeviceMode) {
+  function pair(enrollmentToken: string, mode: DeviceMode, origin?: string) {
     const invitation = enrollments.get(enrollmentToken);
-    if (!invitation || invitation.usedAt || invitation.expiresAt <= Date.now()) throw new Error("Enrollment invitation is invalid or expired");
+    if (!invitation || invitation.usedAt || invitation.expiresAt <= Date.now() || (origin !== undefined && invitation.origin !== origin)) throw new Error("Enrollment invitation is invalid or expired");
     invitation.usedAt = Date.now();
     const device: PairedDevice = { id: id("device"), mode, kind: invitation.kind };
     devices.set(device.id, device);
@@ -73,16 +74,24 @@ export function createIdentityStore(initial?: { ownerPassword?: string }) {
     if (device.kind === "private" && !user) return undefined;
     return { session, device, user };
   }
+  const modeCapabilities: Record<DeviceMode, ReadonlySet<string>> = {
+    Cashier: new Set(["read", "write"]),
+    "Entrance Scanner": new Set(["read", "ticket:admit"]),
+    "Exit Scanner": new Set(["read", "ticket:exit"]),
+    Inventory: new Set(["read", "inventory:write"]),
+    "Public Kiosk": new Set(["public:read"]),
+    "Owner Dashboard": new Set(["read", "write", "admin"]),
+  };
   function can(identity: NonNullable<ReturnType<typeof authenticate>>, capability: string) {
     const role = identity.user?.role ?? "Public";
-    if (identity.device.kind === "public-kiosk") return identity.device.mode === "Public Kiosk" && capabilities.Public.has(capability);
-    return capabilities[role].has(capability) && (identity.device.mode === "Owner Dashboard" ? role === "Owner" : identity.device.mode !== "Public Kiosk");
+    return capabilities[role].has(capability) && modeCapabilities[identity.device.mode].has(capability);
   }
   function revokeDevice(deviceId: string) {
     const device = devices.get(deviceId);
     if (!device) return false;
     device.revokedAt = Date.now();
     for (const [key, session] of sessions) if (session.deviceId === deviceId) sessions.delete(key);
+    initial?.events?.deviceRevoked?.(deviceId);
     return true;
   }
   return { owner, users, devices, sessions, createEnrollment, pair, login, authenticate, can, revokeDevice };
