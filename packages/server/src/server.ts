@@ -4,6 +4,7 @@ import { WebSocketServer } from "ws";
 import { createConnectionRegistry } from "./connection.ts";
 import { createCalendarStore, type CalendarStore } from "./calendar.ts";
 import { createSaleStore, type SaleStore } from "./sale.ts";
+import { createLifecycleStore, type LifecycleStore } from "./lifecycle.ts";
 import type { HealthReport } from "./app.ts";
 import { createApp } from "./app.ts";
 import { createIdentityStore, type IdentityStore } from "./identity.ts";
@@ -16,6 +17,7 @@ export type LocalServerOptions = {
   identity?: IdentityStore;
   calendar?: CalendarStore;
   sales?: SaleStore;
+  lifecycle?: LifecycleStore;
 };
 
 export type LocalServer = {
@@ -47,7 +49,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const identity = options.identity ?? createIdentityStore({ events: { deviceRevoked: (deviceId) => registry.closeDevice(deviceId) } });
   const calendar = options.calendar ?? createCalendarStore();
   const sales = options.sales ?? createSaleStore(calendar);
-  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales);
+  const lifecycle = options.lifecycle ?? createLifecycleStore(sales, calendar);
+  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle);
   const websocketServer = new WebSocketServer({ noServer: true });
 
   return {
