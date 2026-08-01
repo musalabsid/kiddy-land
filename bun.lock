@@ -15,8 +15,10 @@
       "name": "desktop",
       "version": "0.1.0",
       "dependencies": {
+        "@kiddy-land/localization": "workspace:*",
         "@tauri-apps/api": "^2",
         "@tauri-apps/plugin-opener": "^2",
+        "@workspace/ui": "workspace:*",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
       },
@@ -54,6 +56,18 @@
         "vite": "^8.0.0",
       },
     },
+    "packages/localization": {
+      "name": "@kiddy-land/localization",
+      "version": "0.0.1",
+      "dependencies": {
+        "react": "^19.2.6",
+      },
+      "devDependencies": {
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "typescript": "~6",
+      },
+    },
     "packages/server": {
       "name": "@kiddy-land/server",
       "version": "0.0.1",
@@ -74,6 +88,7 @@
       "dependencies": {
         "@base-ui/react": "^1.6.0",
         "@fontsource-variable/jetbrains-mono": "^5.3.0",
+        "@kiddy-land/localization": "workspace:*",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "lucide-react": "^1.28.0",
@@ -306,6 +321,8 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
+
+    "@kiddy-land/localization": ["@kiddy-land/localization@workspace:packages/localization"],
 
     "@kiddy-land/server": ["@kiddy-land/server@workspace:packages/server"],
 

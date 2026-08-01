@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useLocale, translate, isLocale, type Locale } from "@workspace/ui/lib/i18n";
-import type { MessageKey } from "@workspace/ui/lib/translations";
+import { useLocale, type MessageKey } from "@workspace/ui/lib/i18n";
 import "./App.css";
 
 type HostState = "starting" | "ready" | "unhealthy" | "fatal";
@@ -21,5 +20,3 @@ export default function App() {
   return <main className="host-shell"><header><p className="eyebrow">{t("host.eyebrow")}</p><h1>{t("host.title")}</h1><p className="subhead">{t("host.subtitle")}</p></header><div className="toolbar"><button onClick={() => setLocale(locale === "id" ? "en" : "id")}>{locale === "id" ? "EN" : "ID"}</button><button onClick={() => void check()} disabled={busy}>{busy ? "…" : t("host.check")}</button></div><section className="status-card"><div className="status-copy"><span className={`status-dot ${status.state}`} /><div><h2>{t(titleKey)}</h2><p>{status.state === "ready" ? t("host.readyDescription") : t("host.notReadyDescription")}</p></div></div><strong className={`pill ${status.state}`}>{status.state}</strong></section><section className="facts"><div><b>{t("host.localFirst")}</b><span>{t("host.localFirstDescription")}</span></div><div><b>{t("host.authoritative")}</b><span>{t("host.authoritativeDescription")}</span></div><div><b>{t("host.database")}</b><span>{status.database ?? t("host.unknown")}</span></div></section><div className="actions"><button className="quiet" onClick={() => void stop()} disabled={busy}>{t("host.stop")}</button></div><footer>{origin}</footer></main>;
 }
 
-export function localeLabel(locale: Locale) { return translate(locale, `language.${locale}` as MessageKey); }
-export function hasLocale(value: string | null): value is Locale { return isLocale(value); }
