@@ -23,6 +23,19 @@ describe("Local Server contract", () => {
     await rm(dataDir, { recursive: true, force: true });
   });
 
+  test("reports unhealthy after bounded stop", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "kiddy-server-"));
+    const runtime = createHostRuntime({ dataDir, port: 43129 });
+    runtimes.push(runtime);
+    await runtime.start();
+    await runtime.stop(50);
+    expect(runtime.diagnostics().state).toBe("unhealthy");
+    expect(runtime.server.health().database).toBe("unhealthy");
+    const response = await fetch(runtime.server.url + "/ready").catch(() => undefined);
+    expect(response).toBeUndefined();
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
   test("returns the same runtime when launched twice", async () => {
     const dataDir = await mkdtemp(join(tmpdir(), "kiddy-server-"));
     const first = createHostRuntime({ dataDir, port: 43128 });

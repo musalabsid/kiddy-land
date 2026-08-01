@@ -1,94 +1,79 @@
+import { useCallback, useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  ArrowRightIcon,
-  BookOpenIcon,
-  Gamepad2Icon,
-  PaletteIcon,
-  RocketIcon,
-  SparklesIcon,
-} from "lucide-react";
-
+import { AlertTriangle, CheckCircle2, CircleDot, LoaderCircle, RefreshCw, Server, ShieldCheck, WifiOff } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { fetchHostStatus, type HostStatus } from "#/lib/host";
 
-export const Route = createFileRoute("/")({ component: Home });
+export const Route = createFileRoute("/")({ component: HostDashboard });
 
-const features = [
-  {
-    icon: Gamepad2Icon,
-    title: "Games",
-    description: "Quick, silly games that make you smile.",
-  },
-  {
-    icon: BookOpenIcon,
-    title: "Stories",
-    description: "Tiny tales for big imaginations.",
-  },
-  {
-    icon: PaletteIcon,
-    title: "Art",
-    description: "Draw, color, and make a mess — digitally.",
-  },
-];
+const initialStatus: HostStatus = { state: "starting", message: "Checking Local Server…" };
 
-function Home() {
+function HostDashboard() {
+  const [status, setStatus] = useState<HostStatus>(initialStatus);
+  const [checking, setChecking] = useState(false);
+
+  const check = useCallback(async () => {
+    setChecking(true);
+    setStatus(await fetchHostStatus());
+    setChecking(false);
+  }, []);
+
+  useEffect(() => {
+    void check();
+    const timer = window.setInterval(() => void check(), 5_000);
+    return () => window.clearInterval(timer);
+  }, [check]);
+
+  const ready = status.state === "ready";
+  const fatal = status.state === "fatal";
+
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center gap-8 p-8">
-      <section className="flex max-w-2xl flex-col items-center gap-4 text-center">
-        <Button variant="outline" size="sm">
-          <RocketIcon data-icon="inline-start" />
-          Kiddy Land is live
-        </Button>
-        <h1 className="font-heading text-4xl font-bold tracking-tight sm:text-5xl">
-          Play. Learn. <span className="text-primary">Grow.</span>
-        </h1>
-        <p className="text-base text-muted-foreground">
-          A cozy corner of the internet built for curious kids — no noise, just
-          fun.
-        </p>
-      </section>
-
-      <Card size="sm" className="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle>Start your adventure</CardTitle>
-          <CardDescription>Pick something fun to do today</CardDescription>
-          <CardAction>
-            <Button variant="ghost" size="icon-sm" aria-label="Coming soon">
-              <SparklesIcon />
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {features.map((feature) => (
-            <div
-              key={feature.title}
-              className="flex items-center gap-3 border border-border p-3"
-            >
-              <feature.icon className="size-5 shrink-0 text-primary" />
-              <div className="flex flex-col gap-0.5">
-                <p className="text-sm font-medium">{feature.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {feature.description}
-                </p>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-        <CardFooter>
-          <Button className="w-full">
-            Start exploring
-            <ArrowRightIcon data-icon="inline-end" />
+    <main className="min-h-dvh bg-slate-950 px-5 py-8 text-slate-100 sm:px-10">
+      <div className="mx-auto flex max-w-5xl flex-col gap-8">
+        <header className="flex flex-wrap items-start justify-between gap-5">
+          <div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300">Kiddy Land / Host</p>
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Local operation center</h1>
+            <p className="mt-2 max-w-xl text-sm text-slate-400">One venue host. One authoritative Local Server. No Internet required.</p>
+          </div>
+          <Button variant="outline" onClick={() => void check()} disabled={checking} className="border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800">
+            <RefreshCw className={checking ? "animate-spin" : ""} data-icon="inline-start" /> Check again
           </Button>
-        </CardFooter>
-      </Card>
+        </header>
+
+        <Card className="border-slate-800 bg-slate-900 text-slate-100">
+          <CardHeader className="border-b border-slate-800">
+            <div className="flex items-center gap-3"><Server className="text-cyan-300" /><div><CardTitle>Host readiness</CardTitle><CardDescription className="text-slate-400">Safe diagnostic state for venue staff</CardDescription></div></div>
+          </CardHeader>
+          <CardContent className="grid gap-6 pt-6 md:grid-cols-[1fr_auto] md:items-center">
+            <div className="flex items-start gap-4">
+              <StatusIcon state={status.state} />
+              <div><p className="text-xl font-medium">{status.message}</p><p className="mt-1 text-sm text-slate-400">{ready ? "The host can accept local client connections." : fatal ? "Restart the host or contact an administrator." : "Mutations remain unavailable until readiness is confirmed."}</p></div>
+            </div>
+            <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wider ${ready ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}><CircleDot className="size-3" /> {status.state}</span>
+          </CardContent>
+        </Card>
+
+        <section className="grid gap-4 sm:grid-cols-3">
+          <InfoCard icon={<ShieldCheck />} title="Local first" text="Operational data stays on the venue host." />
+          <InfoCard icon={<WifiOff />} title="Offline ready" text="Internet loss does not queue transactions." />
+          <InfoCard icon={<CheckCircle2 />} title="Authoritative" text="Every client reads server readiness first." />
+        </section>
+
+        <footer className="text-xs text-slate-500">{status.origin ? `Server origin: ${status.origin}` : "Server origin unavailable"}{status.database ? ` · Database: ${status.database}` : ""}</footer>
+      </div>
     </main>
   );
+}
+
+function StatusIcon({ state }: { state: HostStatus["state"] }) {
+  if (state === "ready") return <CheckCircle2 className="mt-1 size-8 shrink-0 text-emerald-400" />;
+  if (state === "fatal") return <AlertTriangle className="mt-1 size-8 shrink-0 text-rose-400" />;
+  if (state === "unhealthy") return <WifiOff className="mt-1 size-8 shrink-0 text-amber-300" />;
+  return <LoaderCircle className="mt-1 size-8 shrink-0 animate-spin text-cyan-300" />;
+}
+
+function InfoCard({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
+  return <Card className="border-slate-800 bg-slate-900 text-slate-100"><CardContent className="flex gap-3 pt-6"><span className="text-cyan-300">{icon}</span><div><h2 className="font-medium">{title}</h2><p className="mt-1 text-sm text-slate-400">{text}</p></div></CardContent></Card>;
 }
