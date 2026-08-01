@@ -23,13 +23,17 @@ Produce a build-ready v1 specification and phased implementation plan for one ph
 - [Define sale, payment, refund, and receipt rules](issues/02-sale-payment-and-receipt-rules.md) — mixed ticket/product sales use one manually confirmed payment, atomic completion, individual QR tickets, auditable cashier corrections, and stock-aware product refunds.
 - [Define membership and deposit accounting](issues/03-membership-and-deposit-accounting.md) — optional one-child memberships have configurable line discounts; deposits belong to tickets and follow package-level refund, forfeiture, or unlimited-cap policies.
 - [Define product, barcode, and inventory behavior](issues/04-product-and-inventory-behavior.md) — products are independent integer-stock SKUs with optional unique barcodes, approved stock counts/intake, per-product alerts, guarded out-of-stock sales, and preserved price history.
+- [Define roles and device-mode permissions](issues/05-roles-and-device-permissions.md) — fixed extensible roles govern server access; one-time QR enrollment assigns device modes, private devices require staff login, and kiosks receive only public ticket/price lookup.
+- [Define local-network, pairing, and reconnect behavior](issues/06-local-network-and-pairing-behavior.md) — QR-first enrollment with mDNS/IP fallback, host-authoritative writes, immediate device revocation, offline HTTPS, and read-only reconnect behavior keep local clients safe.
+- [Define venue calendar and pricing rules](issues/07-venue-calendar-and-pricing-rules.md) — an operating-only calendar uses per-day hours, local midnight business days, date overrides, closure refunds, and package snapshots applied to new sales only.
+- [Define reports and daily operating metrics](issues/08-reports-and-daily-metrics.md) — Owner reports cover financial and operational domains; live metrics use WebSocket events, revenue excludes refundable deposits, corrections stay audited, and views export to CSV/PDF.
+- [Define notification routing and audio behavior](issues/09-notification-routing-and-audio.md) — configurable server-event routes deliver visual/local-sound alerts to operational modes, keep private details off kiosks, and use shadcn components in production.
+- [Research Windows scanner and receipt integration](issues/10-research-hardware-integration.md) — camera scanning needs offline HTTPS and a decoder fallback; printing belongs to the Windows host service, while USB scanners remain optional and host-attached.
+- [Research embedded server packaging and local discovery](issues/11-research-embedded-server-architecture.md) — package Hono as a supervised Node sidecar, keep SQLite host-only, serve one authenticated origin, and use mDNS plus QR/IP fallback with Windows/firewall acceptance work.
 
 ## Not yet specified
 
-- Role permissions, device-mode assignment, staff accountability, and public-kiosk privacy boundaries.
-- Local-network discovery, pairing lifecycle, host/network failure handling, and the meaning of client reconnects.
-- Reporting definitions, business-day boundaries, operating hours, and the owner dashboard's live metrics.
-- Printer/scanner integration, server packaging, desktop supervision, backup/restore, and deployment acceptance.
+- Hardware model acceptance, server packaging, desktop supervision, backup/restore, and deployment acceptance.
 - The concrete interaction design for cashier, entrance, exit, inventory, kiosk, and owner workflows.
 
 ## Out of scope
