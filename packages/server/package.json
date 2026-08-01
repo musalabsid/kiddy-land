@@ -1,0 +1,22 @@
+{
+  "name": "@kiddy-land/server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./supervisor": "./src/supervisor.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.12",
+    "hono": "^4.12.32"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "~6"
+  }
+}
