@@ -9,6 +9,7 @@
     "./lib/i18n": "./src/lib/i18n.tsx",
     "./lib/translations": "./src/lib/translations.ts",
     "./components/*": "./src/components/*.tsx",
+    "./providers/*": "./src/providers/*.tsx",
     "./hooks/*": "./src/hooks/*.ts"
   },
   "scripts": {

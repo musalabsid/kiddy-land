@@ -1,4 +1,4 @@
-import { ThemeProvider } from "#/components/layout/theme-provider";
+import { ThemeProvider } from "@workspace/ui/providers/theme-provider";
 import { LocaleProvider } from "@workspace/ui/lib/i18n";
 import { ClientProvider } from "@kiddy-land/client/react";
 import { TanStackDevtools } from "@tanstack/react-devtools";
