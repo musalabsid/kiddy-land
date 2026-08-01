@@ -15,6 +15,7 @@
       "name": "desktop",
       "version": "0.1.0",
       "dependencies": {
+        "@kiddy-land/client": "workspace:*",
         "@kiddy-land/localization": "workspace:*",
         "@tauri-apps/api": "^2",
         "@tauri-apps/plugin-opener": "^2",
@@ -35,6 +36,7 @@
     "apps/web": {
       "name": "web",
       "dependencies": {
+        "@kiddy-land/client": "workspace:*",
         "@tailwindcss/vite": "^4.1.18",
         "@tanstack/react-devtools": "latest",
         "@tanstack/react-router": "latest",
@@ -55,6 +57,19 @@
         "@vitejs/plugin-react": "^6.0.1",
         "typescript": "^6.0.2",
         "vite": "^8.0.0",
+      },
+    },
+    "packages/client": {
+      "name": "@kiddy-land/client",
+      "version": "0.0.1",
+      "dependencies": {
+        "@kiddy-land/localization": "workspace:*",
+        "react": "^19.2.6",
+      },
+      "devDependencies": {
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "typescript": "~6",
       },
     },
     "packages/localization": {
@@ -322,6 +337,8 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
+
+    "@kiddy-land/client": ["@kiddy-land/client@workspace:packages/client"],
 
     "@kiddy-land/localization": ["@kiddy-land/localization@workspace:packages/localization"],
 

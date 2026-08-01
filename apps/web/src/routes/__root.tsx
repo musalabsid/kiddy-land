@@ -1,5 +1,6 @@
 import { ThemeProvider } from "#/components/layout/theme-provider";
 import { LocaleProvider } from "@workspace/ui/lib/i18n";
+import { ClientProvider } from "@kiddy-land/client/react";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { Outlet, createRootRoute } from "@tanstack/react-router";
 
@@ -13,11 +14,13 @@ export const Route = createRootRoute({
 function RootComponent() {
   return (
     <>
-      <LocaleProvider>
-        <ThemeProvider>
-          <Outlet />
-        </ThemeProvider>
-      </LocaleProvider>
+      <ClientProvider origin={import.meta.env.VITE_LOCAL_SERVER_ORIGIN ?? "http://127.0.0.1:43117"}>
+        <LocaleProvider>
+          <ThemeProvider>
+            <Outlet />
+          </ThemeProvider>
+        </LocaleProvider>
+      </ClientProvider>
       <TanStackDevtools
         config={{
           position: "bottom-right",
