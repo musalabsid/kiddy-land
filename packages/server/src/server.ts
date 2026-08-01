@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { serve, type ServerType } from "@hono/node-server";
 import { WebSocketServer } from "ws";
 import { createConnectionRegistry } from "./connection.ts";
+import { createCalendarStore, type CalendarStore } from "./calendar.ts";
 import type { HealthReport } from "./app.ts";
 import { createApp } from "./app.ts";
 import { createIdentityStore, type IdentityStore } from "./identity.ts";
@@ -12,6 +13,7 @@ export type LocalServerOptions = {
   port?: number;
   schemaVersion?: number;
   identity?: IdentityStore;
+  calendar?: CalendarStore;
 };
 
 export type LocalServer = {
@@ -41,7 +43,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const health = (): HealthReport => ({ status, service: "local-server", schemaVersion, database, uptimeMs: Math.max(0, now() - startedAt) });
   const registry = createConnectionRegistry();
   const identity = options.identity ?? createIdentityStore({ events: { deviceRevoked: (deviceId) => registry.closeDevice(deviceId) } });
-  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry });
+  const calendar = options.calendar ?? createCalendarStore();
+  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar);
   const websocketServer = new WebSocketServer({ noServer: true });
 
   return {

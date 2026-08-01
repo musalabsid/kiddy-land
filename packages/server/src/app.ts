@@ -1,6 +1,7 @@
 import { upgradeWebSocket } from "@hono/node-server";
 import { Hono } from "hono";
 import type { DeviceMode, IdentityStore } from "./identity.ts";
+import type { CalendarStore } from "./calendar.ts";
 import { authorizeWebSocket, type WebSocketRegistry } from "./realtime.ts";
 
 export type HealthStatus = "starting" | "ready" | "unhealthy" | "fatal";
@@ -17,6 +18,7 @@ export function createApp(
   getHealth: () => HealthReport,
   identity?: IdentityStore,
   realtime?: { origin: string; registry: WebSocketRegistry },
+  calendar?: CalendarStore,
 ) {
   const app = new Hono();
 
@@ -28,6 +30,19 @@ export function createApp(
     const health = getHealth();
     return c.json(health, health.status === "ready" ? 200 : 503);
   });
+
+  if (calendar) {
+    app.get("/calendar/schedule", (c) => {
+      const date = c.req.query("date");
+      if (!date) return c.json({ error: "date is required" }, 400);
+      try { return c.json(calendar.effectiveSchedule(date)); } catch { return c.json({ error: "Invalid date" }, 400); }
+    });
+    app.get("/calendar/packages/:id/snapshot", (c) => {
+      const date = c.req.query("date");
+      if (!date) return c.json({ error: "date is required" }, 400);
+      try { return c.json(calendar.snapshot(c.req.param("id"), date)); } catch { return c.json({ error: "Package unavailable or venue closed" }, 409); }
+    });
+  }
 
   if (identity) {
     if (realtime) {
@@ -90,6 +105,18 @@ export function createApp(
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current) return c.json({ error: "Unauthorized" }, 401);
       return c.json({ allowed: identity.can(current, c.req.param("capability")) });
+    });
+    app.post("/calendar/configure", async (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      const body = await c.req.json<{ timezone?: string; day?: import("./calendar.ts").Weekday; hours?: import("./calendar.ts").DailyHours; override?: import("./calendar.ts").ScheduleOverride; package?: Parameters<CalendarStore["upsertPackage"]>[0] }>();
+      try {
+        if (body.timezone) calendar?.setTimezone(body.timezone, current.user.id);
+        if (body.day && body.hours) calendar?.setWeeklyHours(body.day, body.hours, current.user.id);
+        if (body.override) calendar?.setOverride(body.override, current.user.id);
+        if (body.package) calendar?.upsertPackage(body.package, current.user.id);
+        return c.json({ ok: true });
+      } catch { return c.json({ error: "Invalid calendar configuration" }, 400); }
     });
   }
 
