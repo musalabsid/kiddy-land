@@ -1,6 +1,6 @@
 # Kiddy Playground v1 — Wayfinding Map
 
-Status: open
+Status: ready for /to-spec
 Type: map
 Label: wayfinder:map
 
@@ -15,7 +15,7 @@ Produce a build-ready v1 specification and phased implementation plan for one ph
 - **Skills to consult:** `domain-modeling`, `grilling`, `research`, `prototype`, `codebase-design`, `shadcn`, `vercel-react-best-practices`, and `tdd` when implementation begins.
 - **Standing architecture preference:** one repository, one embedded server, one SQLite database, server-owned business logic, local-network clients, and no Internet dependency for normal operation.
 - **Confirmed baseline before map creation:** v1 targets one venue and one Windows host; each child receives an independent ticket; a play session starts at entrance scan; payments are recorded manually as cash, QRIS, or bank transfer; members belong to one child; public kiosks are paired restricted devices; daily reports total sales by method/date/cashier with refunds and voids; owners configure weekday/weekend ticket packages, including an unlimited package that runs until exit or closing; five-minute alerts are visual plus configurable local sound.
-- **Planning posture:** this map produces decisions and a handoff-ready route, not the implementation itself. Open child tickets are the current frontier; decisions belong in their resolutions.
+- **Planning posture:** this map produces decisions and a handoff-ready route, not the implementation itself. The PDF/artifact, minimum deployment, and workflow UX frontier is resolved at product-spec level; exact devices/media/SKUs and venue packaging evidence remain acceptance work and are not product-rule blockers.
 
 ## Decisions so far
 
@@ -31,14 +31,21 @@ Produce a build-ready v1 specification and phased implementation plan for one ph
 - [Prototype the daily operating workflows](issues/13-operational-workflow-prototype.md) — Variant A's Counter command center is the primary desktop direction, while scanners stay focused on scan-first workflows and production UI uses shadcn components.
 - [Define language and localization scope](issues/15-language-and-localization-scope.md) — v1 supports Bahasa Indonesia and English with Indonesian default, per-user/device fallback, localized outputs, and fixed IDR currency.
 - [Define v1 acceptance scenarios](issues/14-v1-acceptance-scenarios.md) — a repeatable Maintainer Checklist proves a full operating day, representative ticket/POS outcomes, resilience, bilingual smoke coverage, and evidence-backed PASS/FAIL results.
-- [Research Windows scanner and receipt integration](issues/10-research-hardware-integration.md) — camera scanning needs offline HTTPS and a decoder fallback; printing belongs to the Windows host service, while USB scanners remain optional and host-attached.
-- [Research embedded server packaging and local discovery](issues/11-research-embedded-server-architecture.md) — package Hono as a supervised Node sidecar, keep SQLite host-only, serve one authenticated origin, and use mDNS plus QR/IP fallback with Windows/firewall acceptance work.
+- [Research Windows scanner and receipt integration](issues/10-research-hardware-integration.md) — prepared-device camera scanning needs trusted offline HTTPS and a decoder fallback; v1 output is PDF-canonical with visible Windows/browser printing, while native/direct printer integration is deferred and USB scanners remain optional.
+- [Research embedded server packaging and local discovery](issues/11-research-embedded-server-architecture.md) — package Hono as a self-contained supervised Node sidecar with offline-capable Windows packaging, host-only SQLite, one trusted canonical HTTPS hostname for prepared Android scanners, explicit firewall/readiness behavior, and Windows-desktop-only IP recovery.
 - [Define backup, restore, and recovery behavior](issues/12-backup-restore-and-recovery.md) — daily and on-demand Verified Backups, retention-safe storage, Owner-only Staged Restore, integrity-failure guidance, and CSV/PDF analysis exports protect one-host operation.
+- [Freeze v1 deployment, printing, and workflow boundaries](issues/16-deployment-print-and-workflow-boundaries.md) — immutable PDFs are canonical, visible Windows/browser printing is the v1 physical path, native/direct printing is deferred, minimum host/LAN/prepared-device assumptions are fixed, workflow modes have explicit UX boundaries, and exact hardware/media/SKU choices remain acceptance fixtures.
 
-## Not yet specified
+## Remaining handoff and acceptance work
 
-- Hardware model acceptance, server packaging, desktop supervision, and clean-machine deployment details.
-- The concrete interaction design for cashier, entrance, exit, inventory, kiosk, and owner workflows.
+- Exact supported Windows host/OS, prepared Android/browser/CA, printer/driver/media, optional scanner, network/mDNS/firewall, PDF renderer/print-dialog, and audio fixtures plus clean-machine/physical evidence (tracked by [`issues/14-v1-acceptance-scenarios.md`](issues/14-v1-acceptance-scenarios.md)).
+- Venue packaging policy details such as installer flavor/signing/update channel, exact reserved port choice, and service behavior across logoff/sleep/reboot remain deployment acceptance or venue-policy work.
+- Implementation-level screen states, localized copy, server contracts, PDF/artifact contracts, and phased delivery slices for `/to-spec`; these must preserve the resolved workflow boundaries rather than reopen them.
+
+## Handoff status
+
+- **Map verdict:** clear enough for `/to-spec` at the product-specification level, with explicit acceptance gates.
+- `/to-spec` may specify layout, interaction details, PDF/artifact contracts, packaging steps, and implementation sequencing. It must preserve the PDF-canonical/browser-print baseline and treat exact device/media/SKU support and venue packaging policy as release acceptance work, not reopen Wayfinder.
 
 ## Out of scope
 
