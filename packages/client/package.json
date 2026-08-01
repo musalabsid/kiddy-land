@@ -16,8 +16,10 @@
     "react": "^19.2.6"
   },
   "devDependencies": {
+    "@tanstack/react-query": "^5.101.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "typescript": "~6"
+    "typescript": "~6",
+    "zustand": "^5.0.14"
   }
 }

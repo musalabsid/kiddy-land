@@ -15,6 +15,6 @@ describe("shared client", () => {
     const previous = globalThis.fetch;
     globalThis.fetch = (async () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "content-type": "application/json" } })) as typeof fetch;
     try { await expect(new ApiClient("http://local.test").get("/private")).rejects.toBeInstanceOf(ClientError); } finally { globalThis.fetch = previous; }
-    expect(canMutate(true, false)).toBe(false); expect(canMutate(true, true)).toBe(true);
+    expect(canMutate("connected", false)).toBe(false); expect(canMutate("connected", true)).toBe(true);
   });
 });
