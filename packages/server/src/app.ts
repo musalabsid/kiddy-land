@@ -1,5 +1,7 @@
+import { upgradeWebSocket } from "@hono/node-server";
 import { Hono } from "hono";
 import type { DeviceMode, IdentityStore } from "./identity.ts";
+import { authorizeWebSocket, type WebSocketRegistry } from "./realtime.ts";
 
 export type HealthStatus = "starting" | "ready" | "unhealthy" | "fatal";
 
@@ -11,7 +13,11 @@ export type HealthReport = {
   uptimeMs: number;
 };
 
-export function createApp(getHealth: () => HealthReport, identity?: IdentityStore) {
+export function createApp(
+  getHealth: () => HealthReport,
+  identity?: IdentityStore,
+  realtime?: { origin: string; registry: WebSocketRegistry },
+) {
   const app = new Hono();
 
   app.get("/health", (c) => {
@@ -24,6 +30,33 @@ export function createApp(getHealth: () => HealthReport, identity?: IdentityStor
   });
 
   if (identity) {
+    if (realtime) {
+      app.get(
+        "/ws",
+        upgradeWebSocket((c) => {
+          const decision = authorizeWebSocket(
+            identity,
+            realtime.registry,
+            {
+              authorization: c.req.header("Authorization"),
+              origin: c.req.header("Origin"),
+            },
+            realtime.origin,
+            { close: () => undefined },
+          );
+          if (!decision.allowed) return { onOpen: (_event, ws) => ws.close(1008, decision.reason) };
+          return {
+            onOpen: (_event, ws) => {
+              decision.unregister();
+              decision.unregister = realtime.registry.register(decision.deviceId, { close: () => ws.close() });
+              ws.send(JSON.stringify({ type: "connected", deviceId: decision.deviceId }));
+            },
+            onClose: () => decision.unregister(),
+            onMessage: (event, ws) => ws.send(event.data),
+          };
+        }),
+      );
+    }
     app.post("/pairing/invitations", async (c) => {
       const body = await c.req.json<{ origin?: string; kind?: "private" | "public-kiosk" }>();
       if (!body.origin) return c.json({ error: "origin is required" }, 400);

@@ -13,10 +13,12 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.0.12",
-    "hono": "^4.12.32"
+    "hono": "^4.12.32",
+    "ws": "^8.21.1"
   },
   "devDependencies": {
     "@types/node": "^24",
+    "@types/ws": "^8.18.1",
     "typescript": "~6"
   }
 }

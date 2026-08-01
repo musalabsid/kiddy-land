@@ -1,5 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { serve, type ServerType } from "@hono/node-server";
+import { WebSocketServer } from "ws";
+import { createConnectionRegistry } from "./connection.ts";
 import type { HealthReport } from "./app.ts";
 import { createApp } from "./app.ts";
 import { createIdentityStore, type IdentityStore } from "./identity.ts";
@@ -37,8 +39,10 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   let database: HealthReport["database"] = "unhealthy";
   let httpServer: ServerType | undefined;
   const health = (): HealthReport => ({ status, service: "local-server", schemaVersion, database, uptimeMs: Math.max(0, now() - startedAt) });
-  const identity = options.identity ?? createIdentityStore();
-  const app = createApp(health, identity);
+  const registry = createConnectionRegistry();
+  const identity = options.identity ?? createIdentityStore({ events: { deviceRevoked: (deviceId) => registry.closeDevice(deviceId) } });
+  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry });
+  const websocketServer = new WebSocketServer({ noServer: true });
 
   return {
     app, health, url: `http://${host}:${port}`,
@@ -50,7 +54,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       database = "ready";
       await new Promise<void>((resolve, reject) => {
         try {
-          httpServer = serve({ fetch: app.fetch, hostname: host, port }, (info) => {
+          httpServer = serve({ fetch: app.fetch, hostname: host, port, websocket: { server: websocketServer } }, (info) => {
             if (info.port !== port) return reject(new Error(`Local Server bound unexpected port ${info.port}`));
             status = "ready"; resolve();
           });

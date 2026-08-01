@@ -1,4 +1,5 @@
 import type { ConnectionRegistry } from "./connection.ts";
+export type WebSocketRegistry = ConnectionRegistry;
 import type { IdentityStore } from "./identity.ts";
 
 export type WebSocketDecision = { allowed: true; deviceId: string; unregister: () => void } | { allowed: false; reason: "unauthorized" | "origin-denied" };
