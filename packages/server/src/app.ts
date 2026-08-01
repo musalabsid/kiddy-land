@@ -32,6 +32,7 @@ export function createApp(
   });
 
   if (calendar) {
+    app.get("/calendar/config", (c) => c.json({ timezone: calendar.timezone, weekly: calendar.weekly, overrides: [...calendar.overrides.values()], packages: [...calendar.packages.values()], audit: calendar.audit }));
     app.get("/calendar/schedule", (c) => {
       const date = c.req.query("date");
       if (!date) return c.json({ error: "date is required" }, 400);
@@ -108,6 +109,7 @@ export function createApp(
     });
     app.post("/calendar/configure", async (c) => {
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!calendar) return c.json({ error: "Calendar unavailable" }, 503);
       if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
       const body = await c.req.json<{ timezone?: string; day?: import("./calendar.ts").Weekday; hours?: import("./calendar.ts").DailyHours; override?: import("./calendar.ts").ScheduleOverride; package?: Parameters<CalendarStore["upsertPackage"]>[0] }>();
       try {
