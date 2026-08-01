@@ -75,6 +75,15 @@ The authoritative server hosted by the Windows venue computer. It owns business 
 **Connection State**:
 The client-visible condition of its link to the Local Server. A disconnected client may show its shell or last safe view, but cannot perform writes until it reconnects and refreshes authoritative state.
 
+**Verified Backup**:
+A consistent SQLite recovery snapshot that passed integrity checks and records its app/schema version, timestamp, size, and destination health.
+
+**Staged Restore**:
+An Owner-only recovery flow that creates a safety backup of current data, stops writes, restores a selected Verified Backup, validates it, and restarts the Local Server only after explicit confirmation.
+
+**Data Export**:
+A CSV or PDF representation for analysis or sharing. It is not a restorable database and v1 does not support arbitrary data import.
+
 ## Products and inventory
 
 **Product**:
@@ -88,6 +97,17 @@ A physical count of a Product that produces a variance against system quantity a
 
 **Low-Stock Threshold**:
 A per-Product minimum quantity that triggers an owner alert when stock reaches or falls below the threshold.
+
+## Language and localization
+
+**Supported Languages**:
+V1 supports Bahasa Indonesia and English. Bahasa Indonesia is the new-installation default; a Staff User may choose a preferred language, while a Paired Device such as a Public Kiosk provides the fallback.
+
+**Localized Output**:
+UI labels, system alerts, QR tickets, and receipts follow the current user's language, or the device/venue fallback when no user is present. Names, business data, and stored amounts are not translated.
+
+**Venue Currency**:
+Indonesian Rupiah (IDR/Rp) is fixed for v1. Language changes affect display formatting and date labels, not the underlying amount or currency.
 
 ## People and access
 

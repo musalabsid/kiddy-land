@@ -28,12 +28,16 @@ Produce a build-ready v1 specification and phased implementation plan for one ph
 - [Define venue calendar and pricing rules](issues/07-venue-calendar-and-pricing-rules.md) — an operating-only calendar uses per-day hours, local midnight business days, date overrides, closure refunds, and package snapshots applied to new sales only.
 - [Define reports and daily operating metrics](issues/08-reports-and-daily-metrics.md) — Owner reports cover financial and operational domains; live metrics use WebSocket events, revenue excludes refundable deposits, corrections stay audited, and views export to CSV/PDF.
 - [Define notification routing and audio behavior](issues/09-notification-routing-and-audio.md) — configurable server-event routes deliver visual/local-sound alerts to operational modes, keep private details off kiosks, and use shadcn components in production.
+- [Prototype the daily operating workflows](issues/13-operational-workflow-prototype.md) — Variant A's Counter command center is the primary desktop direction, while scanners stay focused on scan-first workflows and production UI uses shadcn components.
+- [Define language and localization scope](issues/15-language-and-localization-scope.md) — v1 supports Bahasa Indonesia and English with Indonesian default, per-user/device fallback, localized outputs, and fixed IDR currency.
+- [Define v1 acceptance scenarios](issues/14-v1-acceptance-scenarios.md) — a repeatable Maintainer Checklist proves a full operating day, representative ticket/POS outcomes, resilience, bilingual smoke coverage, and evidence-backed PASS/FAIL results.
 - [Research Windows scanner and receipt integration](issues/10-research-hardware-integration.md) — camera scanning needs offline HTTPS and a decoder fallback; printing belongs to the Windows host service, while USB scanners remain optional and host-attached.
 - [Research embedded server packaging and local discovery](issues/11-research-embedded-server-architecture.md) — package Hono as a supervised Node sidecar, keep SQLite host-only, serve one authenticated origin, and use mDNS plus QR/IP fallback with Windows/firewall acceptance work.
+- [Define backup, restore, and recovery behavior](issues/12-backup-restore-and-recovery.md) — daily and on-demand Verified Backups, retention-safe storage, Owner-only Staged Restore, integrity-failure guidance, and CSV/PDF analysis exports protect one-host operation.
 
 ## Not yet specified
 
-- Hardware model acceptance, server packaging, desktop supervision, backup/restore, and deployment acceptance.
+- Hardware model acceptance, server packaging, desktop supervision, and clean-machine deployment details.
 - The concrete interaction design for cashier, entrance, exit, inventory, kiosk, and owner workflows.
 
 ## Out of scope
