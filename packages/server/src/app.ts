@@ -47,12 +47,20 @@ export function createApp(
           if (!decision.allowed) return { onOpen: (_event, ws) => ws.close(1008, decision.reason) };
           return {
             onOpen: (_event, ws) => {
-              decision.unregister();
-              decision.unregister = realtime.registry.register(decision.deviceId, { close: () => ws.close() });
+              if (!identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""))) {
+                ws.close(1008, "revoked");
+                return;
+              }
+              const unregister = realtime.registry.register(decision.deviceId, { close: () => ws.close() });
               ws.send(JSON.stringify({ type: "connected", deviceId: decision.deviceId }));
+              (ws as unknown as { __unregister?: () => void }).__unregister = unregister;
             },
-            onClose: () => decision.unregister(),
-            onMessage: (event, ws) => ws.send(event.data),
+            onClose: (_event, ws) => (ws as unknown as { __unregister?: () => void }).__unregister?.(),
+            onMessage: (event, ws) => {
+              if (event.data === "refresh") ws.send(JSON.stringify({ type: "synchronized", at: Date.now() }));
+              else if (event.data === "ping") ws.send("pong");
+              else ws.send(JSON.stringify({ type: "error", code: "unknown-command" }));
+            },
           };
         }),
       );

@@ -35,6 +35,7 @@ describe("ticket 18 hardening", () => {
     expect(denied.allowed).toBe(false);
     const allowed = authorizeWebSocket(identity, registry, { authorization: `Bearer ${session.token}`, origin: "https://kiddy.local" }, "https://kiddy.local", { close: () => { closed = true; } });
     expect(allowed.allowed).toBe(true);
+    registry.register(paired.device.id, { close: () => { closed = true; } });
     identity.revokeDevice(paired.device.id);
     registry.closeDevice(paired.device.id);
     expect(closed).toBe(true);
