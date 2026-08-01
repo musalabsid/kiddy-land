@@ -3,6 +3,7 @@ import { serve, type ServerType } from "@hono/node-server";
 import { WebSocketServer } from "ws";
 import { createConnectionRegistry } from "./connection.ts";
 import { createCalendarStore, type CalendarStore } from "./calendar.ts";
+import { createSaleStore, type SaleStore } from "./sale.ts";
 import type { HealthReport } from "./app.ts";
 import { createApp } from "./app.ts";
 import { createIdentityStore, type IdentityStore } from "./identity.ts";
@@ -14,6 +15,7 @@ export type LocalServerOptions = {
   schemaVersion?: number;
   identity?: IdentityStore;
   calendar?: CalendarStore;
+  sales?: SaleStore;
 };
 
 export type LocalServer = {
@@ -44,7 +46,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const registry = createConnectionRegistry();
   const identity = options.identity ?? createIdentityStore({ events: { deviceRevoked: (deviceId) => registry.closeDevice(deviceId) } });
   const calendar = options.calendar ?? createCalendarStore();
-  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar);
+  const sales = options.sales ?? createSaleStore(calendar);
+  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales);
   const websocketServer = new WebSocketServer({ noServer: true });
 
   return {

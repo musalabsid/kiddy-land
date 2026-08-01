@@ -1,0 +1,53 @@
+import { randomBytes } from "node:crypto";
+import type { CalendarStore, PackageSnapshot } from "./calendar.ts";
+
+export const PAYMENT_METHODS = ["cash", "QRIS", "bank-transfer"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export type TicketLineInput = { childId: string; childName?: string; packageId: string };
+export type SaleStatus = "completed" | "void";
+export type TicketRecord = { id: string; code: string; qrToken: string; childId: string; childName?: string; package: PackageSnapshot; status: "waiting" };
+export type ReceiptRecord = { id: string; number: string; saleId: string; locale: "id" | "en"; total: number };
+export type SaleRecord = { id: string; idempotencyKey: string; cashierId: string; operatingDate: string; paymentMethod: PaymentMethod; status: SaleStatus; tickets: TicketRecord[]; receipt: ReceiptRecord; total: number; createdAt: number };
+export type PrintAttempt = { id: string; saleId: string; artifact: "tickets" | "receipt"; status: "requested" | "unknown" | "failed"; reprint: boolean; actorId: string; reason?: string; at: number };
+
+function id(prefix: string) { return `${prefix}_${randomBytes(12).toString("hex")}`; }
+function opaque() { return `kp1.${randomBytes(24).toString("base64url")}`; }
+function pdf(title: string, body: string) { const text = `${title}\\n${body}`.replace(/[()\\]/g, ""); return `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R>>endobj\n4 0 obj<</Length ${text.length + 35}>>stream\nBT /F1 12 Tf 50 740 Td (${text}) Tj ET\nendstream\nendobj\ntrailer<</Root 1 0 R>>\n%%EOF`; }
+
+export function createSaleStore(calendar: CalendarStore) {
+  const sales = new Map<string, SaleRecord>();
+  const idempotency = new Map<string, SaleRecord>();
+  const printAttempts: PrintAttempt[] = [];
+  let receiptSequence = 0;
+
+  function complete(input: { idempotencyKey: string; cashierId: string; operatingDate: string; lines: TicketLineInput[]; paymentMethod: PaymentMethod; locale?: "id" | "en" }) {
+    const existing = idempotency.get(input.idempotencyKey);
+    if (existing) return existing;
+    if (!input.idempotencyKey || input.lines.length === 0) throw new Error("Sale requires at least one Ticket Line");
+    if (!PAYMENT_METHODS.includes(input.paymentMethod)) throw new Error("Unsupported payment method");
+    const snapshots = input.lines.map((line) => {
+      if (!line.childId || !line.packageId) throw new Error("Ticket Line requires child and package");
+      return calendar.snapshot(line.packageId, input.operatingDate);
+    });
+    const total = snapshots.reduce((sum, item) => sum + item.price, 0);
+    const saleId = id("sale");
+    const tickets = input.lines.map((line, index) => ({ id: id("ticket"), code: `T-${Date.now().toString(36).toUpperCase()}-${index + 1}`, qrToken: opaque(), childId: line.childId, childName: line.childName, package: snapshots[index]!, status: "waiting" as const }));
+    const receipt: ReceiptRecord = { id: id("receipt"), number: `R-${String(++receiptSequence).padStart(8, "0")}`, saleId, locale: input.locale ?? "id", total };
+    const sale: SaleRecord = { id: saleId, idempotencyKey: input.idempotencyKey, cashierId: input.cashierId, operatingDate: input.operatingDate, paymentMethod: input.paymentMethod, status: "completed", tickets, receipt, total, createdAt: Date.now() };
+    sales.set(sale.id, sale); idempotency.set(input.idempotencyKey, sale);
+    return sale;
+  }
+  function get(idValue: string) { return sales.get(idValue); }
+  function recordPrintAttempt(input: { saleId: string; artifact: "tickets" | "receipt"; actorId: string; status: PrintAttempt["status"]; reprint?: boolean; reason?: string }) {
+    const sale = sales.get(input.saleId); if (!sale || sale.status !== "completed") throw new Error("Sale unavailable");
+    const attempt: PrintAttempt = { id: id("print"), ...input, reprint: input.reprint ?? false, at: Date.now() }; printAttempts.push(attempt); return attempt;
+  }
+  function artifact(saleId: string, kind: "tickets" | "receipt") {
+    const sale = sales.get(saleId); if (!sale || sale.status !== "completed") throw new Error("Sale unavailable");
+    if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: pdf("Receipt", `${sale.receipt.number} IDR ${sale.total}`) };
+    return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: pdf("Tickets", sale.tickets.map((ticket) => `${ticket.code} ${ticket.qrToken}`).join(" | ")) };
+  }
+  return { sales, printAttempts, complete, get, recordPrintAttempt, artifact };
+}
+
+export type SaleStore = ReturnType<typeof createSaleStore>;

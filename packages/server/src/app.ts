@@ -2,6 +2,7 @@ import { upgradeWebSocket } from "@hono/node-server";
 import { Hono } from "hono";
 import type { DeviceMode, IdentityStore } from "./identity.ts";
 import type { CalendarStore } from "./calendar.ts";
+import type { SaleStore } from "./sale.ts";
 import { authorizeWebSocket, type WebSocketRegistry } from "./realtime.ts";
 
 export type HealthStatus = "starting" | "ready" | "unhealthy" | "fatal";
@@ -19,6 +20,7 @@ export function createApp(
   identity?: IdentityStore,
   realtime?: { origin: string; registry: WebSocketRegistry },
   calendar?: CalendarStore,
+  sales?: SaleStore,
 ) {
   const app = new Hono();
 
@@ -33,15 +35,32 @@ export function createApp(
 
   if (calendar) {
     app.get("/calendar/config", (c) => c.json({ timezone: calendar.timezone, weekly: calendar.weekly, overrides: [...calendar.overrides.values()], packages: [...calendar.packages.values()], audit: calendar.audit }));
+  }
+
+  if (sales) {
+    app.post("/sales", async (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.device.mode !== "Cashier" || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
+      try { return c.json(sales.complete(await c.req.json()), 201); } catch { return c.json({ error: "Sale cannot be completed" }, 409); }
+    });
+    app.get("/sales/:id", (c) => { const sale = sales.get(c.req.param("id")); return sale ? c.json(sale) : c.json({ error: "Sale not found" }, 404); });
+    app.get("/sales/:id/artifacts/:kind", (c) => {
+      try { const artifact = sales.artifact(c.req.param("id"), c.req.param("kind") as "tickets" | "receipt"); return new Response(artifact.body, { headers: { "Content-Type": artifact.contentType, "Content-Disposition": `inline; filename="${artifact.filename}"` } }); } catch { return c.json({ error: "Artifact unavailable" }, 404); }
+    });
+    app.post("/sales/:id/print-attempts", async (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
+      try { return c.json(sales.recordPrintAttempt({ ...(await c.req.json()), saleId: c.req.param("id") }), 201); } catch { return c.json({ error: "Print attempt cannot be recorded" }, 409); }
+    });
     app.get("/calendar/schedule", (c) => {
       const date = c.req.query("date");
       if (!date) return c.json({ error: "date is required" }, 400);
-      try { return c.json(calendar.effectiveSchedule(date)); } catch { return c.json({ error: "Invalid date" }, 400); }
+      try { return c.json(calendar!.effectiveSchedule(date)); } catch { return c.json({ error: "Invalid date" }, 400); }
     });
     app.get("/calendar/packages/:id/snapshot", (c) => {
       const date = c.req.query("date");
       if (!date) return c.json({ error: "date is required" }, 400);
-      try { return c.json(calendar.snapshot(c.req.param("id"), date)); } catch { return c.json({ error: "Package unavailable or venue closed" }, 409); }
+      try { return c.json(calendar!.snapshot(c.req.param("id"), date)); } catch { return c.json({ error: "Package unavailable or venue closed" }, 409); }
     });
   }
 
