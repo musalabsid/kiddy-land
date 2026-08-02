@@ -5,6 +5,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
+function calendarForValidation() { const calendar = createCalendarStore(); calendar.setWeeklyHours("monday", { open: "10:00", close: "20:00" }, "owner"); return calendar; }
+
 describe("venue calendar and ticket packages", () => {
   test("derives venue-local operating dates and schedule overrides", () => {
     const calendar = createCalendarStore({ timezone: "Asia/Jakarta" });
@@ -46,6 +48,7 @@ describe("venue calendar and ticket packages", () => {
   });
 
   test("validates unlimited packages and operating boundaries", () => {
+    expect(() => calendarForValidation().upsertPackage({ name: "Bad", includedMinutes: 60, weekdayPrice: 1, weekendPrice: 1, overridePrices: { "2024-01-01": -1 }, overtimeRate: 0, deposit: 0, depositPolicy: "return-remainder" }, "owner")).toThrow();
     const calendar = createCalendarStore();
     expect(() => calendar.upsertPackage({ name: "Unlimited", includedMinutes: 60, weekdayPrice: 1, weekendPrice: 1, overridePrices: {}, overtimeRate: 0, deposit: 0, depositPolicy: "unlimited-cap" }, "owner")).toThrow();
     calendar.setWeeklyHours("monday", { open: "10:00", close: "20:00" }, "owner");

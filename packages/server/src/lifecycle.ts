@@ -29,8 +29,9 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) 
     if (!ticket) return { ok: false, state: "unknown", message: "Ticket not found" };
     const current = state(ticket);
     if (current !== "waiting") return { ok: false, state: current, message: current === "active" ? "Ticket already admitted" : "Ticket cannot be admitted", ticket, session: sessions.get(ticket.id) };
-    const schedule = calendar.effectiveSchedule(new Date(at).toISOString().slice(0, 10));
-    if ("closed" in schedule.hours) { ticket.status = "expired" as never; events.push({ type: "expired", ticketId: ticket.id, at, details: { reason: schedule.closureReason } }); return { ok: false, state: "expired", message: schedule.closureReason ?? "Venue is closed", ticket }; }
+    const date = calendar.operatingDate(new Date(at));
+    const operation = calendar.canOperate(date, calendar.operatingTime(new Date(at)), "admit");
+    if (!operation.allowed) { ticket.status = "expired" as never; events.push({ type: "expired", ticketId: ticket.id, at, details: { reason: operation.reason } }); return { ok: false, state: "expired", message: operation.reason, ticket }; }
     const session: PlaySession = { id: id(), ticketId: ticket.id, enteredAt: at, status: "active", overtimeMinutes: 0, outstandingCharge: 0, depositApplied: 0, depositRefunded: 0 };
     ticket.status = "active" as never; sessions.set(ticket.id, session); events.push({ type: "admitted", ticketId: ticket.id, at });
     return { ok: true, state: "active", message: "Ticket admitted", ticket, session };
@@ -69,9 +70,11 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) 
   }
   function close(date: string, at: number) {
     const result: ScanResult[] = [];
+    const schedule = calendar.effectiveSchedule(date);
+    const reason = schedule.closureReason ?? ("closed" in schedule.hours ? "Venue is closed" : "Venue closed");
     for (const sale of sales.sales.values()) if (sale.operatingDate === date) for (const ticket of sale.tickets) {
       if (state(ticket) === "active") { const session = sessions.get(ticket.id)!; const end = exit(ticket.code, at); session.status = "auto-closed"; events.push({ type: "auto-closed", ticketId: ticket.id, at, details: end.session }); result.push(end); }
-      else if (state(ticket) === "waiting") { ticket.status = "expired" as never; events.push({ type: "expired", ticketId: ticket.id, at, details: { reason: "Venue closed" } }); result.push({ ok: false, state: "expired", message: "Ticket expired at closing", ticket }); }
+      else if (state(ticket) === "waiting") { ticket.status = "expired" as never; events.push({ type: "expired", ticketId: ticket.id, at, details: { reason } }); result.push({ ok: false, state: "expired", message: `Ticket expired: ${reason}`, ticket }); }
     }
     return result;
   }

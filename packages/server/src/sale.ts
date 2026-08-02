@@ -22,10 +22,14 @@ export function createSaleStore(calendar: CalendarStore) {
   const printAttempts: PrintAttempt[] = [];
   let receiptSequence = 0;
 
-  function complete(input: { idempotencyKey: string; cashierId: string; operatingDate: string; lines: TicketLineInput[]; paymentMethod: PaymentMethod; locale?: "id" | "en" }) {
+  function complete(input: { idempotencyKey: string; cashierId: string; operatingDate: string; at?: number; lines: TicketLineInput[]; paymentMethod: PaymentMethod; locale?: "id" | "en" }) {
     const existing = idempotency.get(input.idempotencyKey);
     if (existing) return existing;
     if (!input.idempotencyKey || input.lines.length === 0) throw new Error("Sale requires at least one Ticket Line");
+    if (input.at !== undefined) {
+      const operation = calendar.canOperate(input.operatingDate, calendar.operatingTime(new Date(input.at)), "sell");
+      if (!operation.allowed) throw new Error(operation.reason);
+    }
     if (!PAYMENT_METHODS.includes(input.paymentMethod)) throw new Error("Unsupported payment method");
     const snapshots = input.lines.map((line) => {
       if (!line.childId || !line.packageId) throw new Error("Ticket Line requires child and package");

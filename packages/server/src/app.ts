@@ -36,7 +36,11 @@ export function createApp(
   });
 
   if (calendar) {
-    app.get("/calendar/config", (c) => c.json({ timezone: calendar.timezone, weekly: calendar.weekly, overrides: [...calendar.overrides.values()], packages: [...calendar.packages.values()], audit: calendar.audit }));
+    app.get("/calendar/config", (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401);
+      return c.json({ timezone: calendar.timezone, weekly: calendar.weekly, overrides: [...calendar.overrides.values()], packages: [...calendar.packages.values()], audit: calendar.audit });
+    });
   }
 
   if (lifecycle) {
