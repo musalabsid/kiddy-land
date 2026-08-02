@@ -134,5 +134,7 @@
   "scanner.serverAuthority": "Local Server is authoritative",
   "scanner.recovery": "Lost QR recovery",
   "scanner.childId": "Child ID",
-  "scanner.recover": "Recover ticket"
+  "scanner.recover": "Recover ticket",
+  "scanner.collectCharge": "Collect outstanding charge",
+  "scanner.collect": "Collect charge"
 }

@@ -134,5 +134,7 @@
   "scanner.serverAuthority": "Local Server adalah sumber kebenaran",
   "scanner.recovery": "Pemulihan QR hilang",
   "scanner.childId": "ID anak",
-  "scanner.recover": "Pulihkan tiket"
+  "scanner.recover": "Pulihkan tiket",
+  "scanner.collectCharge": "Tagih biaya tertunggak",
+  "scanner.collect": "Tagih biaya"
 }

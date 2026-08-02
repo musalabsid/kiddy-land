@@ -60,6 +60,11 @@ export function createApp(
       const body = await c.req.json<{ date: string; at?: number }>();
       return c.json(lifecycle.close(body.date, body.at ?? Date.now()));
     });
+    app.post("/tickets/:id/collect-charge", async (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.device.mode !== "Cashier" || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
+      try { const body = await c.req.json<{ amount: number; paymentMethod: "cash" | "QRIS" | "bank-transfer" }>(); return c.json(lifecycle.collectOutstanding(c.req.param("id"), body.amount, body.paymentMethod)); } catch { return c.json({ error: "Charge cannot be collected" }, 409); }
+    });
     app.post("/tickets/:id/waive-charge", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);

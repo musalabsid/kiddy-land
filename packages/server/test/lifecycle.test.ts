@@ -31,6 +31,16 @@ describe("ticket and play session lifecycle", () => {
     expect(lifecycle.exit(ticket.code).message).toBe("Ticket already settled");
   });
 
+  test("collects the exact outstanding charge once", () => {
+    const { lifecycle, ticket } = fixture();
+    lifecycle.admit(ticket.code, Date.parse("2024-01-01T10:00:00Z"));
+    const exited = lifecycle.exit(ticket.code, Date.parse("2024-01-01T11:30:00Z"));
+    const collected = lifecycle.collectOutstanding(ticket.id, exited.session!.outstandingCharge, "cash");
+    expect(collected.amount).toBe(10000);
+    expect(collected.session.outstandingCharge).toBe(0);
+    expect(() => lifecycle.collectOutstanding(ticket.id, 1, "cash")).toThrow("No outstanding charge");
+  });
+
   test("unlimited package has no overtime during play", () => {
     const { lifecycle, ticket } = fixture(null, "unlimited-cap");
     lifecycle.admit(ticket.code, Date.parse("2024-01-01T10:00:00Z"));

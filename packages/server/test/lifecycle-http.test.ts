@@ -36,6 +36,9 @@ describe("ticket lifecycle HTTP contract", () => {
     const duplicateExit = await json(app, "/tickets/scan/exit", { method: "POST", headers: { authorization: `Bearer ${exitLogin.body.token}` }, body: JSON.stringify({ code: sale.tickets[0]!.code }) });
     expect(duplicateExit.body.message).toBe("Ticket already settled");
 
+    const collectAttempt = await json(app, "/tickets/" + sale.tickets[0]!.id + "/collect-charge", { method: "POST", headers: { authorization: `Bearer ${exitLogin.body.token}` }, body: JSON.stringify({ amount: 1, paymentMethod: "cash" }) });
+    expect(collectAttempt.response.status).toBe(403);
+
     const recovery = await json(app, "/tickets/recover", { method: "POST", headers: auth, body: JSON.stringify({ code: sale.tickets[0]!.code, childId: "child-1" }) });
     expect(recovery.body.ticketId).toBe(sale.tickets[0]!.id); expect(recovery.body.qrToken).toBe(sale.tickets[0]!.qrToken);
   });

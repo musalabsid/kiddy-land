@@ -5,7 +5,7 @@ import type { LocalDatabase } from "./database.ts";
 import { sql } from "drizzle-orm";
 
 export type TicketState = "waiting" | "active" | "completed" | "void" | "expired";
-export type SessionEvent = { type: "admitted" | "exited" | "auto-closed" | "expired" | "charge-waived"; ticketId: string; at: number; details?: unknown };
+export type SessionEvent = { type: "admitted" | "exited" | "auto-closed" | "expired" | "charge-waived" | "charge-collected"; ticketId: string; at: number; details?: unknown };
 export type RecoveryResult = { ticketId: string; code: string; qrToken: string };
 export type PlaySession = { id: string; ticketId: string; enteredAt: number; exitedAt?: number; status: "active" | "completed" | "auto-closed"; overtimeMinutes: number; outstandingCharge: number; depositApplied: number; depositRefunded: number };
 export type ScanResult = { ok: boolean; state: TicketState | "unknown"; message: string; ticket?: TicketRecord; session?: PlaySession };
@@ -74,6 +74,14 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
     const ticket = findTicket(code); if (!ticket || ticket.childId !== childId) throw new Error("Ticket recovery verification failed");
     const replacement = randomBytes(8).toString("hex").toUpperCase(); recoveryCodes.set(replacement, ticket.id); persist(); return { ticketId: ticket.id, code: replacement, qrToken: ticket.qrToken };
   }
+  function collectOutstanding(ticketId: string, amount: number, paymentMethod: "cash" | "QRIS" | "bank-transfer", at = Date.now()) {
+    if (!Number.isInteger(amount) || amount <= 0) throw new Error("Charge amount must be a positive IDR integer");
+    const session = sessions.get(ticketId); if (!session || session.outstandingCharge <= 0) throw new Error("No outstanding charge");
+    if (amount !== session.outstandingCharge) throw new Error("Charge amount must match outstanding charge");
+    const collected = session.outstandingCharge; session.outstandingCharge = 0;
+    events.push({ type: "charge-collected", ticketId, at, details: { amount: collected, paymentMethod } }); persist();
+    return { ticketId, amount: collected, paymentMethod, collectedAt: at, session };
+  }
   function waiveOutstanding(ticketId: string, actorRole: string, reason: string, at = Date.now()) {
     if (actorRole !== "Owner" || !reason.trim()) throw new Error("Owner reason required");
     const session = sessions.get(ticketId); if (!session || session.outstandingCharge <= 0) throw new Error("No outstanding charge");
@@ -91,7 +99,7 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
     }
     return result;
   }
-  return { sessions, events, findTicket, admit, exit, recover, waiveOutstanding, close };
+  return { sessions, events, findTicket, admit, exit, recover, collectOutstanding, waiveOutstanding, close };
 }
 
 export type LifecycleStore = ReturnType<typeof createLifecycleStore>;
