@@ -14,4 +14,6 @@ export const clientQueryKeys = {
   session: ["auth", "session"] as const,
   calendarConfig: ["calendar", "config"] as const,
   calendarSchedule: ["calendar", "schedule"] as const,
+  sales: ["sales"] as const,
+  sale: ["sales", "detail"] as const,
 };

@@ -76,7 +76,7 @@ export function createApp(
     app.post("/sales", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.device.mode !== "Cashier" || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
-      try { const body = await c.req.json(); return c.json(sales.complete({ ...body, at: Date.now() }), 201); } catch { return c.json({ error: "Sale cannot be completed" }, 409); }
+      try { const body = await c.req.json(); return c.json(sales.complete({ ...body, cashierId: current.user?.id ?? "cashier", at: Date.now() }), 201); } catch { return c.json({ error: "Sale cannot be completed" }, 409); }
     });
     app.get("/sales/:id", (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
@@ -91,7 +91,7 @@ export function createApp(
     app.post("/sales/:id/print-attempts", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
-      try { return c.json(sales.recordPrintAttempt({ ...(await c.req.json()), saleId: c.req.param("id") }), 201); } catch { return c.json({ error: "Print attempt cannot be recorded" }, 409); }
+      try { const body = await c.req.json(); return c.json(sales.recordPrintAttempt({ ...body, saleId: c.req.param("id"), actorId: current.user?.id ?? "cashier" }), 201); } catch { return c.json({ error: "Print attempt cannot be recorded" }, 409); }
     });
   }
 

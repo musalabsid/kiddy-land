@@ -35,7 +35,7 @@ function now() { return Date.now(); }
 export function createLocalServer(options: LocalServerOptions): LocalServer {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 43117;
-  const schemaVersion = options.schemaVersion ?? 1;
+  const schemaVersion = options.schemaVersion ?? 2;
   const startedAt = now();
   let status: HealthReport["status"] = "starting";
   let databaseStatus: HealthReport["database"] = "unhealthy";
@@ -46,7 +46,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const ownsDatabase = !options.database;
   const database = options.database ?? openLocalDatabase(`${options.dataDir}/kiddy-land.sqlite`);
   const calendar = options.calendar ?? createCalendarStore({ database });
-  const sales = options.sales ?? createSaleStore(calendar);
+  const sales = options.sales ?? createSaleStore(calendar, database);
   const lifecycle = options.lifecycle ?? createLifecycleStore(sales, calendar);
   const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle);
   const websocketServer = new WebSocketServer({ noServer: true });

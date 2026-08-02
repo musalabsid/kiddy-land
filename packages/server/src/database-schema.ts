@@ -14,3 +14,11 @@ export const calendarState = sqliteTable("calendar_state", {
   auditJson: text("audit_json").notNull(),
   updatedAt: integer("updated_at", { mode: "number" }).notNull(),
 });
+
+export const salesState = sqliteTable("sales_state", {
+  id: integer("id").primaryKey(),
+  salesJson: text("sales_json").notNull(),
+  printAttemptsJson: text("print_attempts_json").notNull(),
+  receiptSequence: integer("receipt_sequence").notNull(),
+  updatedAt: integer("updated_at", { mode: "number" }).notNull(),
+});

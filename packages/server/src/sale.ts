@@ -1,5 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { CalendarStore, PackageSnapshot } from "./calendar.ts";
+import type { LocalDatabase } from "./database.ts";
+import { sql } from "drizzle-orm";
 
 export const PAYMENT_METHODS = ["cash", "QRIS", "bank-transfer"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
@@ -14,13 +16,18 @@ export type PrintAttempt = { id: string; saleId: string; artifact: "tickets" | "
 
 function id(prefix: string) { return `${prefix}_${randomBytes(12).toString("hex")}`; }
 function opaque() { return `kp1.${randomBytes(24).toString("base64url")}`; }
-function pdf(title: string, body: string) { const text = `${title}\\n${body}`.replace(/[()\\]/g, ""); return `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 4 0 R>>endobj\n4 0 obj<</Length ${text.length + 35}>>stream\nBT /F1 12 Tf 50 740 Td (${text}) Tj ET\nendstream\nendobj\ntrailer<</Root 1 0 R>>\n%%EOF`; }
+function pdf(title: string, lines: string[], width = 612, height = 792) { const text = [title, ...lines].map((line) => line.replace(/[()\\]/g, "")).join("\\n"); const stream = `BT /F1 10 Tf 36 ${height - 40} Td (${text.replace(/\\n/g, ") Tj 0 -14 Td (")}) Tj ET`; return `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${width} ${height}]/Resources<</Font<</F1 4 0 R>>>>/Contents 5 0 R>>endobj\n4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n5 0 obj<</Length ${Buffer.byteLength(stream, "utf8")}>>stream\n${stream}\nendstream\nendobj\ntrailer<</Root 1 0 R>>\n%%EOF`; }
 
-export function createSaleStore(calendar: CalendarStore) {
+export function createSaleStore(calendar: CalendarStore, database?: LocalDatabase) {
   const sales = new Map<string, SaleRecord>();
   const idempotency = new Map<string, SaleRecord>();
   const printAttempts: PrintAttempt[] = [];
   let receiptSequence = 0;
+  if (database) {
+    const row = database.orm.all<{ sales: string; attempts: string; sequence: number }>(sql`SELECT sales_json AS sales, print_attempts_json AS attempts, receipt_sequence AS sequence FROM sales_state WHERE id = 1`)[0];
+    if (row) { for (const sale of JSON.parse(row.sales) as SaleRecord[]) { sales.set(sale.id, sale); idempotency.set(sale.idempotencyKey, sale); } printAttempts.push(...JSON.parse(row.attempts) as PrintAttempt[]); receiptSequence = row.sequence; }
+  }
+  const persist = () => { if (!database) return; database.orm.run(sql`UPDATE sales_state SET sales_json = ${JSON.stringify([...sales.values()])}, print_attempts_json = ${JSON.stringify(printAttempts)}, receipt_sequence = ${receiptSequence}, updated_at = ${Date.now()} WHERE id = 1`); };
 
   function complete(input: { idempotencyKey: string; cashierId: string; operatingDate: string; at?: number; lines: TicketLineInput[]; paymentMethod: PaymentMethod; locale?: "id" | "en" }) {
     const existing = idempotency.get(input.idempotencyKey);
@@ -44,18 +51,18 @@ export function createSaleStore(calendar: CalendarStore) {
     const deposits = tickets.map((ticket) => ({ ticketId: ticket.id, amount: ticket.package.deposit, status: "held" as const }));
     const receipt: ReceiptRecord = { id: id("receipt"), number: `R-${String(++receiptSequence).padStart(8, "0")}`, saleId, locale: input.locale ?? "id", lines: receiptLines, total };
     const sale: SaleRecord = { id: saleId, idempotencyKey: input.idempotencyKey, cashierId: input.cashierId, operatingDate: input.operatingDate, paymentMethod: input.paymentMethod, paymentConfirmedAt: Date.now(), status: "completed", tickets, deposits, receipt, total, createdAt: Date.now() };
-    sales.set(sale.id, sale); idempotency.set(input.idempotencyKey, sale);
+    sales.set(sale.id, sale); idempotency.set(input.idempotencyKey, sale); persist();
     return sale;
   }
   function get(idValue: string) { return sales.get(idValue); }
   function recordPrintAttempt(input: { saleId: string; artifact: "tickets" | "receipt"; actorId: string; status: PrintAttempt["status"]; reprint?: boolean; reason?: string }) {
     const sale = sales.get(input.saleId); if (!sale || sale.status !== "completed") throw new Error("Sale unavailable");
-    const attempt: PrintAttempt = { id: id("print"), ...input, reprint: input.reprint ?? false, at: Date.now() }; printAttempts.push(attempt); return attempt;
+    const attempt: PrintAttempt = { id: id("print"), ...input, reprint: input.reprint ?? false, at: Date.now() }; printAttempts.push(attempt); persist(); return attempt;
   }
   function artifact(saleId: string, kind: "tickets" | "receipt") {
     const sale = sales.get(saleId); if (!sale || sale.status !== "completed") throw new Error("Sale unavailable");
-    if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: pdf("Receipt", `${sale.receipt.number} IDR ${sale.total}`) };
-    return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: pdf("Tickets", sale.tickets.map((ticket) => `${ticket.code} ${ticket.qrToken}`).join(" | ")) };
+    if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: pdf("Receipt", [sale.receipt.number, ...sale.receipt.lines.map((line) => `${line.packageName} ${line.childId} IDR ${line.price} deposit IDR ${line.deposit}`), `TOTAL IDR ${sale.total}`], 227, 500) };
+    return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: pdf("Tickets", sale.tickets.flatMap((ticket) => [`CHILD: ${ticket.childName ?? ticket.childId}`, `TICKET: ${ticket.code}`, `QR: ${ticket.qrToken}`, `PACKAGE: ${ticket.package.name}`, "--------------------"]), 612, Math.max(792, sale.tickets.length * 120)) };
   }
   return { sales, printAttempts, complete, get, recordPrintAttempt, artifact };
 }
