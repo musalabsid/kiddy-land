@@ -12,4 +12,6 @@ export function createClientQueryClient() {
 export const clientQueryKeys = {
   host: ["host", "ready"] as const,
   session: ["auth", "session"] as const,
+  calendarConfig: ["calendar", "config"] as const,
+  calendarSchedule: ["calendar", "schedule"] as const,
 };
