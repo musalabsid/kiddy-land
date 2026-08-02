@@ -14,4 +14,15 @@ export function LoginScreen() {
   const { t } = useLocale(); const mutation = useLoginMutation(); const { pairedDevice } = useSession(); const [username, setUsername] = React.useState(""); const [password, setPassword] = React.useState("");
   return <Card><CardHeader><CardTitle>{t("auth.loginTitle")}</CardTitle><CardDescription>{t("auth.loginDescription")}</CardDescription></CardHeader><CardContent><form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); if (pairedDevice) mutation.mutate({ deviceId: pairedDevice.id, username, password }); }}><label className="grid gap-1 text-xs"><span>{t("auth.username")}</span><input aria-label={t("auth.username")} className="h-9 border border-input bg-background px-2 text-sm" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" required /></label><label className="grid gap-1 text-xs"><span>{t("auth.password")}</span><input aria-label={t("auth.password")} className="h-9 border border-input bg-background px-2 text-sm" value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" required /></label><Button type="submit" disabled={mutation.isPending || !pairedDevice}>{t("auth.login")}</Button>{mutation.isError && <p role="alert" className="text-xs text-destructive">{t("auth.invalidCredentials")}</p>}</form></CardContent></Card>;
 }
-export function AuthScreen({ origin, children }: { origin: string; children?: React.ReactNode }) { const { session, pairedDevice } = useSession(); if (session) return <>{children}</>; return <main className="grid min-h-screen place-items-center bg-background p-6"><div className="w-full max-w-sm">{pairedDevice?.kind === "private" ? <LoginScreen /> : <PairingScreen origin={origin} />}</div></main>; }
+export function AuthScreen({ origin, children }: { origin: string; children?: React.ReactNode }) {
+  const { session, pairedDevice } = useSession();
+  if (session) return <>{children}</>;
+
+  return (
+    <main className="flex min-h-[100dvh] w-full items-center justify-center bg-background p-6">
+      <div className="mx-auto w-full max-w-sm">
+        {pairedDevice?.kind === "private" ? <LoginScreen /> : <PairingScreen origin={origin} />}
+      </div>
+    </main>
+  );
+}
