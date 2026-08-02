@@ -10,6 +10,7 @@
   "scripts": {
     "check-types": "tsc --noEmit",
     "test": "bun test",
+    "dev": "bun run src/host.ts",
     "start": "bun run src/host.ts"
   },
   "dependencies": {
