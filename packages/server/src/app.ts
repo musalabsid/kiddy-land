@@ -10,6 +10,7 @@ import type { ReportService } from "./reports.ts";
 import { reportCsv, reportPdf } from "./report-export.ts";
 import { publishReportEvent } from "./realtime.ts";
 import { authorizeWebSocket, type WebSocketRegistry } from "./realtime.ts";
+import type { NotificationService } from "./notifications.ts";
 
 export type HealthStatus = "starting" | "ready" | "unhealthy" | "fatal";
 
@@ -31,6 +32,7 @@ export function createApp(
   inventory?: InventoryStore,
   membership?: MembershipStore,
   reports?: ReportService,
+  notifications?: NotificationService,
 ) {
   const app = new Hono();
 
@@ -207,8 +209,9 @@ export function createApp(
                 ws.close(1008, "revoked");
                 return;
               }
-              const unregister = realtime.registry.register(decision.deviceId, { close: () => ws.close(), send: (value) => ws.send(value) });
+              const unregister = realtime.registry.register(decision.deviceId, { close: (code, reason) => ws.close(code, reason), send: (value) => ws.send(value) });
               ws.send(JSON.stringify({ type: "connected", deviceId: decision.deviceId }));
+              notifications?.deviceConnected(decision.deviceId);
               (ws as unknown as { __unregister?: () => void }).__unregister = unregister;
             },
             onClose: (_event, ws) => (ws as unknown as { __unregister?: () => void }).__unregister?.(),
@@ -221,6 +224,35 @@ export function createApp(
         }),
       );
     }
+    app.get("/notifications/settings", (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || !identity.can(current, "read")) return c.json({ error: "Unauthorized" }, 401);
+      return c.json(notifications?.settings.get(current.device.id) ?? { soundEnabled: true });
+    });
+    app.patch("/notifications/settings", async (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || !identity.can(current, "read")) return c.json({ error: "Unauthorized" }, 401);
+      return c.json(notifications?.configure(current.device.id, await c.req.json<{ soundEnabled?: boolean }>()));
+    });
+    app.post("/notifications/check", (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      notifications?.check(); return c.json({ ok: true });
+    });
+    app.get("/notifications/routes", (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      return c.json(notifications?.routes ?? {});
+    });
+    app.patch("/notifications/routes/:kind", async (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      try {
+        const body = await c.req.json<{ modes: DeviceMode[] }>();
+        if (!Array.isArray(body.modes)) return c.json({ error: "modes must be an array" }, 400);
+        return c.json(notifications?.configureRoutes(c.req.param("kind") as Parameters<NonNullable<NotificationService>["configureRoutes"]>[0], body.modes));
+      } catch { return c.json({ error: "Route configuration is invalid" }, 400); }
+    });
     app.post("/pairing/invitations", async (c) => {
       const body = await c.req.json<{ origin?: string; kind?: "private" | "public-kiosk" }>();
       if (!body.origin) return c.json({ error: "origin is required" }, 400);

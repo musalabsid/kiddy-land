@@ -13,6 +13,7 @@ import { openLocalDatabase, type LocalDatabase } from "./database.ts";
 import { createReportService, type ReportService } from "./reports.ts";
 import { publishReportEvent } from "./realtime.ts";
 import { createMembershipStore, type MembershipStore } from "./membership.ts";
+import { createNotificationService, type NotificationService } from "./notifications.ts";
 
 export type LocalServerOptions = {
   dataDir: string;
@@ -26,6 +27,7 @@ export type LocalServerOptions = {
   inventory?: InventoryStore;
   membership?: MembershipStore;
   reports?: ReportService;
+  notifications?: NotificationService;
   database?: LocalDatabase;
 };
 
@@ -58,7 +60,9 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const sales = options.sales ?? createSaleStore(calendar, database, inventory, membership);
   const lifecycle = options.lifecycle ?? createLifecycleStore(sales, calendar, database);
   const reports = options.reports ?? createReportService(calendar, sales, lifecycle, inventory, membership);
-  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle, inventory, membership, reports);
+  const notifications = options.notifications ?? createNotificationService(identity, registry, lifecycle, inventory);
+  const notificationTimer = setInterval(() => notifications.check(), 30_000);
+  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle, inventory, membership, reports, notifications);
   publishReportEvent(registry, { type: "report-changed", source: "server-ready" });
   const websocketServer = new WebSocketServer({ noServer: true });
 
@@ -80,6 +84,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       });
     },
     async stop(timeoutMs = 5_000) {
+      clearInterval(notificationTimer);
       if (!httpServer) { if (ownsDatabase) database.close(); return; }
       status = "starting";
       const server = httpServer; httpServer = undefined;

@@ -1,5 +1,5 @@
 import type { ConnectionRegistry } from "./connection.ts";
-export type WebSocketRegistry = ConnectionRegistry & { broadcast?: (event: unknown) => void };
+export type WebSocketRegistry = ConnectionRegistry & { broadcast?: (event: unknown) => void; sendDevice?: (deviceId: string, event: unknown) => void };
 import type { IdentityStore } from "./identity.ts";
 
 export type WebSocketDecision = { allowed: true; deviceId: string } | { allowed: false; reason: "unauthorized" | "origin-denied" };
@@ -9,7 +9,7 @@ export function authorizeWebSocket(
   registry: ConnectionRegistry,
   headers: { authorization?: string; accessToken?: string; origin?: string },
   expectedOrigin: string,
-  _socket: { close: () => void },
+  _socket: { close: (code?: number, reason?: string) => void },
 ): WebSocketDecision {
   if (headers.origin !== expectedOrigin) return { allowed: false, reason: "origin-denied" };
   const bearerToken = headers.authorization?.replace(/^Bearer /, "");
