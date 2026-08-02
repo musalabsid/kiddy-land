@@ -76,7 +76,7 @@ export function createApp(
     app.post("/sales", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.device.mode !== "Cashier" || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
-      try { return c.json(sales.complete(await c.req.json()), 201); } catch { return c.json({ error: "Sale cannot be completed" }, 409); }
+      try { const body = await c.req.json(); return c.json(sales.complete({ ...body, at: Date.now() }), 201); } catch { return c.json({ error: "Sale cannot be completed" }, 409); }
     });
     app.get("/sales/:id", (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
@@ -176,13 +176,8 @@ export function createApp(
       if (!calendar) return c.json({ error: "Calendar unavailable" }, 503);
       if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
       const body = await c.req.json<{ timezone?: string; day?: import("./calendar.ts").Weekday; hours?: import("./calendar.ts").DailyHours; override?: import("./calendar.ts").ScheduleOverride; package?: Parameters<CalendarStore["upsertPackage"]>[0] }>();
-      try {
-        if (body.timezone) calendar?.setTimezone(body.timezone, current.user.id);
-        if (body.day && body.hours) calendar?.setWeeklyHours(body.day, body.hours, current.user.id);
-        if (body.override) calendar?.setOverride(body.override, current.user.id);
-        if (body.package) calendar?.upsertPackage(body.package, current.user.id);
-        return c.json({ ok: true });
-      } catch { return c.json({ error: "Invalid calendar configuration" }, 400); }
+      try { calendar.configure(body, current.user.id); return c.json({ ok: true }); }
+      catch { return c.json({ error: "Invalid calendar configuration" }, 400); }
     });
   }
 

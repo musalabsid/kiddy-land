@@ -29,6 +29,10 @@ describe("cashier ticket sale", () => {
     store.recordPrintAttempt({ saleId: sale.id, artifact: "tickets", actorId: "cashier", status: "unknown" });
     expect(store.get(sale.id)?.tickets).toHaveLength(1);
   });
+  test("rejects sales outside the venue operating window", () => {
+    const { store, pkg } = fixture();
+    expect(() => store.complete({ idempotencyKey: "closed", cashierId: "cashier", operatingDate: "2024-01-01", at: Date.parse("2024-01-01T15:00:00Z"), paymentMethod: "cash", lines: [{ childId: "child", packageId: pkg.id }] })).toThrow("outside");
+  });
   test("rejects invalid or partial payment methods", () => {
     const { store, pkg } = fixture();
     expect(() => store.complete({ idempotencyKey: "bad", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "cash", lines: [{ childId: "child", packageId: "missing" }] })).toThrow();

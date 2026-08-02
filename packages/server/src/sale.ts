@@ -26,10 +26,11 @@ export function createSaleStore(calendar: CalendarStore) {
     const existing = idempotency.get(input.idempotencyKey);
     if (existing) return existing;
     if (!input.idempotencyKey || input.lines.length === 0) throw new Error("Sale requires at least one Ticket Line");
-    if (input.at !== undefined) {
-      const operation = calendar.canOperate(input.operatingDate, calendar.operatingTime(new Date(input.at)), "sell");
-      if (!operation.allowed) throw new Error(operation.reason);
-    }
+    const at = input.at ?? Date.parse(`${input.operatingDate}T12:00:00Z`);
+    const actualDate = calendar.operatingDate(new Date(at));
+    if (actualDate !== input.operatingDate) throw new Error("Operating date does not match venue local date");
+    const operation = calendar.canOperate(input.operatingDate, calendar.operatingTime(new Date(at)), "sell");
+    if (!operation.allowed) throw new Error(operation.reason);
     if (!PAYMENT_METHODS.includes(input.paymentMethod)) throw new Error("Unsupported payment method");
     const snapshots = input.lines.map((line) => {
       if (!line.childId || !line.packageId) throw new Error("Ticket Line requires child and package");
