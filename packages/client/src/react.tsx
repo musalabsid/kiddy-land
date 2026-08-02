@@ -49,6 +49,7 @@ export { AuthService } from "./auth/service";
 export { useLoginMutation, usePairingMutation, useSessionQuery } from "./query/hooks";
 export { useCalendarConfig, useConfigureCalendar, useSchedule } from "./calendar/hooks";
 export { useCompleteSale, usePrintAttempt, useSale, useSaleArtifact, saleArtifactUrl, saleQrUrl } from "./sales/hooks";
+export { useTicketScan, useTicketRecovery } from "./lifecycle/hooks";
 export type * from "./calendar/types";
 export { formatDate, formatIdr } from "@kiddy-land/localization";
 export type * from "./api/types";

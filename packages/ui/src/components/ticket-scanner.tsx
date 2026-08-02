@@ -1,0 +1,14 @@
+import * as React from "react";
+import { CheckCircle2, ScanLine, XCircle } from "lucide-react";
+import { useTicketScan, useTicketRecovery, useSession } from "@kiddy-land/client/react";
+import { useLocale } from "@workspace/ui/lib/i18n";
+import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert";
+import { Button } from "@workspace/ui/components/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
+
+export function TicketScanner({ kind }: { kind: "entry" | "exit" }) {
+  const { t } = useLocale(); const { session } = useSession(); const scan = useTicketScan(kind); const recovery = useTicketRecovery(); const [code, setCode] = React.useState(""); const [childId, setChildId] = React.useState("");
+  const submit = (event: React.FormEvent) => { event.preventDefault(); if (code.trim()) scan.mutate(code.trim()); };
+  const result = scan.data;
+  return <Card><CardHeader><CardTitle className="flex items-center gap-2"><ScanLine />{kind === "entry" ? t("scanner.entryTitle") : t("scanner.exitTitle")}</CardTitle><CardDescription>{t("scanner.description")}</CardDescription></CardHeader><CardContent className="grid gap-4"><form className="flex gap-2" onSubmit={submit}><input autoFocus className="h-10 min-w-0 flex-1 border border-input bg-background px-3 font-mono" placeholder={t("scanner.placeholder")} value={code} onChange={(event) => setCode(event.target.value)} /><Button type="submit" disabled={scan.isPending || !code.trim()}>{t("scanner.scan")}</Button></form>{result && <Alert variant={result.ok ? "default" : "destructive"}>{result.ok ? <CheckCircle2 /> : <XCircle />}<AlertTitle>{result.message}</AlertTitle><AlertDescription>{result.session && `${t("scanner.status")}: ${result.session.status} · ${t("scanner.overtime")}: ${result.session.overtimeMinutes} · ${t("scanner.outstanding")}: ${result.session.outstandingCharge}`}</AlertDescription></Alert>}{scan.error && <Alert variant="destructive"><XCircle /><AlertTitle>{t("scanner.error")}</AlertTitle><AlertDescription>{scan.error.message}</AlertDescription></Alert>}{kind === "entry" && <div className="grid gap-2 border-t pt-4"><p className="text-sm font-medium">{t("scanner.recovery")}</p><div className="flex gap-2"><input className="h-10 min-w-0 flex-1 border border-input bg-background px-3" placeholder={t("scanner.childId")} value={childId} onChange={(event) => setChildId(event.target.value)} /><Button variant="outline" onClick={() => recovery.mutate({ code, childId })} disabled={recovery.isPending || !code || !childId}>{t("scanner.recover")}</Button></div>{recovery.data && <p className="font-mono text-xs text-primary">{recovery.data.code}</p>}</div>}<p className="text-xs text-muted-foreground">{session?.device.mode} · {t("scanner.serverAuthority")}</p></CardContent></Card>;
+}

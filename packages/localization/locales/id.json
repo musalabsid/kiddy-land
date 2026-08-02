@@ -121,5 +121,18 @@
   "sale.showQr": "Tampilkan QR",
   "sale.newSale": "Penjualan baru",
   "sale.error": "Penjualan tidak dapat diselesaikan",
-  "sale.close": "Tutup"
+  "sale.close": "Tutup",
+  "scanner.entryTitle": "Pemindai masuk",
+  "scanner.exitTitle": "Pemindai keluar",
+  "scanner.description": "Pindai tiket dan biarkan Local Server menentukan status yang aman.",
+  "scanner.placeholder": "Kode tiket atau token QR",
+  "scanner.scan": "Pindai tiket",
+  "scanner.status": "Sesi",
+  "scanner.overtime": "Menit lembur",
+  "scanner.outstanding": "Tagihan IDR",
+  "scanner.error": "Pemindaian gagal",
+  "scanner.serverAuthority": "Local Server adalah sumber kebenaran",
+  "scanner.recovery": "Pemulihan QR hilang",
+  "scanner.childId": "ID anak",
+  "scanner.recover": "Pulihkan tiket"
 }

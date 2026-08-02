@@ -39,6 +39,14 @@ describe("ticket and play session lifecycle", () => {
     expect(result.session?.outstandingCharge).toBe(0);
   });
 
+  test("closing auto-settles active sessions with an auto-closed status", () => {
+    const { lifecycle, ticket } = fixture();
+    lifecycle.admit(ticket.code, Date.parse("2024-01-01T10:00:00Z"));
+    const closed = lifecycle.close("2024-01-01", Date.parse("2024-01-01T11:00:00Z"));
+    expect(closed[0]?.session?.status).toBe("auto-closed");
+    expect(lifecycle.events.at(-1)?.type).toBe("auto-closed");
+  });
+
   test("recovery keeps ticket identity and closing expires waiting tickets", () => {
     const first = fixture();
     const recovered = first.lifecycle.recover(first.ticket.code, "child-1");

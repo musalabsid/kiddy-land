@@ -121,5 +121,18 @@
   "sale.showQr": "Show QR",
   "sale.newSale": "New sale",
   "sale.error": "Sale could not be completed",
-  "sale.close": "Close"
+  "sale.close": "Close",
+  "scanner.entryTitle": "Entrance scanner",
+  "scanner.exitTitle": "Exit scanner",
+  "scanner.description": "Scan a ticket and let the Local Server decide the next safe state.",
+  "scanner.placeholder": "Ticket code or QR token",
+  "scanner.scan": "Scan ticket",
+  "scanner.status": "Session",
+  "scanner.overtime": "Overtime minutes",
+  "scanner.outstanding": "Outstanding IDR",
+  "scanner.error": "Scan failed",
+  "scanner.serverAuthority": "Local Server is authoritative",
+  "scanner.recovery": "Lost QR recovery",
+  "scanner.childId": "Child ID",
+  "scanner.recover": "Recover ticket"
 }

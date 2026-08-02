@@ -4,6 +4,7 @@ import type { SaleStore, TicketRecord } from "./sale.ts";
 
 export type TicketState = "waiting" | "active" | "completed" | "void" | "expired";
 export type SessionEvent = { type: "admitted" | "exited" | "auto-closed" | "expired" | "charge-waived"; ticketId: string; at: number; details?: unknown };
+export type RecoveryResult = { ticketId: string; code: string; qrToken: string };
 export type PlaySession = { id: string; ticketId: string; enteredAt: number; exitedAt?: number; status: "active" | "completed" | "auto-closed"; overtimeMinutes: number; outstandingCharge: number; depositApplied: number; depositRefunded: number };
 export type ScanResult = { ok: boolean; state: TicketState | "unknown"; message: string; ticket?: TicketRecord; session?: PlaySession };
 
@@ -46,15 +47,20 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) 
     if (ticket.package.depositPolicy === "forfeit-overtime") return { overtimeMinutes, charge, applied: Math.min(charge, deposit), refund: 0, outstanding: Math.max(0, charge - deposit) };
     return { overtimeMinutes, charge: Math.min(charge, deposit), applied: Math.min(charge, deposit), refund: Math.max(0, deposit - charge), outstanding: 0 };
   }
+  function settle(ticket: TicketRecord, session: PlaySession, at: number, status: PlaySession["status"], eventType: "exited" | "auto-closed") {
+    const result = calculate(ticket, session, at);
+    Object.assign(session, { exitedAt: at, status, overtimeMinutes: result.overtimeMinutes, outstandingCharge: result.outstanding, depositApplied: result.applied, depositRefunded: result.refund });
+    ticket.status = "completed" as never;
+    events.push({ type: eventType, ticketId: ticket.id, at, details: result });
+    return result;
+  }
   function exit(codeOrToken: string, at = Date.now()): ScanResult {
     const ticket = findTicket(codeOrToken);
     if (!ticket) return { ok: false, state: "unknown", message: "Ticket not found" };
     const current = state(ticket); const session = sessions.get(ticket.id);
     if (current === "completed" || current === "expired") return { ok: false, state: current, message: "Ticket already settled", ticket, session };
     if (current !== "active" || !session) return { ok: false, state: current, message: "Ticket has no active session", ticket };
-    const result = calculate(ticket, session, at);
-    Object.assign(session, { exitedAt: at, status: "completed", overtimeMinutes: result.overtimeMinutes, outstandingCharge: result.outstanding, depositApplied: result.applied, depositRefunded: result.refund }); ticket.status = "completed" as never;
-    events.push({ type: "exited", ticketId: ticket.id, at, details: result });
+    const result = settle(ticket, session, at, "completed", "exited");
     return { ok: true, state: "completed", message: result.outstanding > 0 ? "Exited with outstanding charge" : "Ticket settled", ticket, session };
   }
   function recover(code: string, childId: string) {
@@ -73,7 +79,7 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) 
     const schedule = calendar.effectiveSchedule(date);
     const reason = schedule.closureReason ?? ("closed" in schedule.hours ? "Venue is closed" : "Venue closed");
     for (const sale of sales.sales.values()) if (sale.operatingDate === date) for (const ticket of sale.tickets) {
-      if (state(ticket) === "active") { const session = sessions.get(ticket.id)!; const end = exit(ticket.code, at); session.status = "auto-closed"; events.push({ type: "auto-closed", ticketId: ticket.id, at, details: end.session }); result.push(end); }
+      if (state(ticket) === "active") { const session = sessions.get(ticket.id)!; const settlement = settle(ticket, session, at, "auto-closed", "auto-closed"); result.push({ ok: true, state: "completed", message: settlement.outstanding > 0 ? "Session auto-closed with outstanding charge" : "Session auto-closed", ticket, session }); }
       else if (state(ticket) === "waiting") { ticket.status = "expired" as never; events.push({ type: "expired", ticketId: ticket.id, at, details: { reason } }); result.push({ ok: false, state: "expired", message: `Ticket expired: ${reason}`, ticket }); }
     }
     return result;
