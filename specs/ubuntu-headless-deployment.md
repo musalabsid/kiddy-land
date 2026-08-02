@@ -14,8 +14,8 @@ This document is preparation for a later Wayfinder or `/grill-with-docs` effort.
 Kiddy Playground v1 currently targets:
 
 - one Windows host;
-- a Tauri desktop host that supervises the Local Server;
-- a host-owned SQLite database;
+- a Tauri desktop host that supervises the Local Server executable;
+- a host-owned SQLite database using Bun's embedded `bun:sqlite` adapter;
 - local-network PWA clients; and
 - PDF-canonical artifacts with visible browser/WebView printing.
 
@@ -35,7 +35,7 @@ Once the service is ready:
 
 ## Compatibility principle
 
-The Local Server application interface remains the highest seam. Ubuntu headless support should reuse the existing server commands, queries, domain rules, SQLite model, WebSocket event contract, PDF/artifact contract, authorization model, and Maintainer Checklist scenarios.
+The Local Server application interface remains the highest seam. Ubuntu headless support should reuse the existing server commands, queries, domain rules, SQLite model, WebSocket event contract, PDF/artifact contract, authorization model, and Maintainer Checklist scenarios. The current Bun/Hono server should be packaged as a self-contained Linux executable or bundled runtime; no globally installed Bun/Node runtime should be required on the venue machine.
 
 The future work should add a Linux host adapter rather than fork business behavior:
 

@@ -7,7 +7,7 @@ Map: ../map.md
 
 ## What to build
 
-An Owner can configure the venue's Operating Day, local schedule, closures, Price Periods, finite Ticket Packages, Unlimited Packages, overtime, Ticket Deposits, and Deposit Policies. The server applies the configured schedule to new operating actions and exposes a clear configuration result in the Owner workflow.
+Calendar configuration is persisted by the server-owned SQLite/Drizzle layer and survives Local Server restart. An Owner can configure the venue's Operating Day, local schedule, closures, Price Periods, finite Ticket Packages, Unlimited Packages, overtime, Ticket Deposits, and Deposit Policies. The server applies the configured schedule to new operating actions and exposes a clear configuration result in the Owner workflow.
 
 ## Blocked by
 

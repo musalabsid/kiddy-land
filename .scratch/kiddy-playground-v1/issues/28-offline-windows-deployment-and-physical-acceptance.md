@@ -20,7 +20,7 @@ A Maintainer can validate a clean, offline Windows deployment and the venue's pr
 
 ## Acceptance criteria
 
-- [ ] A clean Windows 10/11 x64 machine with no Node and no Internet can install the offline-capable package, launch WebView2 from the bundled payload, start the sidecar, and show readiness.
+- [ ] A clean Windows 10/11 x64 machine with no Bun/Node and no Internet can install the offline-capable package, launch WebView2 from the bundled payload, start the self-contained Bun sidecar, and show readiness.
 - [ ] Single-instance, app-local data, Private/Domain firewall, close-to-tray/Quit, port conflict, crash-loop, and sidecar recovery behavior are evidenced.
 - [ ] A venue-owned prepared Android scanner can trust the canonical hostname/CA, pair by QR, scan representative QRs in venue conditions, recover to manual entry, and safely handle permission/camera/Wi-Fi failures.
 - [ ] mDNS/hostname, IP-change, mDNS failure, and trusted Windows-desktop recovery behavior are tested without certificate-warning bypass.
