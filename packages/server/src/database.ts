@@ -15,6 +15,7 @@ export function openLocalDatabase(path: string): LocalDatabase {
   db.run("PRAGMA foreign_keys = ON");
   db.run("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)");
   const version = Number((db.query("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations").get() as { version: number }).version);
+  if (version > 1) throw new Error(`Unsupported database schema version ${version}`);
   if (version < 1) {
     db.run(`CREATE TABLE IF NOT EXISTS calendar_state (
       id INTEGER PRIMARY KEY CHECK (id = 1), timezone TEXT NOT NULL,

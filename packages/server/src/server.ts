@@ -43,6 +43,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const health = (): HealthReport => ({ status, service: "local-server", schemaVersion, database: databaseStatus, uptimeMs: Math.max(0, now() - startedAt) });
   const registry = createConnectionRegistry();
   const identity = options.identity ?? createIdentityStore({ events: { deviceRevoked: (deviceId) => registry.closeDevice(deviceId) } });
+  const ownsDatabase = !options.database;
   const database = options.database ?? openLocalDatabase(`${options.dataDir}/kiddy-land.sqlite`);
   const calendar = options.calendar ?? createCalendarStore({ database });
   const sales = options.sales ?? createSaleStore(calendar);
@@ -68,11 +69,12 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       });
     },
     async stop(timeoutMs = 5_000) {
-      if (!httpServer) return;
+      if (!httpServer) { if (ownsDatabase) database.close(); return; }
       status = "starting";
       const server = httpServer; httpServer = undefined;
       await Promise.race([new Promise<void>((resolve) => server.close(() => resolve())), new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))]);
       databaseStatus = "unhealthy";
+      if (ownsDatabase) database.close();
     },
   };
 }
