@@ -7,12 +7,13 @@ export type WebSocketDecision = { allowed: true; deviceId: string } | { allowed:
 export function authorizeWebSocket(
   identity: IdentityStore,
   registry: ConnectionRegistry,
-  headers: { authorization?: string; origin?: string },
+  headers: { authorization?: string; accessToken?: string; origin?: string },
   expectedOrigin: string,
   _socket: { close: () => void },
 ): WebSocketDecision {
   if (headers.origin !== expectedOrigin) return { allowed: false, reason: "origin-denied" };
-  const current = identity.authenticate(headers.authorization?.replace(/^Bearer /, ""));
+  const bearerToken = headers.authorization?.replace(/^Bearer /, "");
+  const current = identity.authenticate(bearerToken ?? headers.accessToken);
   if (!current) return { allowed: false, reason: "unauthorized" };
   return { allowed: true, deviceId: current.device.id };
 }

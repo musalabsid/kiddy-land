@@ -1,24 +1,52 @@
+import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AuthService } from "../auth/service";
-import { useAuthStore } from "../auth/store";
-import { useClient } from "../react";
+import { readStoredDevice, readStoredSession, useAuthStore, writeStoredDevice, writeStoredSession } from "../auth/store";
+import { ClientContext } from "../client-context";
 import { clientQueryKeys } from "./query-client";
-import type { DeviceMode } from "../api/types";
+import type { DeviceMode, SessionInfo } from "../api/types";
+
+function useApiClient() { const client = React.useContext(ClientContext); if (!client) throw new Error("ClientProvider required"); return client; }
 
 export function useSessionQuery() {
-  const client = useClient();
-  const setSession = useAuthStore((state) => state.setSession);
-  return useQuery({ queryKey: clientQueryKeys.session, queryFn: () => client.get("/auth/session"), enabled: Boolean(client.getToken()), select: (session) => { setSession(undefined); return session; } });
+  const client = useApiClient();
+  return useQuery({ queryKey: clientQueryKeys.session, queryFn: () => client.get("/auth/session"), enabled: Boolean(client.getToken()) });
 }
 
 export function usePairingMutation() {
-  const client = useClient();
+  const client = useApiClient();
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: ({ token, mode, origin }: { token: string; mode: DeviceMode; origin?: string }) => new AuthService(client).pair(token, mode, origin), onSuccess: () => queryClient.invalidateQueries({ queryKey: clientQueryKeys.session }) });
+  const setSession = useAuthStore((state) => state.setSession);
+  const setPairedDevice = useAuthStore((state) => state.setPairedDevice);
+  return useMutation({ mutationFn: ({ token, mode, origin }: { token: string; mode: DeviceMode; origin?: string }) => new AuthService(client).pair(token, mode, origin), onSuccess: (result) => { setPairedDevice(result.device); writeStoredDevice(result.device); if (result.session) { client.setToken(result.session.token); const session = { ...result.session, device: result.device }; setSession(session); writeStoredSession(session); } queryClient.invalidateQueries({ queryKey: clientQueryKeys.session }); } });
+}
+
+export function useLogout() {
+  const client = useApiClient();
+  const clear = useAuthStore((state) => state.clear);
+  return () => { client.setToken(undefined); clear(); writeStoredSession(undefined); writeStoredDevice(undefined); };
+}
+
+export function useRestoreSession() {
+  const client = useApiClient();
+  const setSession = useAuthStore((state) => state.setSession);
+  const setPairedDevice = useAuthStore((state) => state.setPairedDevice);
+  const clear = useAuthStore((state) => state.clear);
+  const stored = React.useMemo(readStoredSession, []);
+  const device = React.useMemo(readStoredDevice, []);
+  React.useEffect(() => {
+    if (device) setPairedDevice(device);
+    if (!stored) return;
+    client.setToken(stored.token);
+    client.get<{ device: typeof stored.device; user?: typeof stored.user }>("/auth/session").then((current) => setSession({ ...stored, ...current })).catch(() => { client.setToken(undefined); clear(); writeStoredSession(undefined); });
+  }, [client, clear, device, setPairedDevice, setSession, stored]);
+  return stored;
 }
 
 export function useLoginMutation() {
-  const client = useClient();
+  const client = useApiClient();
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: ({ deviceId, username, password }: { deviceId: string; username: string; password: string }) => new AuthService(client).login(deviceId, username, password), onSuccess: () => queryClient.invalidateQueries({ queryKey: clientQueryKeys.session }) });
+  const setSession = useAuthStore((state) => state.setSession);
+  const pairedDevice = useAuthStore((state) => state.pairedDevice);
+  return useMutation({ mutationFn: ({ deviceId, username, password }: { deviceId: string; username: string; password: string }) => new AuthService(client).login(deviceId, username, password), onSuccess: async (result) => { if (!pairedDevice) return; client.setToken(result.token); const current = await client.get<{ device: typeof pairedDevice; user?: SessionInfo["user"] }>("/auth/session"); const session = { token: result.token, deviceId: result.deviceId, device: current.device, user: current.user }; setSession(session); writeStoredSession(session); queryClient.invalidateQueries({ queryKey: clientQueryKeys.session }); } });
 }

@@ -10,9 +10,9 @@ export class RealtimeClient {
     const token = this.token(); if (!token) return;
     const separator = this.url.includes("?") ? "&" : "?";
     this.socket = new WebSocket(`${this.url}${separator}access_token=${encodeURIComponent(token)}`);
-    this.socket.onopen = () => this.emit({ type: "connected" });
+    this.socket.onopen = () => { this.emit({ type: "connected" }); this.refresh(); };
     this.socket.onmessage = (event) => { try { this.emit(JSON.parse(event.data) as ServerEvent); } catch { this.emit({ type: "message-error" }); } };
-    this.socket.onclose = () => { this.emit({ type: "disconnected" }); if (!this.manuallyClosed) window.setTimeout(() => this.open(), 1000); };
+    this.socket.onclose = (event) => { this.emit({ type: "disconnected", code: event.code, reason: event.reason }); if (event.code === 1008) this.emit({ type: "revoked" }); if (!this.manuallyClosed && typeof window !== "undefined") window.setTimeout(() => this.open(), 1000); };
   }
   refresh() { if (this.socket?.readyState === WebSocket.OPEN) this.socket.send("refresh"); }
   close() { this.manuallyClosed = true; this.socket?.close(); }

@@ -114,6 +114,7 @@ export function createApp(
             realtime.registry,
             {
               authorization: c.req.header("Authorization"),
+              accessToken: c.req.query("access_token"),
               origin: c.req.header("Origin"),
             },
             realtime.origin,
@@ -122,7 +123,7 @@ export function createApp(
           if (!decision.allowed) return { onOpen: (_event, ws) => ws.close(1008, decision.reason) };
           return {
             onOpen: (_event, ws) => {
-              if (!identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""))) {
+              if (!identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "") ?? c.req.query("access_token"))) {
                 ws.close(1008, "revoked");
                 return;
               }
