@@ -8,6 +8,7 @@ import { createLifecycleStore, type LifecycleStore } from "./lifecycle.ts";
 import type { HealthReport } from "./app.ts";
 import { createApp } from "./app.ts";
 import { createIdentityStore, type IdentityStore } from "./identity.ts";
+import { openLocalDatabase, type LocalDatabase } from "./database.ts";
 
 export type LocalServerOptions = {
   dataDir: string;
@@ -18,6 +19,7 @@ export type LocalServerOptions = {
   calendar?: CalendarStore;
   sales?: SaleStore;
   lifecycle?: LifecycleStore;
+  database?: LocalDatabase;
 };
 
 export type LocalServer = {
@@ -30,24 +32,19 @@ export type LocalServer = {
 
 function now() { return Date.now(); }
 
-async function preflightDatabase(path: string) {
-  // The sidecar uses its packaged SQLite adapter in production. This marker is
-  // intentionally only a contract fixture until the database package lands.
-  await writeFile(path, "SQLite\n", { flag: "a" });
-}
-
 export function createLocalServer(options: LocalServerOptions): LocalServer {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 43117;
   const schemaVersion = options.schemaVersion ?? 1;
   const startedAt = now();
   let status: HealthReport["status"] = "starting";
-  let database: HealthReport["database"] = "unhealthy";
+  let databaseStatus: HealthReport["database"] = "unhealthy";
   let httpServer: ServerType | undefined;
-  const health = (): HealthReport => ({ status, service: "local-server", schemaVersion, database, uptimeMs: Math.max(0, now() - startedAt) });
+  const health = (): HealthReport => ({ status, service: "local-server", schemaVersion, database: databaseStatus, uptimeMs: Math.max(0, now() - startedAt) });
   const registry = createConnectionRegistry();
   const identity = options.identity ?? createIdentityStore({ events: { deviceRevoked: (deviceId) => registry.closeDevice(deviceId) } });
-  const calendar = options.calendar ?? createCalendarStore();
+  const database = options.database ?? openLocalDatabase(`${options.dataDir}/kiddy-land.sqlite`);
+  const calendar = options.calendar ?? createCalendarStore({ database });
   const sales = options.sales ?? createSaleStore(calendar);
   const lifecycle = options.lifecycle ?? createLifecycleStore(sales, calendar);
   const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle);
@@ -59,8 +56,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       if (status === "ready") return;
       await mkdir(options.dataDir, { recursive: true });
       await writeFile(`${options.dataDir}/.local-server`, "ready\n", { flag: "a" });
-      await preflightDatabase(`${options.dataDir}/kiddy-land.sqlite`);
-      database = "ready";
+      if (!database.integrityCheck()) throw new Error("SQLite integrity check failed");
+      databaseStatus = "ready";
       await new Promise<void>((resolve, reject) => {
         try {
           httpServer = serve({ fetch: app.fetch, hostname: host, port, websocket: { server: websocketServer } }, (info) => {
@@ -75,7 +72,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       status = "starting";
       const server = httpServer; httpServer = undefined;
       await Promise.race([new Promise<void>((resolve) => server.close(() => resolve())), new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))]);
-      database = "unhealthy";
+      databaseStatus = "unhealthy";
     },
   };
 }

@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { createCalendarStore } from "../src/calendar.ts";
+import { openLocalDatabase } from "../src/database.ts";
+import { mkdtemp, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 describe("venue calendar and ticket packages", () => {
   test("derives venue-local operating dates and schedule overrides", () => {
@@ -21,6 +25,24 @@ describe("venue calendar and ticket packages", () => {
     expect(changed.version).toBe(2);
     expect(first.price).toBe(50000);
     expect(calendar.snapshot(packageValue.id, "2024-01-01").price).toBe(60000);
+  });
+
+  test("persists venue configuration and audit history across store instances", async () => {
+    const dataDir = await mkdtemp(join(tmpdir(), "kiddy-calendar-"));
+    const database = openLocalDatabase(join(dataDir, "kiddy-land.sqlite"));
+    const first = createCalendarStore({ database });
+    first.setTimezone("Asia/Singapore", "owner");
+    first.setWeeklyHours("monday", { open: "09:00", close: "18:00" }, "owner");
+    const packageValue = first.upsertPackage({ name: "Persisted", includedMinutes: 60, weekdayPrice: 40000, weekendPrice: 50000, overridePrices: {}, overtimeRate: 1000, deposit: 10000, depositPolicy: "return-remainder" }, "owner");
+    database.close();
+    const reopened = openLocalDatabase(join(dataDir, "kiddy-land.sqlite"));
+    const second = createCalendarStore({ database: reopened });
+    expect(second.timezone).toBe("Asia/Singapore");
+    expect(second.weekly.monday).toEqual({ open: "09:00", close: "18:00" });
+    expect(second.packages.get(packageValue.id)?.name).toBe("Persisted");
+    expect(second.audit).toHaveLength(3);
+    reopened.close();
+    await rm(dataDir, { recursive: true, force: true });
   });
 
   test("validates unlimited packages and operating boundaries", () => {
