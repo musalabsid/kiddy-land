@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
 import type { CalendarStore } from "./calendar.ts";
 import type { SaleStore, TicketRecord } from "./sale.ts";
+import type { LocalDatabase } from "./database.ts";
+import { sql } from "drizzle-orm";
 
 export type TicketState = "waiting" | "active" | "completed" | "void" | "expired";
 export type SessionEvent = { type: "admitted" | "exited" | "auto-closed" | "expired" | "charge-waived"; ticketId: string; at: number; details?: unknown };
@@ -11,10 +13,15 @@ export type ScanResult = { ok: boolean; state: TicketState | "unknown"; message:
 function id() { return `session_${randomBytes(10).toString("hex")}`; }
 function minutesBetween(start: number, end: number) { return Math.max(0, Math.floor((end - start) / 60_000)); }
 
-export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) {
+export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, database?: LocalDatabase) {
   const sessions = new Map<string, PlaySession>();
   const events: SessionEvent[] = [];
   const recoveryCodes = new Map<string, string>();
+  if (database) {
+    const row = database.orm.all<{ sessions: string; events: string; recovery: string }>(sql`SELECT sessions_json AS sessions, events_json AS events, recovery_json AS recovery FROM lifecycle_state WHERE id = 1`)[0];
+    if (row) { for (const [key, value] of Object.entries(JSON.parse(row.sessions) as Record<string, PlaySession>)) sessions.set(key, value); events.push(...JSON.parse(row.events) as SessionEvent[]); for (const [key, value] of Object.entries(JSON.parse(row.recovery) as Record<string, string>)) recoveryCodes.set(key, value); }
+  }
+  const persist = () => { sales.persist(); if (!database) return; database.orm.run(sql`UPDATE lifecycle_state SET sessions_json = ${JSON.stringify(Object.fromEntries(sessions))}, events_json = ${JSON.stringify(events)}, recovery_json = ${JSON.stringify(Object.fromEntries(recoveryCodes))}, updated_at = ${Date.now()} WHERE id = 1`); };
 
   function findTicket(codeOrToken: string) {
     const recoveredId = recoveryCodes.get(codeOrToken);
@@ -32,9 +39,9 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) 
     if (current !== "waiting") return { ok: false, state: current, message: current === "active" ? "Ticket already admitted" : "Ticket cannot be admitted", ticket, session: sessions.get(ticket.id) };
     const date = calendar.operatingDate(new Date(at));
     const operation = calendar.canOperate(date, calendar.operatingTime(new Date(at)), "admit");
-    if (!operation.allowed) { ticket.status = "expired" as never; events.push({ type: "expired", ticketId: ticket.id, at, details: { reason: operation.reason } }); return { ok: false, state: "expired", message: operation.reason, ticket }; }
+    if (!operation.allowed) { ticket.status = "expired" as never; events.push({ type: "expired", ticketId: ticket.id, at, details: { reason: operation.reason } }); persist(); return { ok: false, state: "expired", message: operation.reason, ticket }; }
     const session: PlaySession = { id: id(), ticketId: ticket.id, enteredAt: at, status: "active", overtimeMinutes: 0, outstandingCharge: 0, depositApplied: 0, depositRefunded: 0 };
-    ticket.status = "active" as never; sessions.set(ticket.id, session); events.push({ type: "admitted", ticketId: ticket.id, at });
+    ticket.status = "active" as never; sessions.set(ticket.id, session); events.push({ type: "admitted", ticketId: ticket.id, at }); persist();
     return { ok: true, state: "active", message: "Ticket admitted", ticket, session };
   }
   function calculate(ticket: TicketRecord, session: PlaySession, at: number) {
@@ -51,7 +58,7 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) 
     const result = calculate(ticket, session, at);
     Object.assign(session, { exitedAt: at, status, overtimeMinutes: result.overtimeMinutes, outstandingCharge: result.outstanding, depositApplied: result.applied, depositRefunded: result.refund });
     ticket.status = "completed" as never;
-    events.push({ type: eventType, ticketId: ticket.id, at, details: result });
+    events.push({ type: eventType, ticketId: ticket.id, at, details: result }); persist();
     return result;
   }
   function exit(codeOrToken: string, at = Date.now()): ScanResult {
@@ -65,13 +72,13 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) 
   }
   function recover(code: string, childId: string) {
     const ticket = findTicket(code); if (!ticket || ticket.childId !== childId) throw new Error("Ticket recovery verification failed");
-    const replacement = randomBytes(8).toString("hex").toUpperCase(); recoveryCodes.set(replacement, ticket.id); return { ticketId: ticket.id, code: replacement, qrToken: ticket.qrToken };
+    const replacement = randomBytes(8).toString("hex").toUpperCase(); recoveryCodes.set(replacement, ticket.id); persist(); return { ticketId: ticket.id, code: replacement, qrToken: ticket.qrToken };
   }
   function waiveOutstanding(ticketId: string, actorRole: string, reason: string, at = Date.now()) {
     if (actorRole !== "Owner" || !reason.trim()) throw new Error("Owner reason required");
     const session = sessions.get(ticketId); if (!session || session.outstandingCharge <= 0) throw new Error("No outstanding charge");
     const amount = session.outstandingCharge; session.outstandingCharge = 0;
-    events.push({ type: "charge-waived", ticketId, at, details: { amount, reason } });
+    events.push({ type: "charge-waived", ticketId, at, details: { amount, reason } }); persist();
     return { ticketId, amount, reason, waivedAt: at };
   }
   function close(date: string, at: number) {
@@ -80,7 +87,7 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore) 
     const reason = schedule.closureReason ?? ("closed" in schedule.hours ? "Venue is closed" : "Venue closed");
     for (const sale of sales.sales.values()) if (sale.operatingDate === date) for (const ticket of sale.tickets) {
       if (state(ticket) === "active") { const session = sessions.get(ticket.id)!; const settlement = settle(ticket, session, at, "auto-closed", "auto-closed"); result.push({ ok: true, state: "completed", message: settlement.outstanding > 0 ? "Session auto-closed with outstanding charge" : "Session auto-closed", ticket, session }); }
-      else if (state(ticket) === "waiting") { ticket.status = "expired" as never; events.push({ type: "expired", ticketId: ticket.id, at, details: { reason } }); result.push({ ok: false, state: "expired", message: `Ticket expired: ${reason}`, ticket }); }
+      else if (state(ticket) === "waiting") { ticket.status = "expired" as never; events.push({ type: "expired", ticketId: ticket.id, at, details: { reason } }); result.push({ ok: false, state: "expired", message: `Ticket expired: ${reason}`, ticket }); persist(); }
     }
     return result;
   }

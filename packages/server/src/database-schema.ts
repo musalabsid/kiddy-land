@@ -22,3 +22,11 @@ export const salesState = sqliteTable("sales_state", {
   receiptSequence: integer("receipt_sequence").notNull(),
   updatedAt: integer("updated_at", { mode: "number" }).notNull(),
 });
+
+export const lifecycleState = sqliteTable("lifecycle_state", {
+  id: integer("id").primaryKey(),
+  sessionsJson: text("sessions_json").notNull(),
+  eventsJson: text("events_json").notNull(),
+  recoveryJson: text("recovery_json").notNull(),
+  updatedAt: integer("updated_at", { mode: "number" }).notNull(),
+});

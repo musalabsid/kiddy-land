@@ -66,7 +66,7 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
     if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: pdf("Receipt", [sale.receipt.number, ...sale.receipt.lines.map((line) => `${line.packageName} ${line.childId} IDR ${line.price} deposit IDR ${line.deposit}`), `TOTAL IDR ${sale.total}`], 227, 500) };
     return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: pdf("Tickets", sale.tickets.flatMap((ticket) => [`CHILD: ${ticket.childName ?? ticket.childId}`, `TICKET: ${ticket.code}`, `QR: ${ticket.qrToken}`, `PACKAGE: ${ticket.package.name}`, "--------------------"]), 612, Math.max(792, sale.tickets.length * 120)) };
   }
-  return { sales, printAttempts, complete, get, recordPrintAttempt, artifact, qr };
+  return { sales, printAttempts, complete, get, recordPrintAttempt, artifact, qr, persist };
 }
 
 export type SaleStore = ReturnType<typeof createSaleStore>;

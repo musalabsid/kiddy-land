@@ -47,7 +47,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const database = options.database ?? openLocalDatabase(`${options.dataDir}/kiddy-land.sqlite`);
   const calendar = options.calendar ?? createCalendarStore({ database });
   const sales = options.sales ?? createSaleStore(calendar, database);
-  const lifecycle = options.lifecycle ?? createLifecycleStore(sales, calendar);
+  const lifecycle = options.lifecycle ?? createLifecycleStore(sales, calendar, database);
   const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle);
   const websocketServer = new WebSocketServer({ noServer: true });
 

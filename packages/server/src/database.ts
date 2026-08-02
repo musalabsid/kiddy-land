@@ -20,7 +20,7 @@ export function openLocalDatabase(path: string): LocalDatabase {
   db.run("PRAGMA foreign_keys = ON");
   db.run("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)");
   const version = Number((db.query("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations").get() as { version: number }).version);
-  if (version > 2) throw new Error(`Unsupported database schema version ${version}`);
+  if (version > 3) throw new Error(`Unsupported database schema version ${version}`);
   if (version < 1) {
     db.run(`CREATE TABLE IF NOT EXISTS calendar_state (
       id INTEGER PRIMARY KEY CHECK (id = 1), timezone TEXT NOT NULL,
@@ -34,6 +34,11 @@ export function openLocalDatabase(path: string): LocalDatabase {
     db.run(`CREATE TABLE IF NOT EXISTS sales_state (id INTEGER PRIMARY KEY CHECK (id = 1), sales_json TEXT NOT NULL, print_attempts_json TEXT NOT NULL, receipt_sequence INTEGER NOT NULL, updated_at INTEGER NOT NULL)`);
     db.run("INSERT OR IGNORE INTO sales_state(id, sales_json, print_attempts_json, receipt_sequence, updated_at) VALUES (1, '[]', '[]', 0, ?)", [Date.now()]);
     db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, ?)", [Date.now()]);
+  }
+  if (version < 3) {
+    db.run(`CREATE TABLE IF NOT EXISTS lifecycle_state (id INTEGER PRIMARY KEY CHECK (id = 1), sessions_json TEXT NOT NULL, events_json TEXT NOT NULL, recovery_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`);
+    db.run("INSERT OR IGNORE INTO lifecycle_state(id, sessions_json, events_json, recovery_json, updated_at) VALUES (1, '{}', '[]', '{}', ?)", [Date.now()]);
+    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (3, ?)", [Date.now()]);
   }
   const orm = drizzle(db, { schema });
   return { path, db, orm, close: () => db.close(), integrityCheck: () => (db.query("PRAGMA integrity_check").get() as { integrity_check: string }).integrity_check === "ok" };
