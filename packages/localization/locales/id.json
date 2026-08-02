@@ -148,5 +148,13 @@
   "inventory.lowStock": "Produk stok rendah",
   "inventory.ownerOverview": "Ringkasan inventaris",
   "inventory.movements": "Pergerakan inventaris",
-  "inventory.refund": "Kembalikan produk"
+  "inventory.refund": "Kembalikan produk",
+  "membership.title": "Keanggotaan",
+  "membership.code": "Kode keanggotaan",
+  "membership.lookup": "Cari",
+  "membership.reissue": "Terbitkan kartu ulang",
+  "membership.deactivate": "Nonaktifkan",
+  "membership.reactivate": "Aktifkan kembali",
+  "membership.history": "Riwayat",
+  "membership.discounts": "Diskon keanggotaan"
 }

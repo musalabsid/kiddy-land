@@ -7,6 +7,7 @@ export { clientQueryKeys, createClientQueryClient } from "./query/query-client";
 export type * from "./calendar/types";
 export * from "./sales/hooks";
 export * from "./inventory/hooks";
+export * from "./members/hooks";
 export type { SaleRecord } from "./api/types";
 export * from "./lifecycle/hooks";
 export { formatDate, formatIdr } from "@kiddy-land/localization";

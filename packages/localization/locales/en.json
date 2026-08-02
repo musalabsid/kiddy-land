@@ -148,5 +148,13 @@
   "inventory.lowStock": "Low-stock products",
   "inventory.ownerOverview": "Inventory overview",
   "inventory.movements": "Inventory movements",
-  "inventory.refund": "Refund product"
+  "inventory.refund": "Refund product",
+  "membership.title": "Membership",
+  "membership.code": "Membership code",
+  "membership.lookup": "Look up",
+  "membership.reissue": "Reissue card",
+  "membership.deactivate": "Deactivate",
+  "membership.reactivate": "Reactivate",
+  "membership.history": "History",
+  "membership.discounts": "Membership discounts"
 }

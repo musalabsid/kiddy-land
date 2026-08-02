@@ -12,6 +12,10 @@ export function useSchedule(date: string) {
   const client = useClient();
   return useQuery({ queryKey: [...clientQueryKeys.calendarSchedule, date], queryFn: () => client.get<EffectiveSchedule>(`/calendar/schedule?date=${encodeURIComponent(date)}`), enabled: Boolean(date) });
 }
+export function usePackageSnapshot(packageId: string, date: string) {
+  const client = useClient();
+  return useQuery({ queryKey: ["calendar", "package-snapshot", packageId, date], queryFn: () => client.get<{ price: number }>(`/calendar/packages/${packageId}/snapshot?date=${encodeURIComponent(date)}`), enabled: Boolean(packageId && date) });
+}
 
 export function useConfigureCalendar() {
   const client = useClient();

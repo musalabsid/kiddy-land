@@ -21,4 +21,7 @@ export const clientQueryKeys = {
   lowStock: ["inventory", "low-stock"] as const,
   inventoryCounts: ["inventory", "counts"] as const,
   inventoryExceptions: ["inventory", "exceptions"] as const,
+  members: ["members"] as const,
+  memberHistory: (id: string) => ["members", id, "history"] as const,
+  membershipDiscounts: ["membership", "discounts"] as const,
 };

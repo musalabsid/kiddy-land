@@ -5,6 +5,7 @@ import type { CalendarStore } from "./calendar.ts";
 import type { SaleStore } from "./sale.ts";
 import type { LifecycleStore } from "./lifecycle.ts";
 import type { InventoryStore } from "./inventory.ts";
+import type { MembershipStore } from "./membership.ts";
 import { authorizeWebSocket, type WebSocketRegistry } from "./realtime.ts";
 
 export type HealthStatus = "starting" | "ready" | "unhealthy" | "fatal";
@@ -25,6 +26,7 @@ export function createApp(
   sales?: SaleStore,
   lifecycle?: LifecycleStore,
   inventory?: InventoryStore,
+  membership?: MembershipStore,
 ) {
   const app = new Hono();
 
@@ -93,6 +95,19 @@ export function createApp(
     app.get("/inventory/low-stock", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.list(undefined, false).filter((item) => item.stock <= item.lowStockThreshold)); });
     app.get("/inventory/exceptions", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.exceptions); });
     app.get("/inventory/counts", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.counts); });
+  }
+
+  if (membership) {
+    app.get("/members/search", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); const name = c.req.query("name"); const phone = c.req.query("phone"); if (!name || !phone) return c.json({ error: "Verified name and phone are required" }, 400); return c.json(membership.search(name, phone)); });
+    app.get("/members", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "read")) return c.json({ error: "Forbidden" }, 403); return c.json(membership.list()); });
+    app.get("/members/:code", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); const found = membership.findByCode(c.req.param("code")); return found ? c.json(found) : c.json({ error: "Member not found" }, 404); });
+    app.post("/members", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.device.mode !== "Cashier" || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403); try { return c.json(membership.register(await c.req.json(), current.user?.id ?? "cashier"), 201); } catch { return c.json({ error: "Member cannot be registered" }, 409); } });
+    app.post("/members/:id/reissue", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !((current.device.mode === "Cashier" && identity?.can(current, "write")) || (current.user?.role === "Owner" && identity?.can(current, "admin")))) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ reason: string }>(); return c.json(membership.reissue(c.req.param("id"), body.reason, current.user?.id ?? "owner")); } catch { return c.json({ error: "Member code cannot be reissued" }, 409); } });
+    for (const [action, status] of [["deactivate", "deactivated"], ["reactivate", "active"]] as const) app.post(`/members/:id/${action}`, async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ reason: string }>(); return c.json(membership.setStatus(c.req.param("id"), status, body.reason, current.user.id)); } catch { return c.json({ error: "Member status cannot be changed" }, 409); } });
+    app.get("/members/:id/history", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "read")) return c.json({ error: "Forbidden" }, 403); return c.json(membership.history(c.req.param("id"))); });
+    app.get("/membership/events", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "read")) return c.json({ error: "Forbidden" }, 403); return c.json(membership.state.events); });
+    app.put("/membership/discounts/:kind/:id", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { const kind = c.req.param("kind") === "products" ? "products" : c.req.param("kind") === "ticketPackages" ? "ticketPackages" : null; if (!kind) return c.json({ error: "Invalid discount scope" }, 400); const body = await c.req.json<{ amount: number }>(); return c.json(membership.setDiscount(kind, c.req.param("id"), body.amount)); } catch { return c.json({ error: "Discount cannot be configured" }, 400); } });
+    app.get("/membership/discounts", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(membership.state.discounts); });
   }
 
   if (sales) {

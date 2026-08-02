@@ -47,10 +47,11 @@ export function useSession() { return useAuthStore(); }
 export { ApiClient, ClientError } from "./api/client";
 export { AuthService } from "./auth/service";
 export { useLoginMutation, usePairingMutation, useSessionQuery } from "./query/hooks";
-export { useCalendarConfig, useConfigureCalendar, useSchedule } from "./calendar/hooks";
+export { useCalendarConfig, useConfigureCalendar, useSchedule, usePackageSnapshot } from "./calendar/hooks";
 export { useCompleteSale, usePrintAttempt, useSale, useSaleArtifact, saleArtifactUrl, saleQrUrl } from "./sales/hooks";
 export { useTicketScan, useTicketRecovery, useCollectCharge } from "./lifecycle/hooks";
 export * from "./inventory/hooks";
+export * from "./members/hooks";
 export type * from "./calendar/types";
 export { formatDate, formatIdr } from "@kiddy-land/localization";
 export type * from "./api/types";
