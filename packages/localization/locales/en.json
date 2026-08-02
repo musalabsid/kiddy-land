@@ -136,5 +136,17 @@
   "scanner.childId": "Child ID",
   "scanner.recover": "Recover ticket",
   "scanner.collectCharge": "Collect outstanding charge",
-  "scanner.collect": "Collect charge"
+  "scanner.collect": "Collect charge",
+  "inventory.title": "Inventory",
+  "inventory.catalog": "Product catalog",
+  "inventory.productName": "Product name",
+  "inventory.price": "Price",
+  "inventory.create": "Create product",
+  "inventory.approve": "Approve count",
+  "inventory.intake": "Receive stock",
+  "inventory.count": "Submit count",
+  "inventory.lowStock": "Low-stock products",
+  "inventory.ownerOverview": "Inventory overview",
+  "inventory.movements": "Inventory movements",
+  "inventory.refund": "Refund product"
 }

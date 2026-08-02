@@ -16,4 +16,9 @@ export const clientQueryKeys = {
   calendarSchedule: ["calendar", "schedule"] as const,
   sales: ["sales"] as const,
   sale: ["sales", "detail"] as const,
+  products: ["products"] as const,
+  inventoryMovements: ["inventory", "movements"] as const,
+  lowStock: ["inventory", "low-stock"] as const,
+  inventoryCounts: ["inventory", "counts"] as const,
+  inventoryExceptions: ["inventory", "exceptions"] as const,
 };

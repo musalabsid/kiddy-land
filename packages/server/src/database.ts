@@ -10,6 +10,7 @@ export type LocalDatabase = {
   orm: BunSQLiteDatabase<typeof schema>;
   close: () => void;
   integrityCheck: () => boolean;
+  transaction: <T>(work: () => T) => T;
 };
 
 export function openLocalDatabase(path: string): LocalDatabase {
@@ -20,7 +21,7 @@ export function openLocalDatabase(path: string): LocalDatabase {
   db.run("PRAGMA foreign_keys = ON");
   db.run("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)");
   const version = Number((db.query("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations").get() as { version: number }).version);
-  if (version > 3) throw new Error(`Unsupported database schema version ${version}`);
+  if (version > 4) throw new Error(`Unsupported database schema version ${version}`);
   if (version < 1) {
     db.run(`CREATE TABLE IF NOT EXISTS calendar_state (
       id INTEGER PRIMARY KEY CHECK (id = 1), timezone TEXT NOT NULL,
@@ -40,8 +41,14 @@ export function openLocalDatabase(path: string): LocalDatabase {
     db.run("INSERT OR IGNORE INTO lifecycle_state(id, sessions_json, events_json, recovery_json, updated_at) VALUES (1, '{}', '[]', '{}', ?)", [Date.now()]);
     db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (3, ?)", [Date.now()]);
   }
+  if (version < 4) {
+    db.run(`CREATE TABLE IF NOT EXISTS inventory_state (id INTEGER PRIMARY KEY CHECK (id = 1), state_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`);
+    db.run("INSERT OR IGNORE INTO inventory_state(id, state_json, updated_at) VALUES (1, ?, ?)", [JSON.stringify({ products: [], movements: [], counts: [], exceptions: [], refunds: [] }), Date.now()]);
+    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (4, ?)", [Date.now()]);
+  }
   const orm = drizzle(db, { schema });
-  return { path, db, orm, close: () => db.close(), integrityCheck: () => (db.query("PRAGMA integrity_check").get() as { integrity_check: string }).integrity_check === "ok" };
+  const transaction = <T,>(work: () => T): T => { db.run("BEGIN IMMEDIATE"); try { const result = work(); db.run("COMMIT"); return result; } catch (error) { db.run("ROLLBACK"); throw error; } };
+  return { path, db, orm, close: () => db.close(), integrityCheck: () => (db.query("PRAGMA integrity_check").get() as { integrity_check: string }).integrity_check === "ok", transaction };
 }
 
 export function readCalendarState(database: LocalDatabase) {

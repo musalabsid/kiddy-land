@@ -23,6 +23,12 @@ export const salesState = sqliteTable("sales_state", {
   updatedAt: integer("updated_at", { mode: "number" }).notNull(),
 });
 
+export const inventoryState = sqliteTable("inventory_state", {
+  id: integer("id").primaryKey(),
+  stateJson: text("state_json").notNull(),
+  updatedAt: integer("updated_at", { mode: "number" }).notNull(),
+});
+
 export const lifecycleState = sqliteTable("lifecycle_state", {
   id: integer("id").primaryKey(),
   sessionsJson: text("sessions_json").notNull(),

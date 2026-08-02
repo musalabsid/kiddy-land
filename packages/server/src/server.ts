@@ -5,6 +5,7 @@ import { createConnectionRegistry } from "./connection.ts";
 import { createCalendarStore, type CalendarStore } from "./calendar.ts";
 import { createSaleStore, type SaleStore } from "./sale.ts";
 import { createLifecycleStore, type LifecycleStore } from "./lifecycle.ts";
+import { createInventoryStore, type InventoryStore } from "./inventory.ts";
 import type { HealthReport } from "./app.ts";
 import { createApp } from "./app.ts";
 import { createIdentityStore, type IdentityStore } from "./identity.ts";
@@ -19,6 +20,7 @@ export type LocalServerOptions = {
   calendar?: CalendarStore;
   sales?: SaleStore;
   lifecycle?: LifecycleStore;
+  inventory?: InventoryStore;
   database?: LocalDatabase;
 };
 
@@ -35,7 +37,7 @@ function now() { return Date.now(); }
 export function createLocalServer(options: LocalServerOptions): LocalServer {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 43117;
-  const schemaVersion = options.schemaVersion ?? 2;
+  const schemaVersion = options.schemaVersion ?? 4;
   const startedAt = now();
   let status: HealthReport["status"] = "starting";
   let databaseStatus: HealthReport["database"] = "unhealthy";
@@ -46,9 +48,10 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const ownsDatabase = !options.database;
   const database = options.database ?? openLocalDatabase(`${options.dataDir}/kiddy-land.sqlite`);
   const calendar = options.calendar ?? createCalendarStore({ database });
-  const sales = options.sales ?? createSaleStore(calendar, database);
+  const inventory = options.inventory ?? createInventoryStore(database);
+  const sales = options.sales ?? createSaleStore(calendar, database, inventory);
   const lifecycle = options.lifecycle ?? createLifecycleStore(sales, calendar, database);
-  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle);
+  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle, inventory);
   const websocketServer = new WebSocketServer({ noServer: true });
 
   return {

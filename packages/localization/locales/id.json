@@ -136,5 +136,17 @@
   "scanner.childId": "ID anak",
   "scanner.recover": "Pulihkan tiket",
   "scanner.collectCharge": "Tagih biaya tertunggak",
-  "scanner.collect": "Tagih biaya"
+  "scanner.collect": "Tagih biaya",
+  "inventory.title": "Inventaris",
+  "inventory.catalog": "Katalog produk",
+  "inventory.productName": "Nama produk",
+  "inventory.price": "Harga",
+  "inventory.create": "Buat produk",
+  "inventory.approve": "Setujui hitungan",
+  "inventory.intake": "Terima stok",
+  "inventory.count": "Kirim hitungan",
+  "inventory.lowStock": "Produk stok rendah",
+  "inventory.ownerOverview": "Ringkasan inventaris",
+  "inventory.movements": "Pergerakan inventaris",
+  "inventory.refund": "Kembalikan produk"
 }

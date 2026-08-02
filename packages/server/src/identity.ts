@@ -17,7 +17,7 @@ export type IdentityStore = ReturnType<typeof createIdentityStore>;
 const capabilities: Record<Role | "Public", ReadonlySet<string>> = {
   Owner: new Set(["read", "write", "admin", "ticket:admit", "ticket:exit", "inventory:write"]),
   Cashier: new Set(["read", "write", "ticket:admit", "ticket:exit", "inventory:write"]),
-  Staff: new Set(["read", "ticket:admit", "ticket:exit"]),
+  Staff: new Set(["read", "ticket:admit", "ticket:exit", "inventory:write"]),
   Public: new Set(["public:read"]),
 };
 

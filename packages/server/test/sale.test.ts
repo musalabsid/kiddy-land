@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createCalendarStore } from "../src/calendar.ts";
 import { createSaleStore } from "../src/sale.ts";
+import { createInventoryStore } from "../src/inventory.ts";
 
 describe("cashier ticket sale", () => {
   function fixture() {
@@ -29,6 +30,11 @@ describe("cashier ticket sale", () => {
     store.recordPrintAttempt({ saleId: sale.id, artifact: "tickets", actorId: "cashier", status: "unknown" });
     expect(store.get(sale.id)?.tickets).toHaveLength(1);
   });
+  test("does not partially reserve duplicate product lines", () => {
+    const calendar = createCalendarStore(); calendar.setWeeklyHours("monday", { open: "00:00", close: "23:59" }, "owner"); const inventory = createInventoryStore(); const product = inventory.create({ sku: "P", name: "Product", price: 100, stock: 1 }, "owner"); const sales = createSaleStore(calendar, undefined, inventory);
+    expect(() => sales.complete({ idempotencyKey: "duplicate-product", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "cash", lines: [{ kind: "product", productId: product.id, quantity: 1 }, { kind: "product", productId: product.id, quantity: 1 }] })).toThrow("Insufficient stock"); expect(product.stock).toBe(1);
+  });
+
   test("rejects sales outside the venue operating window", () => {
     const { store, pkg } = fixture();
     expect(() => store.complete({ idempotencyKey: "closed", cashierId: "cashier", operatingDate: "2024-01-01", at: Date.parse("2024-01-01T15:00:00Z"), paymentMethod: "cash", lines: [{ childId: "child", packageId: pkg.id }] })).toThrow("outside");

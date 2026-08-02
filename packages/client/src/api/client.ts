@@ -19,4 +19,5 @@ export class ApiClient {
   }
   get<T>(path: string, init?: RequestInit) { return this.request<T>(path, { ...init, method: "GET" }); }
   post<T>(path: string, body: unknown, init?: RequestInit) { return this.request<T>(path, { ...init, method: "POST", body: JSON.stringify(body) }); }
+  patch<T>(path: string, body: unknown, init?: RequestInit) { return this.request<T>(path, { ...init, method: "PATCH", body: JSON.stringify(body) }); }
 }

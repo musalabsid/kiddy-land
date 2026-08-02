@@ -4,6 +4,7 @@ import type { DeviceMode, IdentityStore } from "./identity.ts";
 import type { CalendarStore } from "./calendar.ts";
 import type { SaleStore } from "./sale.ts";
 import type { LifecycleStore } from "./lifecycle.ts";
+import type { InventoryStore } from "./inventory.ts";
 import { authorizeWebSocket, type WebSocketRegistry } from "./realtime.ts";
 
 export type HealthStatus = "starting" | "ready" | "unhealthy" | "fatal";
@@ -23,6 +24,7 @@ export function createApp(
   calendar?: CalendarStore,
   sales?: SaleStore,
   lifecycle?: LifecycleStore,
+  inventory?: InventoryStore,
 ) {
   const app = new Hono();
 
@@ -77,11 +79,27 @@ export function createApp(
     });
   }
 
+  if (inventory) {
+    app.get("/products", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.list(c.req.query("search"), current.user?.role === "Owner")); });
+    app.get("/products/:id", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); const item = inventory.products.get(c.req.param("id")); return item ? c.json(item) : c.json({ error: "Product not found" }, 404); });
+    app.post("/products", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { return c.json(inventory.create(await c.req.json(), current.user.id), 201); } catch { return c.json({ error: "Product cannot be created" }, 409); } });
+    app.patch("/products/:id", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { return c.json(inventory.update(c.req.param("id"), await c.req.json())); } catch { return c.json({ error: "Product cannot be updated" }, 409); } });
+    app.post("/products/:id/archive", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { return c.json(inventory.archive(c.req.param("id"))); } catch { return c.json({ error: "Product cannot be archived" }, 409); } });
+    app.post("/products/:id/reactivate", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { return c.json(inventory.reactivate(c.req.param("id"))); } catch { return c.json({ error: "Product cannot be reactivated" }, 409); } });
+    app.post("/inventory/intake", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "inventory:write")) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ productId: string; quantity: number; reason: string }>(); return c.json(inventory.intake(body.productId, body.quantity, current.user?.id ?? "inventory", body.reason)); } catch { return c.json({ error: "Stock intake cannot be recorded" }, 409); } });
+    app.post("/inventory/counts", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "inventory:write")) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ productId: string; counted: number }>(); return c.json(inventory.submitCount(body.productId, body.counted, current.user?.id ?? "inventory"), 201); } catch { return c.json({ error: "Stock count cannot be submitted" }, 409); } });
+    app.post("/inventory/counts/:id/approve", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { return c.json(inventory.approveCount(c.req.param("id"), current.user.id)); } catch { return c.json({ error: "Stock count cannot be approved" }, 409); } });
+    app.get("/inventory/movements", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.movements); });
+    app.get("/inventory/low-stock", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.list(undefined, false).filter((item) => item.stock <= item.lowStockThreshold)); });
+    app.get("/inventory/exceptions", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.exceptions); });
+    app.get("/inventory/counts", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.counts); });
+  }
+
   if (sales) {
     app.post("/sales", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.device.mode !== "Cashier" || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
-      try { const body = await c.req.json(); return c.json(sales.complete({ ...body, cashierId: current.user?.id ?? "cashier", at: Date.now() }), 201); } catch { return c.json({ error: "Sale cannot be completed" }, 409); }
+      try { const body = await c.req.json(); const lines = Array.isArray(body.lines) ? body.lines : []; if (lines.some((line: { outOfStockException?: unknown }) => line.outOfStockException) && current.user?.role !== "Owner") return c.json({ error: "Owner authorization required for out-of-stock exception" }, 403); return c.json(sales.complete({ ...body, cashierId: current.user?.id ?? "cashier", at: Date.now() }), 201); } catch { return c.json({ error: "Sale cannot be completed" }, 409); }
     });
     app.get("/sales/:id", (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
@@ -97,6 +115,18 @@ export function createApp(
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401);
       try { const artifact = await sales.qr(c.req.param("id"), c.req.param("ticketId")); return new Response(artifact.body, { headers: { "Content-Type": artifact.contentType, "Content-Disposition": `inline; filename="${artifact.filename}"` } }); } catch { return c.json({ error: "QR unavailable" }, 404); }
+    });
+    app.post("/sales/:id/refunds", async (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
+      try {
+        const sale = sales.get(c.req.param("id")); if (!sale) return c.json({ error: "Sale not found" }, 404);
+        const body = await c.req.json<{ idempotencyKey: string; lineId: string; quantity: number; disposition: "return-to-stock" | "damaged-consumed"; reason: string }>();
+        const line = sale.lines.find((candidate) => candidate.kind === "product" && candidate.lineId === body.lineId); if (!line || line.kind !== "product") return c.json({ error: "Product line not found" }, 404);
+        const refunded = inventory?.refunds.filter((item) => item.saleId === sale.id && item.lineId === body.lineId).reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+        if (refunded + body.quantity > line.quantity) return c.json({ error: "Refund exceeds sold quantity" }, 409);
+        return c.json(inventory!.refund({ ...body, saleId: sale.id, productId: line.productId, actorId: current.user?.id ?? "cashier" }), 201);
+      } catch { return c.json({ error: "Refund cannot be recorded" }, 409); }
     });
     app.post("/sales/:id/print-attempts", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
