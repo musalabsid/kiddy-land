@@ -1,5 +1,5 @@
 import * as React from "react";
-import { QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiClient } from "./api/client";
 import { clientQueryKeys, createClientQueryClient } from "./query/query-client";
 import { useAuthStore } from "./auth/store";
@@ -22,10 +22,11 @@ function RealtimeSync() {
   const clear = useAuthStore((state) => state.clear);
   const setState = useConnectionStore((state) => state.setState);
   const client = useClientContext();
+  const queryClient = useQueryClient();
   React.useEffect(() => {
     if (!session) return undefined;
     const realtime = new RealtimeClient(`${client.origin.replace(/^http/, "ws")}/ws`, () => client.getToken());
-    const unsubscribe = realtime.subscribe((event) => { if (event.type === "revoked") { client.setToken(undefined); clear(); } else if (event.type === "connected") setState("connected"); else if (event.type === "disconnected") setState("read-only"); else if (event.type === "synchronized") setState("synchronized", true); });
+    const unsubscribe = realtime.subscribe((event) => { if (event.type === "revoked") { client.setToken(undefined); clear(); } else if (event.type === "connected") setState("connected"); else if (event.type === "disconnected") setState("read-only"); else if (event.type === "synchronized") { setState("synchronized", true); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.reports }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.liveReport }); } else if (event.type === "report-changed") { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.reports }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.liveReport }); } });
     realtime.connect();
     return () => { unsubscribe(); realtime.close(); };
   }, [client, clear, session, setState]);

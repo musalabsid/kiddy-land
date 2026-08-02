@@ -11,6 +11,7 @@ import { createApp } from "./app.ts";
 import { createIdentityStore, type IdentityStore } from "./identity.ts";
 import { openLocalDatabase, type LocalDatabase } from "./database.ts";
 import { createReportService, type ReportService } from "./reports.ts";
+import { publishReportEvent } from "./realtime.ts";
 import { createMembershipStore, type MembershipStore } from "./membership.ts";
 
 export type LocalServerOptions = {
@@ -58,6 +59,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const lifecycle = options.lifecycle ?? createLifecycleStore(sales, calendar, database);
   const reports = options.reports ?? createReportService(calendar, sales, lifecycle, inventory, membership);
   const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle, inventory, membership, reports);
+  publishReportEvent(registry, { type: "report-changed", source: "server-ready" });
   const websocketServer = new WebSocketServer({ noServer: true });
 
   return {

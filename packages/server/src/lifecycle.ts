@@ -5,7 +5,7 @@ import type { LocalDatabase } from "./database.ts";
 import { sql } from "drizzle-orm";
 
 export type TicketState = "waiting" | "active" | "completed" | "void" | "expired";
-export type SessionEvent = { type: "admitted" | "exited" | "auto-closed" | "expired" | "charge-waived" | "charge-collected"; ticketId: string; at: number; details?: unknown };
+export type SessionEvent = { type: "admitted" | "exited" | "auto-closed" | "expired" | "charge-waived" | "charge-collected"; ticketId: string; at: number; actorId?: string; details?: unknown };
 export type RecoveryResult = { ticketId: string; code: string; qrToken: string };
 export type PlaySession = { id: string; ticketId: string; enteredAt: number; exitedAt?: number; status: "active" | "completed" | "auto-closed"; overtimeMinutes: number; outstandingCharge: number; depositApplied: number; depositRefunded: number };
 export type ScanResult = { ok: boolean; state: TicketState | "unknown"; message: string; ticket?: TicketRecord; session?: PlaySession };
@@ -56,7 +56,10 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
   }
   function settle(ticket: TicketRecord, session: PlaySession, at: number, status: PlaySession["status"], eventType: "exited" | "auto-closed") {
     const result = calculate(ticket, session, at);
-    Object.assign(session, { exitedAt: at, status, overtimeMinutes: result.overtimeMinutes, outstandingCharge: result.outstanding, depositApplied: result.applied, depositRefunded: result.refund });
+    Object.assign(session, { exitedAt: at, status, overtimeMinutes: result.overtimeMinutes, outstandingCharge: result.outstanding, depositApplied: result.applied, depositRefunded: 0 });
+    const sale = [...sales.sales.values()].find((item) => item.tickets.some((candidate) => candidate.id === ticket.id));
+    const depositRecord = sale?.deposits.find((item) => item.ticketId === ticket.id);
+    if (depositRecord) { depositRecord.appliedAmount = result.applied; depositRecord.refundedAmount = 0; depositRecord.status = ticket.package.depositPolicy === "forfeit-overtime" && result.charge > 0 ? "forfeited" : result.applied >= ticket.package.deposit ? "applied" : "held"; }
     ticket.status = "completed" as never;
     events.push({ type: eventType, ticketId: ticket.id, at, details: result }); persist();
     return result;
@@ -74,20 +77,34 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
     const ticket = findTicket(code); if (!ticket || ticket.childId !== childId) throw new Error("Ticket recovery verification failed");
     const replacement = randomBytes(8).toString("hex").toUpperCase(); recoveryCodes.set(replacement, ticket.id); persist(); return { ticketId: ticket.id, code: replacement, qrToken: ticket.qrToken };
   }
-  function collectOutstanding(ticketId: string, amount: number, paymentMethod: "cash" | "QRIS" | "bank-transfer", at = Date.now()) {
+  function collectOutstanding(ticketId: string, amount: number, paymentMethod: "cash" | "QRIS" | "bank-transfer", actorId = "cashier", at = Date.now()) {
     if (!Number.isInteger(amount) || amount <= 0) throw new Error("Charge amount must be a positive IDR integer");
     const session = sessions.get(ticketId); if (!session || session.outstandingCharge <= 0) throw new Error("No outstanding charge");
     if (amount !== session.outstandingCharge) throw new Error("Charge amount must match outstanding charge");
     const collected = session.outstandingCharge; session.outstandingCharge = 0;
-    events.push({ type: "charge-collected", ticketId, at, details: { amount: collected, paymentMethod } }); persist();
+    events.push({ type: "charge-collected", ticketId, at, actorId, details: { amount: collected, paymentMethod } }); persist();
     return { ticketId, amount: collected, paymentMethod, collectedAt: at, session };
+  }
+  function refundDeposit(ticketId: string, actorRole: string, at = Date.now()) {
+    if (actorRole !== "Cashier" && actorRole !== "Owner") throw new Error("Cashier authorization required");
+    const session = sessions.get(ticketId); if (!session || session.status === "active") throw new Error("Ticket must be settled before refund");
+    const sale = [...sales.sales.values()].find((item) => item.tickets.some((candidate) => candidate.id === ticketId));
+    const deposit = sale?.deposits.find((item) => item.ticketId === ticketId);
+    if (!deposit || deposit.status !== "held") throw new Error("Deposit is not refundable");
+    const amount = Math.max(0, deposit.amount - (deposit.appliedAmount ?? 0));
+    if (amount <= 0) throw new Error("No deposit remainder to refund");
+    deposit.status = "refunded"; deposit.refundedAmount = amount; session.depositRefunded += amount; persist();
+    return { ticketId, amount, refundedAt: at };
   }
   function waiveOutstanding(ticketId: string, actorRole: string, reason: string, at = Date.now()) {
     if (actorRole !== "Owner" || !reason.trim()) throw new Error("Owner reason required");
     const session = sessions.get(ticketId); if (!session || session.outstandingCharge <= 0) throw new Error("No outstanding charge");
+    const sale = [...sales.sales.values()].find((item) => item.tickets.some((candidate) => candidate.id === ticketId));
+    const deposit = sale?.deposits.find((item) => item.ticketId === ticketId);
+    if (deposit && deposit.status !== "refunded") deposit.status = "forfeited";
     const amount = session.outstandingCharge; session.outstandingCharge = 0;
-    events.push({ type: "charge-waived", ticketId, at, details: { amount, reason } }); persist();
-    return { ticketId, amount, reason, waivedAt: at };
+    events.push({ type: "charge-waived", ticketId, at, details: { amount, reason, depositForfeited: deposit?.amount ?? 0 } }); persist();
+    return { ticketId, amount, reason, waivedAt: at, depositForfeited: deposit?.amount ?? 0 };
   }
   function close(date: string, at: number) {
     const result: ScanResult[] = [];
@@ -99,7 +116,7 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
     }
     return result;
   }
-  return { sessions, events, findTicket, admit, exit, recover, collectOutstanding, waiveOutstanding, close };
+  return { sessions, events, findTicket, admit, exit, recover, collectOutstanding, refundDeposit, waiveOutstanding, close };
 }
 
 export type LifecycleStore = ReturnType<typeof createLifecycleStore>;

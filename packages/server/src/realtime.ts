@@ -1,5 +1,5 @@
 import type { ConnectionRegistry } from "./connection.ts";
-export type WebSocketRegistry = ConnectionRegistry;
+export type WebSocketRegistry = ConnectionRegistry & { broadcast?: (event: unknown) => void };
 import type { IdentityStore } from "./identity.ts";
 
 export type WebSocketDecision = { allowed: true; deviceId: string } | { allowed: false; reason: "unauthorized" | "origin-denied" };
@@ -22,4 +22,7 @@ export function closeRevokedConnections(identity: IdentityStore, registry: Conne
   if (!identity.devices.get(deviceId)?.revokedAt) return false;
   registry.closeDevice(deviceId);
   return true;
+}
+
+export function publishReportEvent(registry: WebSocketRegistry, event: { type: string; [key: string]: unknown }) { registry.broadcast?.(event);
 }
