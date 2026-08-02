@@ -10,6 +10,7 @@ import type { HealthReport } from "./app.ts";
 import { createApp } from "./app.ts";
 import { createIdentityStore, type IdentityStore } from "./identity.ts";
 import { openLocalDatabase, type LocalDatabase } from "./database.ts";
+import { createReportService, type ReportService } from "./reports.ts";
 import { createMembershipStore, type MembershipStore } from "./membership.ts";
 
 export type LocalServerOptions = {
@@ -23,6 +24,7 @@ export type LocalServerOptions = {
   lifecycle?: LifecycleStore;
   inventory?: InventoryStore;
   membership?: MembershipStore;
+  reports?: ReportService;
   database?: LocalDatabase;
 };
 
@@ -54,7 +56,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const membership = options.membership ?? createMembershipStore(database);
   const sales = options.sales ?? createSaleStore(calendar, database, inventory, membership);
   const lifecycle = options.lifecycle ?? createLifecycleStore(sales, calendar, database);
-  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle, inventory, membership);
+  const reports = options.reports ?? createReportService(calendar, sales, lifecycle, inventory, membership);
+  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle, inventory, membership, reports);
   const websocketServer = new WebSocketServer({ noServer: true });
 
   return {

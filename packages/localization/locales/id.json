@@ -156,5 +156,6 @@
   "membership.deactivate": "Nonaktifkan",
   "membership.reactivate": "Aktifkan kembali",
   "membership.history": "Riwayat",
-  "membership.discounts": "Diskon keanggotaan"
+  "membership.discounts": "Diskon keanggotaan",
+  "reports.title": "Laporan pemilik"
 }

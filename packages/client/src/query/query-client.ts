@@ -24,4 +24,6 @@ export const clientQueryKeys = {
   members: ["members"] as const,
   memberHistory: (id: string) => ["members", id, "history"] as const,
   membershipDiscounts: ["membership", "discounts"] as const,
+  reports: ["reports"] as const,
+  liveReport: ["reports", "live"] as const,
 };

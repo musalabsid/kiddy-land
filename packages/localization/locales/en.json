@@ -156,5 +156,6 @@
   "membership.deactivate": "Deactivate",
   "membership.reactivate": "Reactivate",
   "membership.history": "History",
-  "membership.discounts": "Membership discounts"
+  "membership.discounts": "Membership discounts",
+  "reports.title": "Owner reports"
 }

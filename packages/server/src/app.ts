@@ -6,6 +6,8 @@ import type { SaleStore } from "./sale.ts";
 import type { LifecycleStore } from "./lifecycle.ts";
 import type { InventoryStore } from "./inventory.ts";
 import type { MembershipStore } from "./membership.ts";
+import type { ReportService } from "./reports.ts";
+import { reportCsv, reportPdf } from "./report-export.ts";
 import { authorizeWebSocket, type WebSocketRegistry } from "./realtime.ts";
 
 export type HealthStatus = "starting" | "ready" | "unhealthy" | "fatal";
@@ -27,6 +29,7 @@ export function createApp(
   lifecycle?: LifecycleStore,
   inventory?: InventoryStore,
   membership?: MembershipStore,
+  reports?: ReportService,
 ) {
   const app = new Hono();
 
@@ -38,6 +41,16 @@ export function createApp(
     const health = getHealth();
     return c.json(health, health.status === "ready" ? 200 : 503);
   });
+
+  if (reports) {
+    const owner = (c: any) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); return current && current.user?.role === "Owner" && identity?.can(current, "read") ? current : undefined; };
+    const query = (c: any) => ({ from: c.req.query("from"), to: c.req.query("to"), cashierId: c.req.query("cashierId"), paymentMethod: c.req.query("paymentMethod"), packageId: c.req.query("packageId"), productId: c.req.query("productId"), memberId: c.req.query("memberId") });
+    const report = (kind: string, c: any) => { if (!owner(c)) return c.json({ error: "Forbidden" }, 403); try { return c.json((reports as any)[kind](query(c))); } catch { return c.json({ error: "Invalid report filters" }, 400); } };
+    app.get("/reports/financial", (c) => report("financial", c)); app.get("/reports/playground", (c) => report("playground", c)); app.get("/reports/inventory", (c) => report("inventory", c)); app.get("/reports/membership", (c) => report("membership", c));
+    app.get("/reports/live", (c) => { if (!owner(c)) return c.json({ error: "Forbidden" }, 403); return c.json(reports.live()); });
+    app.get("/reports/:kind.csv", (c) => { if (!owner(c)) return c.json({ error: "Forbidden" }, 403); try { const value = (reports as any)[c.req.param("kind") ?? ""](query(c)); return new Response(reportCsv(value), { headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${c.req.param("kind")}-report.csv"` } }); } catch { return c.json({ error: "Report unavailable" }, 400); } });
+    app.get("/reports/:kind.pdf", (c) => { if (!owner(c)) return c.json({ error: "Forbidden" }, 403); try { const value = (reports as any)[c.req.param("kind") ?? ""](query(c)); return new Response(reportPdf(value), { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${c.req.param("kind")}-report.pdf"` } }); } catch { return c.json({ error: "Report unavailable" }, 400); } });
+  }
 
   if (calendar) {
     app.get("/calendar/config", (c) => {
@@ -114,7 +127,7 @@ export function createApp(
     app.post("/sales", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.device.mode !== "Cashier" || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
-      try { const body = await c.req.json(); const lines = Array.isArray(body.lines) ? body.lines : []; if (lines.some((line: { outOfStockException?: unknown }) => line.outOfStockException) && current.user?.role !== "Owner") return c.json({ error: "Owner authorization required for out-of-stock exception" }, 403); return c.json(sales.complete({ ...body, cashierId: current.user?.id ?? "cashier", at: Date.now() }), 201); } catch { return c.json({ error: "Sale cannot be completed" }, 409); }
+      try { const body = await c.req.json(); const lines = Array.isArray(body.lines) ? body.lines : []; if (lines.some((line: { outOfStockException?: unknown }) => line.outOfStockException) && current.user?.role !== "Owner") return c.json({ error: "Owner authorization required for out-of-stock exception" }, 403); const at = Date.now(); return c.json(sales.complete({ ...body, operatingDate: calendar?.operatingDate(new Date(at)) ?? body.operatingDate, cashierId: current.user?.id ?? "cashier", at }), 201); } catch { return c.json({ error: "Sale cannot be completed" }, 409); }
     });
     app.get("/sales/:id", (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
