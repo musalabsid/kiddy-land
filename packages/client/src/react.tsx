@@ -48,7 +48,7 @@ export { ApiClient, ClientError } from "./api/client";
 export { AuthService } from "./auth/service";
 export { useLoginMutation, usePairingMutation, useSessionQuery } from "./query/hooks";
 export { useCalendarConfig, useConfigureCalendar, useSchedule } from "./calendar/hooks";
-export { useCompleteSale, usePrintAttempt, useSale, useSaleArtifact, saleArtifactUrl } from "./sales/hooks";
+export { useCompleteSale, usePrintAttempt, useSale, useSaleArtifact, saleArtifactUrl, saleQrUrl } from "./sales/hooks";
 export type * from "./calendar/types";
 export { formatDate, formatIdr } from "@kiddy-land/localization";
 export type * from "./api/types";

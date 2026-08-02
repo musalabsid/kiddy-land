@@ -117,6 +117,7 @@
   "sale.downloadTickets": "Download tickets",
   "sale.openReceipt": "Open receipt PDF",
   "sale.printReceipt": "Print receipt",
+  "sale.downloadReceipt": "Download receipt",
   "sale.showQr": "Show QR",
   "sale.newSale": "New sale",
   "sale.error": "Sale could not be completed",

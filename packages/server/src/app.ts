@@ -88,6 +88,11 @@ export function createApp(
       if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401);
       try { const artifact = sales.artifact(c.req.param("id"), c.req.param("kind") as "tickets" | "receipt"); return new Response(artifact.body, { headers: { "Content-Type": artifact.contentType, "Content-Disposition": `inline; filename="${artifact.filename}"` } }); } catch { return c.json({ error: "Artifact unavailable" }, 404); }
     });
+    app.get("/sales/:id/tickets/:ticketId/qr", async (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401);
+      try { const artifact = await sales.qr(c.req.param("id"), c.req.param("ticketId")); return new Response(artifact.body, { headers: { "Content-Type": artifact.contentType, "Content-Disposition": `inline; filename="${artifact.filename}"` } }); } catch { return c.json({ error: "QR unavailable" }, 404); }
+    });
     app.post("/sales/:id/print-attempts", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);

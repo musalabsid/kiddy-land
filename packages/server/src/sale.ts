@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import type { CalendarStore, PackageSnapshot } from "./calendar.ts";
 import type { LocalDatabase } from "./database.ts";
 import { sql } from "drizzle-orm";
+import QRCode from "qrcode";
 
 export const PAYMENT_METHODS = ["cash", "QRIS", "bank-transfer"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
@@ -59,12 +60,13 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
     const sale = sales.get(input.saleId); if (!sale || sale.status !== "completed") throw new Error("Sale unavailable");
     const attempt: PrintAttempt = { id: id("print"), ...input, reprint: input.reprint ?? false, at: Date.now() }; printAttempts.push(attempt); persist(); return attempt;
   }
+  async function qr(saleId: string, ticketId: string) { const sale = sales.get(saleId); const ticket = sale?.tickets.find((candidate) => candidate.id === ticketId); if (!sale || !ticket || sale.status !== "completed") throw new Error("Ticket unavailable"); return { contentType: "image/png", filename: `${ticket.code}.png`, body: await QRCode.toBuffer(ticket.qrToken, { type: "png", margin: 1, width: 320 }) }; }
   function artifact(saleId: string, kind: "tickets" | "receipt") {
     const sale = sales.get(saleId); if (!sale || sale.status !== "completed") throw new Error("Sale unavailable");
     if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: pdf("Receipt", [sale.receipt.number, ...sale.receipt.lines.map((line) => `${line.packageName} ${line.childId} IDR ${line.price} deposit IDR ${line.deposit}`), `TOTAL IDR ${sale.total}`], 227, 500) };
     return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: pdf("Tickets", sale.tickets.flatMap((ticket) => [`CHILD: ${ticket.childName ?? ticket.childId}`, `TICKET: ${ticket.code}`, `QR: ${ticket.qrToken}`, `PACKAGE: ${ticket.package.name}`, "--------------------"]), 612, Math.max(792, sale.tickets.length * 120)) };
   }
-  return { sales, printAttempts, complete, get, recordPrintAttempt, artifact };
+  return { sales, printAttempts, complete, get, recordPrintAttempt, artifact, qr };
 }
 
 export type SaleStore = ReturnType<typeof createSaleStore>;

@@ -8,6 +8,7 @@ export function useSale(saleId?: string) { const client = useClient(); return us
 export function useCompleteSale() { const client = useClient(); const queryClient = useQueryClient(); const connection = useConnectionStore(); return useMutation({ mutationFn: (input: SaleInput) => { if (!canMutate(connection.state, connection.synchronized)) throw new Error("Connection is not synchronized"); return client.post<SaleRecord>("/sales", input); }, onSuccess: (sale) => { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.sales }); queryClient.setQueryData([...clientQueryKeys.sale, sale.id], sale); } }); }
 export function usePrintAttempt() { const client = useClient(); return useMutation({ mutationFn: ({ saleId, ...input }: Omit<PrintAttempt, "id" | "saleId" | "at"> & { saleId: string }) => client.post<PrintAttempt>(`/sales/${saleId}/print-attempts`, input) }); }
 export function saleArtifactUrl(origin: string, saleId: string, kind: "tickets" | "receipt") { return `${origin}/sales/${saleId}/artifacts/${kind}`; }
+export function saleQrUrl(origin: string, saleId: string, ticketId: string) { return `${origin}/sales/${saleId}/tickets/${ticketId}/qr`; }
 export function useSaleArtifact() {
   const client = useClient();
   return async (saleId: string, kind: "tickets" | "receipt") => {
