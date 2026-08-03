@@ -106,6 +106,17 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
     events.push({ type: "charge-waived", ticketId, at, details: { amount, reason, depositForfeited: deposit?.amount ?? 0 } }); persist();
     return { ticketId, amount, reason, waivedAt: at, depositForfeited: deposit?.amount ?? 0 };
   }
+  function publicTicket(codeOrToken: string, at = Date.now()) {
+    const ticket = findTicket(codeOrToken);
+    if (!ticket) return { ok: false, state: "unknown" as const, message: "Ticket not found", remainingMinutes: 0 };
+    const session = sessions.get(ticket.id);
+    const active = session?.status === "active";
+    const remainingMinutes = active && ticket.package.includedMinutes !== null
+      ? Math.max(0, ticket.package.includedMinutes - minutesBetween(session.enteredAt, at))
+      : ticket.package.includedMinutes ?? 0;
+    return { ok: active || ticket.status === "waiting", state: active ? "active" as const : state(ticket), message: active ? "Ticket is active" : ticket.status === "waiting" ? "Ticket is valid" : "Ticket is no longer valid", remainingMinutes };
+  }
+
   function close(date: string, at: number) {
     const result: ScanResult[] = [];
     const schedule = calendar.effectiveSchedule(date);
@@ -116,7 +127,7 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
     }
     return result;
   }
-  return { sessions, events, findTicket, admit, exit, recover, collectOutstanding, refundDeposit, waiveOutstanding, close };
+  return { sessions, events, findTicket, admit, exit, recover, collectOutstanding, refundDeposit, waiveOutstanding, publicTicket, close };
 }
 
 export type LifecycleStore = ReturnType<typeof createLifecycleStore>;

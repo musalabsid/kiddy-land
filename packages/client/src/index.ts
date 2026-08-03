@@ -7,6 +7,7 @@ export { clientQueryKeys, createClientQueryClient } from "./query/query-client";
 export type * from "./calendar/types";
 export * from "./sales/hooks";
 export * from "./inventory/hooks";
+export * from "./kiosk";
 export * from "./members/hooks";
 export * from "./notifications";
 export * from "./backups";

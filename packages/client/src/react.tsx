@@ -52,6 +52,7 @@ export { useCalendarConfig, useConfigureCalendar, useSchedule, usePackageSnapsho
 export { useCompleteSale, usePrintAttempt, useSale, useSaleArtifact, saleArtifactUrl, saleQrUrl } from "./sales/hooks";
 export { useTicketScan, useTicketRecovery, useCollectCharge } from "./lifecycle/hooks";
 export * from "./inventory/hooks";
+export * from "./kiosk";
 export * from "./members/hooks";
 export * from "./reports/hooks";
 export type * from "./calendar/types";

@@ -94,6 +94,11 @@ export function createApp(
   }
 
   if (lifecycle) {
+    app.post("/public/tickets/validate", async (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.device.mode !== "Public Kiosk" || !identity?.can(current, "public:read")) return c.json({ error: "Forbidden" }, 403);
+      try { return c.json(lifecycle.publicTicket((await c.req.json<{ code?: string }>()).code ?? "")); } catch { return c.json({ error: "Ticket validation unavailable" }, 409); }
+    });
     app.post("/tickets/scan/entry", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.device.mode !== "Entrance Scanner" || !identity?.can(current, "ticket:admit")) return c.json({ error: "Forbidden" }, 403);
@@ -133,6 +138,11 @@ export function createApp(
   }
 
   if (inventory) {
+    app.get("/public/products", (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.device.mode !== "Public Kiosk" || !identity?.can(current, "public:read")) return c.json({ error: "Forbidden" }, 403);
+      return c.json(inventory.list(c.req.query("search"), false).map(({ id, sku, name, price, barcode }) => ({ id, sku, name, price, barcode })));
+    });
     app.get("/products", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.list(c.req.query("search"), current.user?.role === "Owner")); });
     app.get("/products/:id", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); const item = inventory.products.get(c.req.param("id")); return item ? c.json(item) : c.json({ error: "Product not found" }, 404); });
     app.post("/products", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { const result = inventory.create(await c.req.json(), current.user.id); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(result, 201); } catch { return c.json({ error: "Product cannot be created" }, 409); } });
