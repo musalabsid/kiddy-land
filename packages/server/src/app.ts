@@ -11,6 +11,7 @@ import { reportCsv, reportPdf } from "./report-export.ts";
 import { publishReportEvent } from "./realtime.ts";
 import { authorizeWebSocket, type WebSocketRegistry } from "./realtime.ts";
 import type { NotificationService } from "./notifications.ts";
+import type { BackupService } from "./backup.ts";
 
 export type HealthStatus = "starting" | "ready" | "unhealthy" | "fatal";
 
@@ -33,9 +34,25 @@ export function createApp(
   membership?: MembershipStore,
   reports?: ReportService,
   notifications?: NotificationService,
+  backups?: BackupService,
 ) {
   const app = new Hono();
 
+  app.get("/backups", (c) => {
+    const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+    if (!current || current.user?.role !== "Owner" || !identity?.can(current, "read")) return c.json({ error: "Forbidden" }, 403);
+    return c.json({ backups: backups?.records() ?? [], health: backups?.health() });
+  });
+  app.post("/backups", async (c) => {
+    const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+    if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+    return c.json(await backups?.backup("on-demand"), 201);
+  });
+  app.post("/backups/:id/restore", async (c) => {
+    const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+    if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+    try { const body = await c.req.json<{ confirmation: string }>(); return c.json(await backups?.restore(c.req.param("id"), body.confirmation)); } catch (error) { return c.json({ error: error instanceof Error ? error.message : "Restore failed" }, 409); }
+  });
   app.get("/health", (c) => {
     const health = getHealth();
     return c.json(health, health.status === "ready" ? 200 : 503);

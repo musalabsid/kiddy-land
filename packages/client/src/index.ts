@@ -9,6 +9,7 @@ export * from "./sales/hooks";
 export * from "./inventory/hooks";
 export * from "./members/hooks";
 export * from "./notifications";
+export * from "./backups";
 export * from "./reports/hooks";
 export type { SaleRecord } from "./api/types";
 export * from "./lifecycle/hooks";
