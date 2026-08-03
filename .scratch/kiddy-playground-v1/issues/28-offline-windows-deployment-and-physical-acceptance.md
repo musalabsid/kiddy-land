@@ -1,4 +1,4 @@
-# 28 — Offline Windows deployment and physical acceptance harness
+# 28 — Cross-platform deployment and acceptance harness
 
 Status: ready-for-agent
 Label: ready-for-agent
@@ -7,7 +7,11 @@ Map: ../map.md
 
 ## What to build
 
-A Maintainer can validate a clean, offline Windows deployment and the venue's prepared scanner, network, PDF/browser-print, media, and optional physical-printer fixtures through a repeatable acceptance harness. This slice preserves the PDF-canonical/browser-print baseline; it does not implement native/direct printer dispatch.
+Build the cross-platform deployment and acceptance harness used by the Ubuntu and Windows validation tickets. The implementation must expose repeatable diagnostics, fixture/version recording, readiness checks, packaging hooks, network checks, artifact checks, and evidence output without assuming Windows APIs at runtime. This slice preserves the PDF-canonical/browser-print baseline; it does not implement native/direct printer dispatch.
+
+Operating-system-specific validation is intentionally split out:
+- Ticket 29 runs the product and operational checklist on Ubuntu.
+- Ticket 30 validates the Windows installer, WebView2, firewall, printer, and physical acceptance requirements.
 
 ## Blocked by
 
@@ -20,10 +24,11 @@ A Maintainer can validate a clean, offline Windows deployment and the venue's pr
 
 ## Acceptance criteria
 
-- [ ] A clean Windows 10/11 x64 machine with no Bun/Node and no Internet can install the offline-capable package, launch WebView2 from the bundled payload, start the self-contained Bun sidecar, and show readiness.
-- [ ] Single-instance, app-local data, Private/Domain firewall, close-to-tray/Quit, port conflict, crash-loop, and sidecar recovery behavior are evidenced.
-- [ ] A venue-owned prepared Android scanner can trust the canonical hostname/CA, pair by QR, scan representative QRs in venue conditions, recover to manual entry, and safely handle permission/camera/Wi-Fi failures.
-- [ ] mDNS/hostname, IP-change, mDNS failure, and trusted Windows-desktop recovery behavior are tested without certificate-warning bypass.
-- [ ] Ticket PDF pagination, A4 four-strip layout, trim/safety margins, fold/tape handling, target 25 mm QR readability, receipt logical 80 mm output, 100%/actual-size guidance, and disabled browser headers/footers are evidenced.
-- [ ] If the venue elects physical printing, the selected printer/driver/media fixture is tested for scaling, clipping, queue/dialog failure, paper/cutter behavior where applicable, unknown attempts, explicit reprint, and PDF fallback.
+- [ ] The harness runs on Ubuntu and Windows without requiring Bun/Node/Internet on the target machine beyond the packaged application path.
+- [ ] It provides machine-readable and human-readable evidence records with scenario ID, setup, OS/runtime, fixture versions, steps, expected result, observed result, evidence references, and PASS/FAIL status.
+- [ ] It checks Local Server readiness, app-local data, single-instance behavior, port conflicts, crash-loop handling, sidecar recovery, and safe write blocking through platform-neutral interfaces.
+- [ ] It checks LAN loss, reconnect synchronization, hostname/mDNS resolution, IP-change handling, mDNS failure, trusted-origin configuration, and manual recovery paths without certificate-warning bypass.
+- [ ] It validates canonical ticket/receipt artifact metadata and print guidance, including pagination, A4 four-strip layout, safety margins, target 25 mm QR guidance, logical 80 mm receipt output, actual-size scaling, and disabled browser headers/footers.
+- [ ] It records optional physical printer/media fixtures and supports explicit reprint, unknown print-attempt outcomes, and PDF fallback without implementing native/direct printer dispatch.
+- [ ] It has no hard-coded Windows-only assumptions in shared checks; Windows-only checks are declared as Ticket 30 scenarios.
 - [ ] Exact device, OS, browser, printer, driver, media, network, and audio fixture versions are recorded as acceptance evidence rather than treated as universal product guarantees.

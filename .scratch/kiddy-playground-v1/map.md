@@ -38,7 +38,9 @@ Produce a build-ready v1 specification and phased implementation plan for one ph
 
 ## Remaining handoff and acceptance work
 
-- Exact supported Windows host/OS, prepared Android/browser/CA, printer/driver/media, optional scanner, network/mDNS/firewall, PDF renderer/print-dialog, and audio fixtures plus clean-machine/physical evidence (tracked by [`issues/14-v1-acceptance-scenarios.md`](issues/14-v1-acceptance-scenarios.md)).
+- Cross-platform deployment and acceptance harness (Ticket 28).
+- Ubuntu operating-day checklist and release gate (Ticket 29).
+- Exact supported Windows host/OS, prepared Android/browser/CA, printer/driver/media, optional scanner, network/mDNS/firewall, PDF renderer/print-dialog, and audio fixtures plus clean-machine/physical evidence (Ticket 30).
 - Venue packaging policy details such as installer flavor/signing/update channel, exact reserved port choice, and service behavior across logoff/sleep/reboot remain deployment acceptance or venue-policy work.
 - Implementation-level screen states, localized copy, server contracts, PDF/artifact contracts, and phased delivery slices for `/to-spec`; these must preserve the resolved workflow boundaries rather than reopen them.
 
