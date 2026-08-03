@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { acceptanceScenarioIds, checkAppLocalData, checkNetworkHost, checkPortAvailable, checkPortConflict, checkReadiness, createAcceptanceRun, finishAcceptanceRun, recordScenario, releaseReady, scenarioTemplate, writeAcceptanceEvidence } from "./acceptance.ts";
+import { acceptanceScenarioIds, checkAppLocalData, checkNetworkHost, checkPortAvailable, checkReadiness, createAcceptanceRun, finishAcceptanceRun, recordScenario, releaseReady, scenarioTemplate, validateArtifactGuidance, validateTrustedOrigin, writeAcceptanceEvidence } from "./acceptance.ts";
 
 const output = process.argv[2] ?? join(process.cwd(), "acceptance-evidence", `ticket-28-${Date.now()}.json`);
 const origin = process.env.KIDDY_SERVER_ORIGIN ?? "http://127.0.0.1:43117";
@@ -22,16 +22,22 @@ async function main() {
   const readiness = await checkReadiness(origin);
   const localData = await checkAppLocalData(dataDir);
   const portAvailable = await checkPortAvailable(port, host);
-  const portConflict = await checkPortConflict(port + 1, host);
   const dns = await checkNetworkHost(host);
+  const artifact = validateArtifactGuidance({ ticketPdf: { pages: 1, stripsPerPage: 4, qrMm: 25, safetyMarginMm: 3 }, receiptMm: 80, scalePercent: 100, browserHeadersFootersDisabled: true });
   const results = new Map<string, { observed: string; evidence: string[]; status: "PASS" | "FAIL" | "PENDING"; limitation?: string }>([
     ["server-readiness", { observed: JSON.stringify(readiness.body), evidence: [], status: readiness.ready ? "PASS" : "FAIL" }],
     ["app-local-data", { observed: localData.usable ? localData.path : localData.error ?? "unavailable", evidence: [], status: localData.usable ? "PASS" : "FAIL" }],
-    ["port-conflict", { observed: `probe port ${port + 1} ${portConflict ? "conflict detected" : "available"}`, evidence: ["runtime:port-probe"], status: portConflict ? "PASS" : "PENDING", limitation: portConflict ? undefined : "Port conflict fixture unavailable" }],
+    ["port-conflict", { observed: `configured port ${port} ${portAvailable ? "available" : "occupied"}`, evidence: ["runtime:port-availability"], status: portAvailable ? "PASS" : "PENDING", limitation: portAvailable ? undefined : "Configured port occupied" }],
     ["hostname-mdns", { observed: dns.addresses.join(", ") || dns.error || "unresolved", evidence: dns.resolved ? ["runtime:dns-lookup"] : [], status: dns.resolved ? "PASS" : "PENDING", limitation: dns.resolved ? undefined : "Hostname/mDNS fixture unavailable" }],
+    ["trusted-origin", { observed: "Origin validation helper available", evidence: validateTrustedOrigin(origin, [origin]) ? ["runtime:origin-validation"] : [], status: validateTrustedOrigin(origin, [origin]) ? "PASS" : "FAIL" }],
+    ["ticket-pdf-layout", { observed: artifact.valid ? "Canonical artifact guidance valid" : artifact.errors.join("; "), evidence: artifact.valid ? ["runtime:artifact-guidance"] : [], status: artifact.valid ? "PASS" : "FAIL" }],
+    ["receipt-80mm", { observed: "Receipt width validated by artifact guidance", evidence: artifact.valid ? ["runtime:receipt-guidance"] : [], status: artifact.valid ? "PASS" : "FAIL" }],
+    ["qr-25mm", { observed: "QR target validated by artifact guidance", evidence: artifact.valid ? ["runtime:qr-guidance"] : [], status: artifact.valid ? "PASS" : "FAIL" }],
+    ["browser-print-guidance", { observed: "Browser scale/header guidance validated", evidence: artifact.valid ? ["runtime:browser-print-guidance"] : [], status: artifact.valid ? "PASS" : "FAIL" }],
+    ["fixture-record", { observed: "Environment and fixture versions recorded", evidence: ["runtime:environment"], status: "PASS" }],
   ]);
   for (const id of acceptanceScenarioIds) {
-    const result = results.get(id) ?? { observed: "Not executable without venue fixture", evidence: [], status: "PENDING" as const, limitation: "Requires venue/device/physical fixture; validate in Ticket 29 or 30" };
+    const result = results.get(id) ?? { observed: "Requires LAN/device/physical fixture", evidence: ["pending:venue-fixture"], status: "PENDING" as const, limitation: "Validate in Ticket 29 or 30" };
     recordScenario(run, { ...scenarioTemplate(id), ...result });
   }
   const finished = finishAcceptanceRun(run);

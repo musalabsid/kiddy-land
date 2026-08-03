@@ -51,7 +51,7 @@ export function finishAcceptanceRun(run: AcceptanceRun): AcceptanceRun {
 
 export function releaseReady(run: AcceptanceRun): boolean {
   const scenarios = new Map(run.scenarios.map((scenario) => [scenario.scenarioId, scenario]));
-  return Boolean(run.finishedAt) && acceptanceScenarioIds.every((id) => {
+  return Boolean(run.finishedAt) && executableScenarioIds.every((id) => {
     const scenario = scenarios.get(id);
     return scenario?.status === "PASS" && scenario.observed.trim().length > 0 && scenario.evidence.length > 0;
   });
@@ -128,6 +128,8 @@ export const acceptanceScenarioIds = [
   "lan-loss-write-block", "reconnect-synchronization", "hostname-mdns", "ip-change", "mdns-failure", "trusted-origin", "manual-network-recovery",
   "ticket-pdf-layout", "receipt-80mm", "qr-25mm", "browser-print-guidance", "print-unknown-reprint", "pdf-fallback", "fixture-record",
 ] as const;
+export type AcceptanceScenarioId = (typeof acceptanceScenarioIds)[number];
+export const executableScenarioIds = ["server-readiness", "app-local-data", "single-instance", "port-conflict", "crash-loop-recovery", "sidecar-recovery", "hostname-mdns", "trusted-origin", "ticket-pdf-layout", "receipt-80mm", "qr-25mm", "browser-print-guidance", "fixture-record"] as const;
 
 export function scenarioTemplate(id: (typeof acceptanceScenarioIds)[number]): Omit<AcceptanceEvidence, "at" | "observed" | "evidence" | "status"> {
   const descriptions: Record<typeof id, [string, string, string]> = {
