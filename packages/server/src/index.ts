@@ -10,3 +10,4 @@ export * from "./lifecycle.ts";
 export * from "./membership.ts";
 export * from "./reports.ts";
 export * from "./report-export.ts";
+export * from "./acceptance.ts";
