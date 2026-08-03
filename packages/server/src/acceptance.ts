@@ -58,7 +58,7 @@ export function releaseReady(run: AcceptanceRun): boolean {
 }
 
 export function acceptanceMarkdown(run: AcceptanceRun): string {
-  const lines = [`# Ticket 28 acceptance ${run.id}`, "", `- Started: ${run.startedAt}`, `- Finished: ${run.finishedAt ?? "in progress"}`, `- OS: ${run.environment.os}`, `- Runtime: ${run.environment.runtime}`, `- Host: ${run.environment.hostname}`, "", "## Fixtures", "", ...Object.entries(run.environment.fixtures).map(([name, value]) => `- ${name}: ${value}`), "", "## Scenarios", "", "| Scenario | Status | Observed | Evidence |", "|---|---|---|---|", ...run.scenarios.map((scenario) => `| ${scenario.scenarioId} | ${scenario.status} | ${scenario.observed.replaceAll("|", "\\|")} | ${scenario.evidence.join(", ")} |`), "", `Release gate: **${releaseReady(run) ? "PASS" : "FAIL"}**`, ""];
+  const lines = [`# Ticket 28 acceptance ${run.id}`, "", `- Started: ${run.startedAt}`, `- Finished: ${run.finishedAt ?? "in progress"}`, `- OS: ${run.environment.os}`, `- Runtime: ${run.environment.runtime}`, `- Host: ${run.environment.hostname}`, "", "## Fixtures", "", ...Object.entries(run.environment.fixtures).map(([name, value]) => `- ${name}: ${value}`), "", "## Scenarios", "", ...run.scenarios.flatMap((scenario) => [`### ${scenario.scenarioId} — ${scenario.status}`, `- Setup: ${scenario.setup}`, `- Steps: ${scenario.steps.join("; ")}`, `- Expected: ${scenario.expected}`, `- Observed: ${scenario.observed}`, `- Evidence: ${scenario.evidence.join(", ") || "none"}`, ...(scenario.limitation ? [`- Limitation: ${scenario.limitation}`] : []), ""]), `Release gate: **${releaseReady(run) ? "PASS" : "FAIL"}**`, ""];
   return lines.join("\n");
 }
 
