@@ -111,10 +111,13 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
     if (!ticket) return { ok: false, state: "unknown" as const, message: "Ticket not found", remainingMinutes: 0 };
     const session = sessions.get(ticket.id);
     const active = session?.status === "active";
+    const date = calendar.operatingDate(new Date(at));
+    const operation = calendar.canOperate(date, calendar.operatingTime(new Date(at)), "admit");
+    const validWaiting = ticket.status === "waiting" && operation.allowed;
     const remainingMinutes = active && ticket.package.includedMinutes !== null
       ? Math.max(0, ticket.package.includedMinutes - minutesBetween(session.enteredAt, at))
-      : ticket.package.includedMinutes ?? 0;
-    return { ok: active || ticket.status === "waiting", state: active ? "active" as const : state(ticket), message: active ? "Ticket is active" : ticket.status === "waiting" ? "Ticket is valid" : "Ticket is no longer valid", remainingMinutes };
+      : validWaiting ? ticket.package.includedMinutes ?? 0 : 0;
+    return { ok: active || validWaiting, state: active ? "active" as const : state(ticket), message: active ? "Ticket is active" : validWaiting ? "Ticket is valid" : ticket.status === "waiting" ? "Ticket is not valid now" : "Ticket is no longer valid", remainingMinutes };
   }
 
   function close(date: string, at: number) {

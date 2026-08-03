@@ -8,7 +8,7 @@ export type PairingKind = "private" | "public-kiosk";
 
 export type StaffUser = { id: string; username: string; role: Role; passwordHash: string };
 export type PairedDevice = { id: string; mode: DeviceMode; kind: PairingKind; revokedAt?: number };
-export type Session = { token: string; deviceId: string; userId?: string; createdAt: number };
+export type Session = { token: string; deviceId: string; userId?: string; createdAt: number; expiresAt: number };
 export type Enrollment = { token: string; origin: string; kind: PairingKind; expiresAt: number; usedAt?: number };
 export type IdentityEvents = { deviceRevoked: (deviceId: string) => void };
 
@@ -57,7 +57,8 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
   function createSession(deviceId: string, userId?: string) {
     const device = devices.get(deviceId);
     if (!device || device.revokedAt) throw new Error("Device is revoked or unknown");
-    const session = { token: token(), deviceId, userId, createdAt: Date.now() };
+    const createdAt = Date.now();
+    const session = { token: token(), deviceId, userId, createdAt, expiresAt: createdAt + (device.kind === "public-kiosk" ? 8 * 60 * 60_000 : 12 * 60 * 60_000) };
     sessions.set(session.token, session);
     return session;
   }
@@ -69,7 +70,7 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
   function authenticate(sessionToken: string | undefined) {
     const session = sessionToken ? sessions.get(sessionToken) : undefined;
     const device = session && devices.get(session.deviceId);
-    if (!session || !device || device.revokedAt) return undefined;
+    if (!session || !device || device.revokedAt || session.expiresAt <= Date.now()) { if (session?.expiresAt && session.expiresAt <= Date.now()) sessions.delete(session.token); return undefined; }
     const user = session.userId ? users.get(session.userId) : undefined;
     if (device.kind === "private" && !user) return undefined;
     return { session, device, user };
