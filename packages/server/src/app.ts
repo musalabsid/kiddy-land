@@ -20,6 +20,8 @@ export type HealthReport = {
   service: "local-server";
   schemaVersion: number;
   database: "ready" | "unhealthy";
+  writeBlocked?: boolean;
+  diagnostic?: string;
   uptimeMs: number;
 };
 
@@ -35,8 +37,14 @@ export function createApp(
   reports?: ReportService,
   notifications?: NotificationService,
   backups?: BackupService,
+  restorePrepared?: (id: string) => Promise<unknown>,
+  setRecoveryBlocked?: (blocked: boolean, diagnostic?: string) => void,
 ) {
   const app = new Hono();
+  app.use("*", async (c, next) => {
+    if (c.req.method !== "GET" && getHealth().writeBlocked && !c.req.path.includes("/restore") && !c.req.path.startsWith("/health") && !c.req.path.startsWith("/ready")) return c.json({ error: "Server is in recovery mode", diagnostic: getHealth().diagnostic }, 503);
+    await next();
+  });
 
   app.get("/backups", (c) => {
     const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
@@ -48,10 +56,15 @@ export function createApp(
     if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
     return c.json(await backups?.backup("on-demand"), 201);
   });
+  app.post("/backups/:id/restore/stage", async (c) => {
+    const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+    if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+    try { setRecoveryBlocked?.(true, "Restore staging. Writes are blocked until restore completes or the server restarts."); const body = await c.req.json<{ confirmation: string }>(); const result = await backups?.prepareRestore(c.req.param("id"), body.confirmation); return c.json(result); } catch (error) { setRecoveryBlocked?.(false); return c.json({ error: error instanceof Error ? error.message : "Restore staging failed" }, 409); }
+  });
   app.post("/backups/:id/restore", async (c) => {
     const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
     if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
-    try { const body = await c.req.json<{ confirmation: string }>(); return c.json(await backups?.restore(c.req.param("id"), body.confirmation)); } catch (error) { return c.json({ error: error instanceof Error ? error.message : "Restore failed" }, 409); }
+    try { return c.json(await restorePrepared?.(c.req.param("id"))); } catch (error) { setRecoveryBlocked?.(true, error instanceof Error ? error.message : "Restore failed. Restore the safety backup."); return c.json({ error: error instanceof Error ? error.message : "Restore failed" }, 409); }
   });
   app.get("/health", (c) => {
     const health = getHealth();

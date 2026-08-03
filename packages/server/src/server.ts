@@ -31,6 +31,7 @@ export type LocalServerOptions = {
   notifications?: NotificationService;
   backups?: BackupService;
   database?: LocalDatabase;
+  restorePrepared?: (id: string) => Promise<unknown>;
 };
 
 export type LocalServer = {
@@ -39,6 +40,9 @@ export type LocalServer = {
   start: () => Promise<void>;
   stop: (timeoutMs?: number) => Promise<void>;
   url: string;
+  restorePrepared: (id: string) => Promise<unknown>;
+  replacePrepared: (id: string) => Promise<unknown>;
+  setRecoveryBlocked: (blocked: boolean, diagnostic?: string) => void;
 };
 
 function now() { return Date.now(); }
@@ -50,8 +54,10 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const startedAt = now();
   let status: HealthReport["status"] = "starting";
   let databaseStatus: HealthReport["database"] = "unhealthy";
+  let writeBlocked = false;
+  let diagnostic: string | undefined;
   let httpServer: ServerType | undefined;
-  const health = (): HealthReport => ({ status, service: "local-server", schemaVersion, database: databaseStatus, uptimeMs: Math.max(0, now() - startedAt) });
+  const health = (): HealthReport => ({ status, service: "local-server", schemaVersion, database: databaseStatus, writeBlocked, diagnostic, uptimeMs: Math.max(0, now() - startedAt) });
   const registry = createConnectionRegistry();
   const identity = options.identity ?? createIdentityStore({ events: { deviceRevoked: (deviceId) => registry.closeDevice(deviceId) } });
   const ownsDatabase = !options.database;
@@ -65,18 +71,23 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const notifications = options.notifications ?? createNotificationService(identity, registry, lifecycle, inventory);
   const backups = options.backups ?? createBackupService(database, `${options.dataDir}/backups`, schemaVersion);
   const notificationTimer = setInterval(() => notifications.check(), 30_000);
-  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle, inventory, membership, reports, notifications, backups);
+  const backupLoaded = backups.load();
+  const replacePrepared = (id: string) => backups.replacePrepared(id);
+  const restorePrepared = options.restorePrepared ?? (async () => { throw new Error("Restore requires the Host Runtime restart coordinator"); });
+  const setRecoveryBlocked = (blocked: boolean, reason?: string) => { writeBlocked = blocked; diagnostic = reason; if (blocked) status = "unhealthy"; else if (databaseStatus === "ready") status = "ready"; };
+  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle, inventory, membership, reports, notifications, backups, restorePrepared, setRecoveryBlocked);
   publishReportEvent(registry, { type: "report-changed", source: "server-ready" });
   const websocketServer = new WebSocketServer({ noServer: true });
 
   return {
-    app, health, url: `http://${host}:${port}`,
+    app, health, url: `http://${host}:${port}`, restorePrepared, replacePrepared, setRecoveryBlocked,
     async start() {
       if (status === "ready") return;
       await mkdir(options.dataDir, { recursive: true });
+      await backupLoaded;
       await writeFile(`${options.dataDir}/.local-server`, "ready\n", { flag: "a" });
-      if (!database.integrityCheck()) throw new Error("SQLite integrity check failed");
-      databaseStatus = "ready";
+      if (!database.integrityCheck()) { status = "unhealthy"; writeBlocked = true; diagnostic = "SQLite integrity check failed. Restore a Verified Backup."; throw new Error(diagnostic); }
+      databaseStatus = "ready"; writeBlocked = false; diagnostic = undefined;
       await new Promise<void>((resolve, reject) => {
         try {
           httpServer = serve({ fetch: app.fetch, hostname: host, port, websocket: { server: websocketServer } }, (info) => {
@@ -92,7 +103,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       status = "starting";
       const server = httpServer; httpServer = undefined;
       await Promise.race([new Promise<void>((resolve) => server.close(() => resolve())), new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))]);
-      databaseStatus = "unhealthy";
+      databaseStatus = "unhealthy"; writeBlocked = true; diagnostic = "Local Server stopped";
       if (ownsDatabase) database.close();
     },
   };
