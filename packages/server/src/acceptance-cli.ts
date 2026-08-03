@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { acceptanceScenarioIds, checkAppLocalData, checkNetworkHost, checkPortAvailable, checkReadiness, createAcceptanceRun, finishAcceptanceRun, recordScenario, releaseReady, scenarioTemplate, writeAcceptanceEvidence } from "./acceptance.ts";
+import { acceptanceScenarioIds, checkAppLocalData, checkNetworkHost, checkPortAvailable, checkPortConflict, checkReadiness, createAcceptanceRun, finishAcceptanceRun, recordScenario, releaseReady, scenarioTemplate, writeAcceptanceEvidence } from "./acceptance.ts";
 
 const output = process.argv[2] ?? join(process.cwd(), "acceptance-evidence", `ticket-28-${Date.now()}.json`);
 const origin = process.env.KIDDY_SERVER_ORIGIN ?? "http://127.0.0.1:43117";
@@ -22,15 +22,16 @@ async function main() {
   const readiness = await checkReadiness(origin);
   const localData = await checkAppLocalData(dataDir);
   const portAvailable = await checkPortAvailable(port, host);
+  const portConflict = await checkPortConflict(port + 1, host);
   const dns = await checkNetworkHost(host);
   const results = new Map<string, { observed: string; evidence: string[]; status: "PASS" | "FAIL" | "PENDING"; limitation?: string }>([
     ["server-readiness", { observed: JSON.stringify(readiness.body), evidence: [], status: readiness.ready ? "PASS" : "FAIL" }],
     ["app-local-data", { observed: localData.usable ? localData.path : localData.error ?? "unavailable", evidence: [], status: localData.usable ? "PASS" : "FAIL" }],
-    ["port-conflict", { observed: `port ${port} ${portAvailable ? "available" : "occupied"}`, evidence: [], status: "PASS" }],
-    ["hostname-mdns", { observed: dns.addresses.join(", ") || dns.error || "unresolved", evidence: [], status: dns.resolved ? "PASS" : "PENDING", limitation: dns.resolved ? undefined : "Hostname/mDNS fixture unavailable" }],
+    ["port-conflict", { observed: `probe port ${port + 1} ${portConflict ? "conflict detected" : "available"}`, evidence: ["runtime:port-probe"], status: portConflict ? "PASS" : "PENDING", limitation: portConflict ? undefined : "Port conflict fixture unavailable" }],
+    ["hostname-mdns", { observed: dns.addresses.join(", ") || dns.error || "unresolved", evidence: dns.resolved ? ["runtime:dns-lookup"] : [], status: dns.resolved ? "PASS" : "PENDING", limitation: dns.resolved ? undefined : "Hostname/mDNS fixture unavailable" }],
   ]);
   for (const id of acceptanceScenarioIds) {
-    const result = results.get(id) ?? { observed: "Not executable without venue fixture", evidence: [], status: "PENDING" as const, limitation: "Requires venue/device/physical fixture; validate in Ticket 30" };
+    const result = results.get(id) ?? { observed: "Not executable without venue fixture", evidence: [], status: "PENDING" as const, limitation: "Requires venue/device/physical fixture; validate in Ticket 29 or 30" };
     recordScenario(run, { ...scenarioTemplate(id), ...result });
   }
   const finished = finishAcceptanceRun(run);

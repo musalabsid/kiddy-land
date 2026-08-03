@@ -1,6 +1,6 @@
 import { hostname, platform, release, version } from "node:os";
 import { mkdir, writeFile, open, stat } from "node:fs/promises";
-import { createConnection } from "node:net";
+import { createConnection, createServer } from "node:net";
 import { lookup } from "node:dns/promises";
 
 export type AcceptanceStatus = "PASS" | "FAIL" | "PENDING";
@@ -111,6 +111,14 @@ export async function acquireInstanceLock(path: string): Promise<{ acquired: boo
 
 export async function checkPortAvailable(port: number, host = "127.0.0.1"): Promise<boolean> {
   return new Promise((resolve) => { const socket = createConnection({ port, host }); socket.once("connect", () => { socket.destroy(); resolve(false); }); socket.once("error", () => resolve(true)); });
+}
+
+export async function checkPortConflict(port: number, host = "127.0.0.1"): Promise<boolean> {
+  const server = createServer();
+  try {
+    await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, () => resolve()); });
+    return !(await checkPortAvailable(port, host));
+  } catch { return false; } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
 }
 
 export function crashLoopState(failures: number, threshold = 3): "healthy" | "recovery-required" { return failures >= threshold ? "recovery-required" : "healthy"; }
