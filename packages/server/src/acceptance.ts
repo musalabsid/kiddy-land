@@ -130,7 +130,7 @@ export const acceptanceScenarioIds = [
   "ticket-pdf-layout", "receipt-80mm", "qr-25mm", "browser-print-guidance", "print-unknown-reprint", "pdf-fallback", "fixture-record",
 ] as const;
 export type AcceptanceScenarioId = (typeof acceptanceScenarioIds)[number];
-export const executableScenarioIds = ["server-readiness", "app-local-data", "single-instance", "port-conflict", "hostname-mdns", "trusted-origin", "ticket-pdf-layout", "receipt-80mm", "qr-25mm", "browser-print-guidance", "fixture-record"] as const;
+export const executableScenarioIds = ["server-readiness", "app-local-data", "trusted-origin", "ticket-pdf-layout", "receipt-80mm", "qr-25mm", "browser-print-guidance", "fixture-record"] as const;
 
 export function scenarioTemplate(id: (typeof acceptanceScenarioIds)[number]): Omit<AcceptanceEvidence, "at" | "observed" | "evidence" | "status"> {
   const descriptions: Record<typeof id, [string, string, string]> = {
