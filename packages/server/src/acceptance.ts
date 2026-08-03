@@ -115,10 +115,11 @@ export async function checkPortAvailable(port: number, host = "127.0.0.1"): Prom
 
 export async function checkPortConflict(port: number, host = "127.0.0.1"): Promise<boolean> {
   const server = createServer();
-  try {
-    await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, () => resolve()); });
-    return !(await checkPortAvailable(port, host));
-  } catch { return false; } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+  await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, host, () => resolve()); }).catch(() => undefined);
+  if (!server.listening) return false;
+  const conflict = await new Promise<boolean>((resolve) => { const probe = createServer(); probe.once("error", () => resolve(true)); probe.listen(port, host, () => { probe.close(() => resolve(false)); }); });
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  return conflict;
 }
 
 export function crashLoopState(failures: number, threshold = 3): "healthy" | "recovery-required" { return failures >= threshold ? "recovery-required" : "healthy"; }
@@ -129,7 +130,7 @@ export const acceptanceScenarioIds = [
   "ticket-pdf-layout", "receipt-80mm", "qr-25mm", "browser-print-guidance", "print-unknown-reprint", "pdf-fallback", "fixture-record",
 ] as const;
 export type AcceptanceScenarioId = (typeof acceptanceScenarioIds)[number];
-export const executableScenarioIds = ["server-readiness", "app-local-data", "single-instance", "port-conflict", "crash-loop-recovery", "sidecar-recovery", "hostname-mdns", "trusted-origin", "ticket-pdf-layout", "receipt-80mm", "qr-25mm", "browser-print-guidance", "fixture-record"] as const;
+export const executableScenarioIds = ["server-readiness", "app-local-data", "single-instance", "port-conflict", "hostname-mdns", "trusted-origin", "ticket-pdf-layout", "receipt-80mm", "qr-25mm", "browser-print-guidance", "fixture-record"] as const;
 
 export function scenarioTemplate(id: (typeof acceptanceScenarioIds)[number]): Omit<AcceptanceEvidence, "at" | "observed" | "evidence" | "status"> {
   const descriptions: Record<typeof id, [string, string, string]> = {

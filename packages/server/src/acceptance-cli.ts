@@ -25,10 +25,10 @@ async function main() {
   const dns = await checkNetworkHost(host);
   const artifact = validateArtifactGuidance({ ticketPdf: { pages: 1, stripsPerPage: 4, qrMm: 25, safetyMarginMm: 3 }, receiptMm: 80, scalePercent: 100, browserHeadersFootersDisabled: true });
   const results = new Map<string, { observed: string; evidence: string[]; status: "PASS" | "FAIL" | "PENDING"; limitation?: string }>([
-    ["server-readiness", { observed: JSON.stringify(readiness.body), evidence: [], status: readiness.ready ? "PASS" : "FAIL" }],
-    ["app-local-data", { observed: localData.usable ? localData.path : localData.error ?? "unavailable", evidence: [], status: localData.usable ? "PASS" : "FAIL" }],
-    ["port-conflict", { observed: `configured port ${port} ${portAvailable ? "available" : "occupied"}`, evidence: ["runtime:port-availability"], status: portAvailable ? "PASS" : "PENDING", limitation: portAvailable ? undefined : "Configured port occupied" }],
-    ["hostname-mdns", { observed: dns.addresses.join(", ") || dns.error || "unresolved", evidence: dns.resolved ? ["runtime:dns-lookup"] : [], status: dns.resolved ? "PASS" : "PENDING", limitation: dns.resolved ? undefined : "Hostname/mDNS fixture unavailable" }],
+    ["server-readiness", { observed: JSON.stringify(readiness.body), evidence: ["runtime:ready-check"], status: readiness.ready ? "PASS" : "FAIL" }],
+    ["app-local-data", { observed: localData.usable ? localData.path : localData.error ?? "unavailable", evidence: localData.usable ? ["runtime:data-write"] : [], status: localData.usable ? "PASS" : "FAIL" }],
+    ["port-conflict", { observed: `configured port ${port} ${portAvailable ? "available" : "occupied"}`, evidence: [], status: "PENDING", limitation: "Requires a separate process to occupy the configured production port; validate in Ticket 29 or 30" }],
+    ["hostname-mdns", { observed: dns.addresses.join(", ") || dns.error || "unresolved", evidence: [], status: "PENDING", limitation: "Requires configured venue hostname/mDNS fixture; local loopback is not sufficient" }],
     ["trusted-origin", { observed: "Origin validation helper available", evidence: validateTrustedOrigin(origin, [origin]) ? ["runtime:origin-validation"] : [], status: validateTrustedOrigin(origin, [origin]) ? "PASS" : "FAIL" }],
     ["ticket-pdf-layout", { observed: artifact.valid ? "Canonical artifact guidance valid" : artifact.errors.join("; "), evidence: artifact.valid ? ["runtime:artifact-guidance"] : [], status: artifact.valid ? "PASS" : "FAIL" }],
     ["receipt-80mm", { observed: "Receipt width validated by artifact guidance", evidence: artifact.valid ? ["runtime:receipt-guidance"] : [], status: artifact.valid ? "PASS" : "FAIL" }],
