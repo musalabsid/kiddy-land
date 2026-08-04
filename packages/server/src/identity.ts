@@ -49,6 +49,18 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
   const storedDevices = database?.db.query("SELECT id, mode, kind, revoked_at AS revokedAt, created_at AS createdAt FROM paired_devices").all() as PairedDevice[] | undefined;
   storedDevices?.forEach((device) => devices.set(device.id, device));
 
+  function isBootstrapped() { return [...devices.values()].some((device) => !device.revokedAt); }
+  function bootstrap(password: string) {
+    if (isBootstrapped()) throw new Error("Host is already set up");
+    if (password.trim().length < 8) throw new Error("Password must be at least 8 characters");
+    owner.passwordHash = hashPassword(password);
+    persistUser(owner);
+    const device: PairedDevice = { id: id("device"), mode: "Owner Dashboard", kind: "private", createdAt: Date.now() };
+    devices.set(device.id, device);
+    persistDevice(device);
+    return { device, session: createSession(device.id, owner.id) };
+  }
+
   function createEnrollment(origin: string, kind: PairingKind = "private", ttlMs = 60_000) {
     const invitation: Enrollment = { token: token(), origin, kind, expiresAt: Date.now() + ttlMs };
     enrollments.set(invitation.token, invitation);
@@ -106,7 +118,7 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     initial?.events?.deviceRevoked?.(deviceId);
     return true;
   }
-  return { owner, users, devices, sessions, createEnrollment, pair, login, authenticate, can, revokeDevice };
+  return { owner, users, devices, sessions, isBootstrapped, bootstrap, createEnrollment, pair, login, authenticate, can, revokeDevice };
 }
 
 export type Identity = NonNullable<ReturnType<IdentityStore["authenticate"]>>;

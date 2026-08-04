@@ -22,3 +22,5 @@ export type ScanResult = { ok: boolean; state: "waiting" | "active" | "completed
 export type PrintAttempt = { id: string; saleId: string; artifact: "tickets" | "receipt"; status: "requested" | "unknown" | "failed"; reprint: boolean; actorId: string; reason?: string; at: number };
 export type RecoveryResult = { ticketId: string; code: string; qrToken: string };
 export type PairResponse = { device: SessionInfo["device"]; session?: { token: string; deviceId: string; createdAt: number } };
+export type BootstrapStatus = { required: boolean };
+export type BootstrapResponse = { device: SessionInfo["device"]; session: { token: string; deviceId: string; createdAt: number } };

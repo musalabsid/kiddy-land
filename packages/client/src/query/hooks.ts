@@ -13,6 +13,18 @@ export function useSessionQuery() {
   return useQuery({ queryKey: clientQueryKeys.session, queryFn: () => client.get("/auth/session"), enabled: Boolean(client.getToken()) });
 }
 
+export function useBootstrapStatusQuery() {
+  const client = useApiClient();
+  return useQuery({ queryKey: ["auth", "bootstrap-status"], queryFn: () => new AuthService(client).bootstrapStatus() });
+}
+
+export function useBootstrapMutation() {
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+  const setSession = useAuthStore((state) => state.setSession);
+  return useMutation({ mutationFn: (password: string) => new AuthService(client).bootstrap(password), onSuccess: (result) => { client.setToken(result.session.token); const session = { token: result.session.token, deviceId: result.session.deviceId, device: result.device, user: { id: "owner", username: "owner", role: "Owner" as const } }; setSession(session); writeStoredSession(session); writeStoredDevice(result.device); void queryClient.invalidateQueries({ queryKey: ["auth", "bootstrap-status"] }); } });
+}
+
 export function useInvitationMutation() {
   const client = useApiClient();
   return useMutation({ mutationFn: ({ origin, kind }: { origin: string; kind?: "private" | "public-kiosk" }) => new AuthService(client).createInvitation(origin, kind) });

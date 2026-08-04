@@ -2,6 +2,16 @@ import { describe, expect, test } from "bun:test";
 import { createIdentityStore } from "../src/identity.ts";
 
 describe("identity and pairing", () => {
+  test("bootstraps one local Owner Dashboard and rejects repeats", () => {
+    const identity = createIdentityStore();
+    expect(identity.isBootstrapped()).toBe(false);
+    const result = identity.bootstrap("secure-password");
+    expect(result.device.mode).toBe("Owner Dashboard");
+    expect(identity.authenticate(result.session.token)?.user?.role).toBe("Owner");
+    expect(identity.isBootstrapped()).toBe(true);
+    expect(() => identity.bootstrap("another-password")).toThrow();
+  });
+
   test("redeems a private invitation exactly once and requires login", () => {
     const identity = createIdentityStore({ ownerPassword: "secret" });
     const invitation = identity.createEnrollment("https://kiddy.local", "private");

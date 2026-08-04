@@ -303,9 +303,17 @@ export function createApp(
       if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
       return identity.revokeDevice(c.req.param("id")) ? c.json({ ok: true }) : c.json({ error: "Device not found" }, 404);
     });
+    app.get("/auth/bootstrap-status", (c) => c.json({ required: !identity.isBootstrapped() }));
+    app.post("/auth/bootstrap", async (c) => {
+      try {
+        const body = await c.req.json<{ password?: string }>();
+        if (!body.password) return c.json({ error: "password is required" }, 400);
+        return c.json(identity.bootstrap(body.password), 201);
+      } catch (error) { return c.json({ error: error instanceof Error ? error.message : "Bootstrap failed" }, 409); }
+    });
     app.post("/pairing/invitations", async (c) => {
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
-      if (identity.devices.size > 0 && (!current || current.user?.role !== "Owner" || !identity.can(current, "admin"))) return c.json({ error: "Forbidden" }, 403);
+      if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
       const body = await c.req.json<{ origin?: string; kind?: "private" | "public-kiosk" }>();
       if (!body.origin) return c.json({ error: "origin is required" }, 400);
       return c.json(identity.createEnrollment(body.origin, body.kind ?? "private"), 201);

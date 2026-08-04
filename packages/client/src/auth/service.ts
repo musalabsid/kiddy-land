@@ -2,6 +2,8 @@ import type { ApiClient } from "../api/client";
 import type { AuthSessionResponse, LoginResponse, PairResponse, DeviceMode, SessionInfo } from "../api/types";
 
 export class AuthService {
+  async bootstrap(password: string) { return this.client.post<import("../api/types").BootstrapResponse>("/auth/bootstrap", { password }); }
+  async bootstrapStatus() { return this.client.get<import("../api/types").BootstrapStatus>("/auth/bootstrap-status"); }
   async createInvitation(origin: string, kind: "private" | "public-kiosk" = "private") { return this.client.post<{ token: string; origin: string; kind: "private" | "public-kiosk"; expiresAt: number; qrPayload: string }>("/pairing/invitations", { origin, kind }); }
   async listDevices() { return this.client.get<{ devices: Array<SessionInfo["device"] & { revokedAt?: number }> }>("/pairing/devices"); }
   async revokeDevice(deviceId: string) { return this.client.post<{ ok: boolean }>(`/pairing/devices/${deviceId}/revoke`, {}); }
