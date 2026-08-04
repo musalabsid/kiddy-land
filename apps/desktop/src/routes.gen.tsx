@@ -1,4 +1,5 @@
 import { createRootRoute, createRoute } from "@tanstack/react-router";
+import { router } from "./router";
 import { AuthScreen, OwnerLoginScreen } from "@workspace/ui/components/auth-screen";
 import { HostDashboard } from "@workspace/ui/components/host-dashboard";
 import { ConnectionBanner } from "@workspace/ui/components/connection-banner";
@@ -14,6 +15,6 @@ const source = createHttpHostSource(origin);
 const stop = async () => { await invoke("stop_host"); };
 const rootRoute = createRootRoute({ component: () => <ClientProvider origin={origin}><LocaleProvider><ThemeProvider><ConnectionBanner /><Outlet /></ThemeProvider></LocaleProvider></ClientProvider> });
 const appRoute = createRoute({ getParentRoute: () => rootRoute, path: "/", component: () => <AuthScreen origin={origin}><HostDashboard source={source} origin={origin} onStop={stop} /></AuthScreen> });
-const ownerLoginRoute = createRoute({ getParentRoute: () => rootRoute, path: "/owner-login", component: () => <AuthScreen origin={origin}><OwnerLoginScreen /></AuthScreen> });
+const ownerLoginRoute = createRoute({ getParentRoute: () => rootRoute, path: "/owner-login", component: () => <main className="flex min-h-[100dvh] items-center justify-center bg-background p-6"><div className="w-full max-w-sm"><OwnerLoginScreen onSuccess={() => router.navigate({ to: "/" })} /></div></main> });
 export const routeTree = rootRoute.addChildren([appRoute, ownerLoginRoute]);
 import { Outlet } from "@tanstack/react-router";
