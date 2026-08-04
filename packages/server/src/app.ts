@@ -305,7 +305,7 @@ export function createApp(
     });
     app.post("/pairing/invitations", async (c) => {
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
-      if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      if (identity.devices.size > 0 && (!current || current.user?.role !== "Owner" || !identity.can(current, "admin"))) return c.json({ error: "Forbidden" }, 403);
       const body = await c.req.json<{ origin?: string; kind?: "private" | "public-kiosk" }>();
       if (!body.origin) return c.json({ error: "origin is required" }, 400);
       return c.json(identity.createEnrollment(body.origin, body.kind ?? "private"), 201);

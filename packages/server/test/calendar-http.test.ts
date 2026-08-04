@@ -22,9 +22,7 @@ describe("calendar HTTP contract", () => {
     expect((await fetch(`${base}/calendar/config`, { headers: { authorization: `Bearer ${login.token}` } })).status).toBe(200);
     await runtime.stop();
     const restarted = createHostRuntime({ dataDir, port: 43132 }); runtimes.push(restarted); await restarted.start();
-    const restartedInvitation = await (await fetch(`${restarted.server.url}/pairing/invitations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ origin: restarted.server.url }) })).json() as { token: string };
-    const restartedPair = await (await fetch(`${restarted.server.url}/pairing/redeem`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: restartedInvitation.token, mode: "Owner Dashboard" }) })).json() as { device: { id: string } };
-    const restartedLogin = await (await fetch(`${restarted.server.url}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ deviceId: restartedPair.device.id, username: "owner", password: "change-me" }) })).json() as { token: string };
+    const restartedLogin = await (await fetch(`${restarted.server.url}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ deviceId: paired.device.id, username: "owner", password: "change-me" }) })).json() as { token: string };
     const persisted = await (await fetch(`${restarted.server.url}/calendar/config`, { headers: { authorization: `Bearer ${restartedLogin.token}` } })).json() as { timezone: string };
     expect(persisted.timezone).toBe("Asia/Singapore");
     await rm(dataDir, { recursive: true, force: true });
