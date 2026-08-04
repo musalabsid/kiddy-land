@@ -13,6 +13,22 @@ export function useSessionQuery() {
   return useQuery({ queryKey: clientQueryKeys.session, queryFn: () => client.get("/auth/session"), enabled: Boolean(client.getToken()) });
 }
 
+export function useInvitationMutation() {
+  const client = useApiClient();
+  return useMutation({ mutationFn: ({ origin, kind }: { origin: string; kind?: "private" | "public-kiosk" }) => new AuthService(client).createInvitation(origin, kind) });
+}
+
+export function useDevicesQuery() {
+  const client = useApiClient();
+  return useQuery({ queryKey: ["pairing", "devices"], queryFn: () => new AuthService(client).listDevices() });
+}
+
+export function useRevokeDeviceMutation() {
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: (deviceId: string) => new AuthService(client).revokeDevice(deviceId), onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["pairing", "devices"] }) });
+}
+
 export function usePairingMutation() {
   const client = useApiClient();
   const queryClient = useQueryClient();

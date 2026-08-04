@@ -293,7 +293,19 @@ export function createApp(
         return c.json(notifications?.configureRoutes(c.req.param("kind") as Parameters<NonNullable<NotificationService>["configureRoutes"]>[0], body.modes));
       } catch { return c.json({ error: "Route configuration is invalid" }, 400); }
     });
+    app.get("/pairing/devices", (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      return c.json({ devices: [...identity.devices.values()] });
+    });
+    app.post("/pairing/devices/:id/revoke", (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      return identity.revokeDevice(c.req.param("id")) ? c.json({ ok: true }) : c.json({ error: "Device not found" }, 404);
+    });
     app.post("/pairing/invitations", async (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
       const body = await c.req.json<{ origin?: string; kind?: "private" | "public-kiosk" }>();
       if (!body.origin) return c.json({ error: "origin is required" }, 400);
       return c.json(identity.createEnrollment(body.origin, body.kind ?? "private"), 201);

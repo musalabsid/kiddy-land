@@ -47,7 +47,7 @@ export function useClientConnection() { const state = useConnectionStore(); retu
 export function useSession() { return useAuthStore(); }
 export { ApiClient, ClientError } from "./api/client";
 export { AuthService } from "./auth/service";
-export { useLoginMutation, usePairingMutation, useSessionQuery } from "./query/hooks";
+export { useLoginMutation, usePairingMutation, useSessionQuery, useDevicesQuery, useInvitationMutation, useRevokeDeviceMutation } from "./query/hooks";
 export { useCalendarConfig, useConfigureCalendar, useSchedule, usePackageSnapshot } from "./calendar/hooks";
 export { useCompleteSale, usePrintAttempt, useSale, useSaleArtifact, saleArtifactUrl, saleQrUrl } from "./sales/hooks";
 export { useTicketScan, useTicketRecovery, useCollectCharge } from "./lifecycle/hooks";
