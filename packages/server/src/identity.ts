@@ -50,6 +50,7 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
   storedDevices?.forEach((device) => devices.set(device.id, device));
 
   function isBootstrapped() { return [...devices.values()].some((device) => !device.revokedAt); }
+  function ownerDevice() { return [...devices.values()].find((device) => device.mode === "Owner Dashboard" && !device.revokedAt); }
   function bootstrap(password: string) {
     if (isBootstrapped()) throw new Error("Host is already set up");
     if (password.trim().length < 8) throw new Error("Password must be at least 8 characters");
@@ -118,7 +119,7 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     initial?.events?.deviceRevoked?.(deviceId);
     return true;
   }
-  return { owner, users, devices, sessions, isBootstrapped, bootstrap, createEnrollment, pair, login, authenticate, can, revokeDevice };
+  return { owner, users, devices, sessions, isBootstrapped, ownerDevice, bootstrap, createEnrollment, pair, login, authenticate, can, revokeDevice };
 }
 
 export type Identity = NonNullable<ReturnType<IdentityStore["authenticate"]>>;

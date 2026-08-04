@@ -4,6 +4,14 @@ import type { IdentityStore } from "./identity.ts";
 
 export type WebSocketDecision = { allowed: true; deviceId: string } | { allowed: false; reason: "unauthorized" | "origin-denied" };
 
+function trustedLocalOrigin(origin: string | undefined, expectedOrigin: string) {
+  if (origin === expectedOrigin) return true;
+  try {
+    const url = new URL(origin ?? "");
+    return ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  } catch { return false; }
+}
+
 export function authorizeWebSocket(
   identity: IdentityStore,
   registry: ConnectionRegistry,
@@ -11,7 +19,7 @@ export function authorizeWebSocket(
   expectedOrigin: string,
   _socket: { close: (code?: number, reason?: string) => void },
 ): WebSocketDecision {
-  if (headers.origin !== expectedOrigin) return { allowed: false, reason: "origin-denied" };
+  if (!trustedLocalOrigin(headers.origin, expectedOrigin)) return { allowed: false, reason: "origin-denied" };
   const bearerToken = headers.authorization?.replace(/^Bearer /, "");
   const current = identity.authenticate(bearerToken ?? headers.accessToken);
   if (!current) return { allowed: false, reason: "unauthorized" };

@@ -13,6 +13,12 @@ export function useSessionQuery() {
   return useQuery({ queryKey: clientQueryKeys.session, queryFn: () => client.get("/auth/session"), enabled: Boolean(client.getToken()) });
 }
 
+export function useOwnerLoginMutation() {
+  const client = useApiClient();
+  const setSession = useAuthStore((state) => state.setSession);
+  return useMutation({ mutationFn: (password: string) => new AuthService(client).ownerLogin(password), onSuccess: async (result) => { client.setToken(result.token); const current = await client.get<{ device: SessionInfo["device"]; user?: SessionInfo["user"] }>("/auth/session"); const session = { token: result.token, deviceId: result.deviceId, device: current.device, user: current.user }; setSession(session); writeStoredSession(session); writeStoredDevice(current.device); } });
+}
+
 export function useBootstrapStatusQuery() {
   const client = useApiClient();
   return useQuery({ queryKey: ["auth", "bootstrap-status"], queryFn: () => new AuthService(client).bootstrapStatus() });
@@ -52,7 +58,7 @@ export function usePairingMutation() {
 export function useLogout() {
   const client = useApiClient();
   const clear = useAuthStore((state) => state.clear);
-  return () => { client.setToken(undefined); clear(); writeStoredSession(undefined); writeStoredDevice(undefined); };
+  return () => { client.setToken(undefined); clear(); writeStoredSession(undefined); };
 }
 
 export function useRestoreSession() {

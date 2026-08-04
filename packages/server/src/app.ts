@@ -1,5 +1,6 @@
 import { upgradeWebSocket } from "@hono/node-server";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import type { DeviceMode, IdentityStore } from "./identity.ts";
 import type { CalendarStore } from "./calendar.ts";
 import type { SaleStore } from "./sale.ts";
@@ -41,6 +42,7 @@ export function createApp(
   setRecoveryBlocked?: (blocked: boolean, diagnostic?: string) => void,
 ) {
   const app = new Hono();
+  app.use("*", cors({ origin: (origin) => /^(https?:\/\/)(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(origin) ? origin : undefined, allowHeaders: ["Content-Type", "Authorization"], allowMethods: ["GET", "POST", "PUT", "PATCH", "OPTIONS"] }));
   app.use("*", async (c, next) => {
     if (c.req.method !== "GET" && getHealth().writeBlocked && !c.req.path.includes("/restore") && !c.req.path.startsWith("/health") && !c.req.path.startsWith("/ready")) return c.json({ error: "Server is in recovery mode", diagnostic: getHealth().diagnostic }, 503);
     await next();
@@ -303,7 +305,7 @@ export function createApp(
       if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
       return identity.revokeDevice(c.req.param("id")) ? c.json({ ok: true }) : c.json({ error: "Device not found" }, 404);
     });
-    app.get("/auth/bootstrap-status", (c) => c.json({ required: !identity.isBootstrapped() }));
+    app.get("/auth/bootstrap-status", (c) => c.json({ required: !identity.isBootstrapped(), ownerDevice: identity.ownerDevice() }));
     app.post("/auth/bootstrap", async (c) => {
       try {
         const body = await c.req.json<{ password?: string }>();
@@ -323,6 +325,12 @@ export function createApp(
       if (!body.token || !body.mode) return c.json({ error: "token and mode are required" }, 400);
       try { return c.json(identity.pair(body.token, body.mode, c.req.header("Origin")), 201); }
       catch { return c.json({ error: "Enrollment invitation is invalid or expired" }, 409); }
+    });
+    app.post("/auth/owner-login", async (c) => {
+      const device = identity.ownerDevice();
+      if (!device) return c.json({ error: "Host is not set up" }, 409);
+      try { return c.json(identity.login(device.id, "owner", (await c.req.json<{ password?: string }>()).password ?? "")); }
+      catch { return c.json({ error: "Invalid credentials" }, 401); }
     });
     app.post("/auth/login", async (c) => {
       const body = await c.req.json<{ deviceId?: string; username?: string; password?: string }>();
