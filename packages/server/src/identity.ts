@@ -1,4 +1,5 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import type { LocalDatabase } from "./database.ts";
 
 export const ROLES = ["Owner", "Cashier", "Staff"] as const;
 export type Role = (typeof ROLES)[number];
@@ -7,7 +8,7 @@ export type DeviceMode = (typeof DEVICE_MODES)[number];
 export type PairingKind = "private" | "public-kiosk";
 
 export type StaffUser = { id: string; username: string; role: Role; passwordHash: string };
-export type PairedDevice = { id: string; mode: DeviceMode; kind: PairingKind; revokedAt?: number };
+export type PairedDevice = { id: string; mode: DeviceMode; kind: PairingKind; revokedAt?: number; createdAt: number };
 export type Session = { token: string; deviceId: string; userId?: string; createdAt: number; expiresAt: number };
 export type Enrollment = { token: string; origin: string; kind: PairingKind; expiresAt: number; usedAt?: number };
 export type IdentityEvents = { deviceRevoked: (deviceId: string) => void };
@@ -32,13 +33,21 @@ function verifyPassword(password: string, encoded: string) {
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
-export function createIdentityStore(initial?: { ownerPassword?: string; events?: Partial<IdentityEvents> }) {
+export function createIdentityStore(initial?: { ownerPassword?: string; events?: Partial<IdentityEvents>; database?: LocalDatabase }) {
   const users = new Map<string, StaffUser>();
   const devices = new Map<string, PairedDevice>();
+  const database = initial?.database;
+  const persistUser = (user: StaffUser) => database?.db.run("INSERT INTO staff_users(id, username, role, password_hash, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET username=excluded.username, role=excluded.role, password_hash=excluded.password_hash", [user.id, user.username, user.role, user.passwordHash, Date.now()]);
+  const persistDevice = (device: PairedDevice) => database?.db.run("INSERT INTO paired_devices(id, mode, kind, revoked_at, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET mode=excluded.mode, kind=excluded.kind, revoked_at=excluded.revoked_at", [device.id, device.mode, device.kind, device.revokedAt ?? null, device.createdAt]);
   const enrollments = new Map<string, Enrollment>();
   const sessions = new Map<string, Session>();
-  const owner: StaffUser = { id: id("user"), username: "owner", role: "Owner", passwordHash: hashPassword(initial?.ownerPassword ?? "change-me") };
+  const storedUsers = database?.db.query("SELECT id, username, role, password_hash AS passwordHash FROM staff_users").all() as Array<StaffUser> | undefined;
+  storedUsers?.forEach((user) => users.set(user.id, user));
+  const owner: StaffUser = [...users.values()].find((user) => user.username === "owner") ?? { id: id("user"), username: "owner", role: "Owner", passwordHash: hashPassword(initial?.ownerPassword ?? "change-me") };
   users.set(owner.id, owner);
+  if (!storedUsers?.length) persistUser(owner);
+  const storedDevices = database?.db.query("SELECT id, mode, kind, revoked_at AS revokedAt, created_at AS createdAt FROM paired_devices").all() as PairedDevice[] | undefined;
+  storedDevices?.forEach((device) => devices.set(device.id, device));
 
   function createEnrollment(origin: string, kind: PairingKind = "private", ttlMs = 60_000) {
     const invitation: Enrollment = { token: token(), origin, kind, expiresAt: Date.now() + ttlMs };
@@ -49,8 +58,9 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     const invitation = enrollments.get(enrollmentToken);
     if (!invitation || invitation.usedAt || invitation.expiresAt <= Date.now() || (origin !== undefined && invitation.origin !== origin)) throw new Error("Enrollment invitation is invalid or expired");
     invitation.usedAt = Date.now();
-    const device: PairedDevice = { id: id("device"), mode, kind: invitation.kind };
+    const device: PairedDevice = { id: id("device"), mode, kind: invitation.kind, createdAt: Date.now() };
     devices.set(device.id, device);
+    persistDevice(device);
     const session = invitation.kind === "public-kiosk" ? createSession(device.id) : undefined;
     return { device, session };
   }
@@ -91,6 +101,7 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     const device = devices.get(deviceId);
     if (!device) return false;
     device.revokedAt = Date.now();
+    persistDevice(device);
     for (const [key, session] of sessions) if (session.deviceId === deviceId) sessions.delete(key);
     initial?.events?.deviceRevoked?.(deviceId);
     return true;

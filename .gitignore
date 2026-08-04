@@ -31,3 +31,5 @@ dist-ssr
 
 # typescript
 *.tsbuildinfo
+
+packages/server/KiddyLand

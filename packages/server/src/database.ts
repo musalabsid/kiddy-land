@@ -21,7 +21,7 @@ export function openLocalDatabase(path: string): LocalDatabase {
   db.run("PRAGMA foreign_keys = ON");
   db.run("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)");
   const version = Number((db.query("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations").get() as { version: number }).version);
-  if (version > 5) throw new Error(`Unsupported database schema version ${version}`);
+  if (version > 6) throw new Error(`Unsupported database schema version ${version}`);
   if (version < 1) {
     db.run(`CREATE TABLE IF NOT EXISTS calendar_state (
       id INTEGER PRIMARY KEY CHECK (id = 1), timezone TEXT NOT NULL,
@@ -50,6 +50,11 @@ export function openLocalDatabase(path: string): LocalDatabase {
     db.run(`CREATE TABLE IF NOT EXISTS membership_state (id INTEGER PRIMARY KEY CHECK (id = 1), state_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`);
     db.run("INSERT OR IGNORE INTO membership_state(id, state_json, updated_at) VALUES (1, ?, ?)", [JSON.stringify({ children: [], members: [], discounts: { ticketPackages: {}, products: {} }, events: [] }), Date.now()]);
     db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (5, ?)", [Date.now()]);
+  }
+  if (version < 6) {
+    db.run(`CREATE TABLE IF NOT EXISTS staff_users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, role TEXT NOT NULL, password_hash TEXT NOT NULL, created_at INTEGER NOT NULL)`);
+    db.run(`CREATE TABLE IF NOT EXISTS paired_devices (id TEXT PRIMARY KEY, mode TEXT NOT NULL, kind TEXT NOT NULL, revoked_at INTEGER, created_at INTEGER NOT NULL)`);
+    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (6, ?)", [Date.now()]);
   }
   const orm = drizzle(db, { schema });
   const transaction = <T,>(work: () => T): T => { db.run("BEGIN IMMEDIATE"); try { const result = work(); db.run("COMMIT"); return result; } catch (error) { db.run("ROLLBACK"); throw error; } };

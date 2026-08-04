@@ -42,3 +42,19 @@ export const lifecycleState = sqliteTable("lifecycle_state", {
   recoveryJson: text("recovery_json").notNull(),
   updatedAt: integer("updated_at", { mode: "number" }).notNull(),
 });
+
+export const staffUsers = sqliteTable("staff_users", {
+  id: text("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  role: text("role").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: integer("created_at", { mode: "number" }).notNull(),
+});
+
+export const pairedDevices = sqliteTable("paired_devices", {
+  id: text("id").primaryKey(),
+  mode: text("mode").notNull(),
+  kind: text("kind").notNull(),
+  revokedAt: integer("revoked_at", { mode: "number" }),
+  createdAt: integer("created_at", { mode: "number" }).notNull(),
+});

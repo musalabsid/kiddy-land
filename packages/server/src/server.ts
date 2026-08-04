@@ -50,7 +50,7 @@ function now() { return Date.now(); }
 export function createLocalServer(options: LocalServerOptions): LocalServer {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 43117;
-  const schemaVersion = options.schemaVersion ?? 5;
+  const schemaVersion = options.schemaVersion ?? 6;
   const startedAt = now();
   let status: HealthReport["status"] = "starting";
   let databaseStatus: HealthReport["database"] = "unhealthy";
@@ -59,9 +59,9 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   let httpServer: ServerType | undefined;
   const health = (): HealthReport => ({ status, service: "local-server", schemaVersion, database: databaseStatus, writeBlocked, diagnostic, uptimeMs: Math.max(0, now() - startedAt) });
   const registry = createConnectionRegistry();
-  const identity = options.identity ?? createIdentityStore({ events: { deviceRevoked: (deviceId) => registry.closeDevice(deviceId) } });
   const ownsDatabase = !options.database;
   const database = options.database ?? openLocalDatabase(`${options.dataDir}/kiddy-land.sqlite`);
+  const identity = options.identity ?? createIdentityStore({ database, events: { deviceRevoked: (deviceId) => registry.closeDevice(deviceId) } });
   const calendar = options.calendar ?? createCalendarStore({ database });
   const inventory = options.inventory ?? createInventoryStore(database);
   const membership = options.membership ?? createMembershipStore(database);
