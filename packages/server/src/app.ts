@@ -1,5 +1,6 @@
 import { upgradeWebSocket } from "@hono/node-server";
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { cors } from "hono/cors";
 import type { DeviceMode, IdentityStore } from "./identity.ts";
 import type { CalendarStore } from "./calendar.ts";
@@ -42,6 +43,22 @@ export function createApp(
   setRecoveryBlocked?: (blocked: boolean, diagnostic?: string) => void,
 ) {
   const app = new Hono();
+
+  // Simple fixed-window rate limiter for auth-sensitive endpoints. In-memory
+  // per-IP counters; good enough for a single-host LAN server. Prevents
+  // brute-forcing the owner password or invitation tokens from the network.
+  // Keyed on the socket remote address (not the spoofable x-forwarded-for).
+  const authLimits = new Map<string, { count: number; resetAt: number }>();
+  const rateLimit = (c: Context, max: number, windowMs: number): boolean => {
+    const incoming = c.env?.incoming as { socket?: { remoteAddress?: string } } | undefined;
+    const ip = incoming?.socket?.remoteAddress ?? "local";
+    const now = Date.now();
+    const entry = authLimits.get(ip);
+    if (!entry || entry.resetAt <= now) { authLimits.set(ip, { count: 1, resetAt: now + windowMs }); return true; }
+    entry.count += 1;
+    if (entry.count > max) return false;
+    return true;
+  };
   app.use("*", cors({ origin: (origin) => { try { const hostname = new URL(origin).hostname; const trusted = /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+)$/.test(hostname) || (process.env.KIDDY_LAND_TRUSTED_ORIGINS ?? "").split(",").map((value) => value.trim()).filter(Boolean).some((candidate) => { try { return new URL(candidate).hostname === hostname; } catch { return candidate === hostname; } }); return trusted ? origin : undefined; } catch { return undefined; } }, allowHeaders: ["Content-Type", "Authorization"], allowMethods: ["GET", "POST", "PUT", "PATCH", "OPTIONS"] }));
   app.use("*", async (c, next) => {
     if (c.req.method !== "GET" && getHealth().writeBlocked && !c.req.path.includes("/restore") && !c.req.path.startsWith("/health") && !c.req.path.startsWith("/ready")) return c.json({ error: "Server is in recovery mode", diagnostic: getHealth().diagnostic }, 503);
@@ -307,6 +324,7 @@ export function createApp(
     });
     app.get("/auth/bootstrap-status", (c) => c.json({ required: !identity.isBootstrapped(), ownerDevice: identity.ownerDevice() }));
     app.post("/auth/bootstrap", async (c) => {
+      if (!rateLimit(c, 5, 60_000)) return c.json({ error: "Too many attempts; try again later" }, 429);
       try {
         const body = await c.req.json<{ password?: string }>();
         if (!body.password) return c.json({ error: "password is required" }, 400);
@@ -314,6 +332,7 @@ export function createApp(
       } catch (error) { return c.json({ error: error instanceof Error ? error.message : "Bootstrap failed" }, 409); }
     });
     app.post("/pairing/invitations", async (c) => {
+      if (!rateLimit(c, 10, 60_000)) return c.json({ error: "Too many invitations; try again later" }, 429);
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
       const body = await c.req.json<{ origin?: string; kind?: "private" | "public-kiosk" }>();
@@ -321,18 +340,21 @@ export function createApp(
       return c.json(identity.createEnrollment(body.origin, body.kind ?? "private"), 201);
     });
     app.post("/pairing/redeem", async (c) => {
+      if (!rateLimit(c, 10, 60_000)) return c.json({ error: "Too many attempts; try again later" }, 429);
       const body = await c.req.json<{ token?: string; mode?: DeviceMode }>();
       if (!body.token || !body.mode) return c.json({ error: "token and mode are required" }, 400);
       try { return c.json(identity.pair(body.token, body.mode, c.req.header("Origin")), 201); }
       catch { return c.json({ error: "Enrollment invitation is invalid or expired" }, 409); }
     });
     app.post("/auth/owner-login", async (c) => {
+      if (!rateLimit(c, 5, 60_000)) return c.json({ error: "Too many attempts; try again later" }, 429);
       const device = identity.ownerDevice();
       if (!device) return c.json({ error: "Host is not set up" }, 409);
       try { return c.json(identity.login(device.id, "owner", (await c.req.json<{ password?: string }>()).password ?? "")); }
       catch { return c.json({ error: "Invalid credentials" }, 401); }
     });
     app.post("/auth/login", async (c) => {
+      if (!rateLimit(c, 10, 60_000)) return c.json({ error: "Too many attempts; try again later" }, 429);
       const body = await c.req.json<{ deviceId?: string; username?: string; password?: string }>();
       if (!body.deviceId || !body.username || !body.password) return c.json({ error: "deviceId, username and password are required" }, 400);
       try { return c.json(identity.login(body.deviceId, body.username, body.password)); }
