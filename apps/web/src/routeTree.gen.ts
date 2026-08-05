@@ -23,6 +23,7 @@ import { Route as AuthenticatedShellOwnerDevicesRouteImport } from './routes/_au
 import { Route as AuthenticatedShellOwnerInventoryRouteImport } from './routes/_authenticated/_shell/owner/inventory'
 import { Route as AuthenticatedShellOwnerMembershipDiscountsRouteImport } from './routes/_authenticated/_shell/owner/membership-discounts'
 import { Route as AuthenticatedShellOwnerMembershipsRouteImport } from './routes/_authenticated/_shell/owner/memberships'
+import { Route as AuthenticatedShellOwnerPackagesRouteImport } from './routes/_authenticated/_shell/owner/packages'
 import { Route as AuthenticatedShellOwnerReportsRouteImport } from './routes/_authenticated/_shell/owner/reports'
 import { Route as AuthenticatedShellScannerEntryRouteImport } from './routes/_authenticated/_shell/scanner/entry'
 import { Route as AuthenticatedShellScannerExitRouteImport } from './routes/_authenticated/_shell/scanner/exit'
@@ -103,6 +104,12 @@ const AuthenticatedShellOwnerMembershipsRoute =
     path: '/owner/memberships',
     getParentRoute: () => AuthenticatedShellRoute,
   } as any)
+const AuthenticatedShellOwnerPackagesRoute =
+  AuthenticatedShellOwnerPackagesRouteImport.update({
+    id: '/owner/packages',
+    path: '/owner/packages',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
 const AuthenticatedShellOwnerReportsRoute =
   AuthenticatedShellOwnerReportsRouteImport.update({
     id: '/owner/reports',
@@ -135,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/owner/inventory': typeof AuthenticatedShellOwnerInventoryRoute
   '/owner/membership-discounts': typeof AuthenticatedShellOwnerMembershipDiscountsRoute
   '/owner/memberships': typeof AuthenticatedShellOwnerMembershipsRoute
+  '/owner/packages': typeof AuthenticatedShellOwnerPackagesRoute
   '/owner/reports': typeof AuthenticatedShellOwnerReportsRoute
   '/scanner/entry': typeof AuthenticatedShellScannerEntryRoute
   '/scanner/exit': typeof AuthenticatedShellScannerExitRoute
@@ -152,6 +160,7 @@ export interface FileRoutesByTo {
   '/owner/inventory': typeof AuthenticatedShellOwnerInventoryRoute
   '/owner/membership-discounts': typeof AuthenticatedShellOwnerMembershipDiscountsRoute
   '/owner/memberships': typeof AuthenticatedShellOwnerMembershipsRoute
+  '/owner/packages': typeof AuthenticatedShellOwnerPackagesRoute
   '/owner/reports': typeof AuthenticatedShellOwnerReportsRoute
   '/scanner/entry': typeof AuthenticatedShellScannerEntryRoute
   '/scanner/exit': typeof AuthenticatedShellScannerExitRoute
@@ -172,6 +181,7 @@ export interface FileRoutesById {
   '/_authenticated/_shell/owner/inventory': typeof AuthenticatedShellOwnerInventoryRoute
   '/_authenticated/_shell/owner/membership-discounts': typeof AuthenticatedShellOwnerMembershipDiscountsRoute
   '/_authenticated/_shell/owner/memberships': typeof AuthenticatedShellOwnerMembershipsRoute
+  '/_authenticated/_shell/owner/packages': typeof AuthenticatedShellOwnerPackagesRoute
   '/_authenticated/_shell/owner/reports': typeof AuthenticatedShellOwnerReportsRoute
   '/_authenticated/_shell/scanner/entry': typeof AuthenticatedShellScannerEntryRoute
   '/_authenticated/_shell/scanner/exit': typeof AuthenticatedShellScannerExitRoute
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/owner/inventory'
     | '/owner/membership-discounts'
     | '/owner/memberships'
+    | '/owner/packages'
     | '/owner/reports'
     | '/scanner/entry'
     | '/scanner/exit'
@@ -208,6 +219,7 @@ export interface FileRouteTypes {
     | '/owner/inventory'
     | '/owner/membership-discounts'
     | '/owner/memberships'
+    | '/owner/packages'
     | '/owner/reports'
     | '/scanner/entry'
     | '/scanner/exit'
@@ -227,6 +239,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/owner/inventory'
     | '/_authenticated/_shell/owner/membership-discounts'
     | '/_authenticated/_shell/owner/memberships'
+    | '/_authenticated/_shell/owner/packages'
     | '/_authenticated/_shell/owner/reports'
     | '/_authenticated/_shell/scanner/entry'
     | '/_authenticated/_shell/scanner/exit'
@@ -337,6 +350,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellOwnerMembershipsRouteImport
       parentRoute: typeof AuthenticatedShellRoute
     }
+    '/_authenticated/_shell/owner/packages': {
+      id: '/_authenticated/_shell/owner/packages'
+      path: '/owner/packages'
+      fullPath: '/owner/packages'
+      preLoaderRoute: typeof AuthenticatedShellOwnerPackagesRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
     '/_authenticated/_shell/owner/reports': {
       id: '/_authenticated/_shell/owner/reports'
       path: '/owner/reports'
@@ -372,6 +392,7 @@ interface AuthenticatedShellRouteChildren {
   AuthenticatedShellOwnerInventoryRoute: typeof AuthenticatedShellOwnerInventoryRoute
   AuthenticatedShellOwnerMembershipDiscountsRoute: typeof AuthenticatedShellOwnerMembershipDiscountsRoute
   AuthenticatedShellOwnerMembershipsRoute: typeof AuthenticatedShellOwnerMembershipsRoute
+  AuthenticatedShellOwnerPackagesRoute: typeof AuthenticatedShellOwnerPackagesRoute
   AuthenticatedShellOwnerReportsRoute: typeof AuthenticatedShellOwnerReportsRoute
   AuthenticatedShellScannerEntryRoute: typeof AuthenticatedShellScannerEntryRoute
   AuthenticatedShellScannerExitRoute: typeof AuthenticatedShellScannerExitRoute
@@ -390,6 +411,7 @@ const AuthenticatedShellRouteChildren: AuthenticatedShellRouteChildren = {
     AuthenticatedShellOwnerMembershipDiscountsRoute,
   AuthenticatedShellOwnerMembershipsRoute:
     AuthenticatedShellOwnerMembershipsRoute,
+  AuthenticatedShellOwnerPackagesRoute: AuthenticatedShellOwnerPackagesRoute,
   AuthenticatedShellOwnerReportsRoute: AuthenticatedShellOwnerReportsRoute,
   AuthenticatedShellScannerEntryRoute: AuthenticatedShellScannerEntryRoute,
   AuthenticatedShellScannerExitRoute: AuthenticatedShellScannerExitRoute,

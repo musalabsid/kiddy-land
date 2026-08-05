@@ -29,6 +29,7 @@ import {
   useRouteAccess,
 } from "@workspace/ui/components/route-access-guard";
 import { TicketScanner } from "@workspace/ui/components/ticket-scanner";
+import { TicketPackageSettings } from "@workspace/ui/components/ticket-package-settings";
 import { createHttpHostSource } from "@workspace/ui/lib/host";
 import { ThemeProvider } from "@workspace/ui/providers/theme-provider";
 import { useEffect } from "react";
@@ -140,6 +141,12 @@ const ownerDevicesRoute = createRoute({
       <DeviceManagement origin={origin} />
     </RouteAccessGate>
   ),
+});
+
+const ownerPackagesRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/owner/packages",
+  component: () => <RouteAccessGate requireRole="Owner"><TicketPackageSettings /></RouteAccessGate>,
 });
 
 const ownerCalendarRoute = createRoute({
@@ -264,6 +271,7 @@ export const routeTree = rootRoute.addChildren([
       scannerExitRoute,
       ownerDevicesRoute,
       ownerCalendarRoute,
+      ownerPackagesRoute,
       ownerCatalogRoute,
       ownerInventoryRoute,
       ownerMembershipsRoute,

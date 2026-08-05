@@ -2,6 +2,7 @@ import { useLogout, useSession } from "@kiddy-land/client/react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { NotificationAlerts, SoundPreference, useNotificationSound } from "@workspace/ui/components/notification-alerts";
+import { Toaster } from "@workspace/ui/components/sonner";
 import {
   Sidebar,
   SidebarContent,
@@ -25,6 +26,7 @@ import {
   Boxes,
   CalendarDays,
   HardDrive,
+  PackageCheck,
   LayoutDashboard,
   PackageIcon,
   Percent,
@@ -64,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const logout = useLogout();
   const { soundEnabled, setSoundEnabled } = useNotificationSound();
   const active = (path: string) => pathname === path;
-  const pageTitleKey: MessageKey = pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/inventory" ? "app.inventory" : pathname === "/scanner/entry" ? "app.entryScanner" : pathname === "/scanner/exit" ? "app.exitScanner" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/inventory" ? "app.ownerInventory" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : "host.title";
+  const pageTitleKey: MessageKey = pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/inventory" ? "app.inventory" : pathname === "/scanner/entry" ? "app.entryScanner" : pathname === "/scanner/exit" ? "app.exitScanner" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/inventory" ? "app.ownerInventory" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : "host.title";
   if (!session) return null;
   const mode = session.device.mode;
   const isOwner = session.user?.role === "Owner";
@@ -163,6 +165,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
+                    <SidebarMenuButton render={<Link to="/owner/packages" />} isActive={active("/owner/packages")}>
+                      <PackageCheck />
+                      {t("app.packages")}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
                     <SidebarMenuButton render={<Link to="/owner/catalog" />} isActive={active("/owner/catalog")}>
                       <Tags />
                       {t("app.catalog")}
@@ -244,6 +252,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
         <NotificationAlerts />
+        <Toaster />
         <div className="flex-1 p-6">{children}</div>
       </SidebarInset>
     </SidebarProvider>

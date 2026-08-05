@@ -1,7 +1,6 @@
 import * as React from "react";
 import { CalendarDays, CheckCircle2, Clock3, Save, Settings2 } from "lucide-react";
-import { useCalendarConfig, useConfigureCalendar, useSchedule, useSession, type DailyHours, type DepositPolicy, type Weekday } from "@kiddy-land/client/react";
-import { formatIdr } from "@kiddy-land/localization";
+import { useCalendarConfig, useConfigureCalendar, useSchedule, useSession, type DailyHours, type Weekday } from "@kiddy-land/client/react";
 import { useLocale } from "@workspace/ui/lib/i18n";
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert";
 import { Button } from "@workspace/ui/components/button";
@@ -10,10 +9,9 @@ import { cn } from "@workspace/ui/lib/utils";
 
 const days: Weekday[] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 function hoursLabel(hours: DailyHours | undefined, closed: string) { return !hours || "closed" in hours ? closed : `${hours.open}–${hours.close}`; }
-const emptyPackage = { name: "", includedMinutes: "90", weekdayPrice: "", weekendPrice: "", overtimeRate: "", deposit: "", depositPolicy: "return-remainder" as DepositPolicy };
 
 export function CalendarSettings() {
-  const { t, locale } = useLocale();
+  const { t } = useLocale();
   const { session } = useSession();
   const config = useCalendarConfig();
   const configure = useConfigureCalendar();
@@ -28,7 +26,6 @@ export function CalendarSettings() {
   const [overrideOpen, setOverrideOpen] = React.useState("10:00");
   const [overrideClose, setOverrideClose] = React.useState("20:00");
   const [overridePeriod, setOverridePeriod] = React.useState<"weekday" | "weekend">("weekday");
-  const [pkg, setPkg] = React.useState(emptyPackage);
 
   React.useEffect(() => { if (config.data) { setTimezone(config.data.timezone); setHours(config.data.weekly); } }, [config.data]);
   React.useEffect(() => { if (configure.isSuccess) { void config.refetch(); void schedule.refetch(); } }, [configure.isSuccess]);
@@ -49,7 +46,6 @@ export function CalendarSettings() {
       </CardContent></Card>
       <Card><CardHeader><CardTitle className="flex items-center gap-2"><CalendarDays />{t("calendar.previewTitle")}</CardTitle><CardDescription>{t("calendar.previewDescription")}</CardDescription></CardHeader><CardContent className="grid gap-4"><label className="grid gap-2 text-sm"><span className="font-medium">{t("calendar.requestedDate")}</span><input type="date" className="h-10 border border-input bg-background px-3" value={date} onChange={(e) => setDate(e.target.value)} /></label>{schedule.data && <div className="grid gap-3 border p-4"><div className="flex items-center justify-between gap-3"><span className="font-medium">{t(`calendar.day.${schedule.data.weekday}` as never)}</span><span className="text-xs uppercase tracking-wider text-muted-foreground">{schedule.data.period}</span></div><p className="text-lg">{"closed" in schedule.data.hours ? t("calendar.closed") : `${schedule.data.hours.open}–${schedule.data.hours.close}`}</p>{schedule.data.closureReason && <p className="text-sm text-muted-foreground">{schedule.data.closureReason}</p>}</div>}<p className="text-xs text-muted-foreground">{t("calendar.operatingDay")}: {date} · {timezone}</p><div className="grid gap-3 border-t pt-4"><p className="text-sm font-medium">{t("calendar.overrideTitle")}</p><div className="grid gap-3 sm:grid-cols-2"><select className="h-10 border border-input bg-background px-3" value={overrideKind} onChange={(e) => setOverrideKind(e.target.value as typeof overrideKind)}><option value="closed">{t("calendar.overrideClosed")}</option><option value="open">{t("calendar.overrideOpen")}</option><option value="pricing">{t("calendar.overridePricing")}</option></select><input className="h-10 border border-input bg-background px-3" placeholder={t("calendar.overrideReason")} value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} /></div>{overrideKind === "open" && <div className="grid grid-cols-2 gap-3"><input type="time" className="h-10 border border-input bg-background px-3" value={overrideOpen} onChange={(e) => setOverrideOpen(e.target.value)} /><input type="time" className="h-10 border border-input bg-background px-3" value={overrideClose} onChange={(e) => setOverrideClose(e.target.value)} /></div>}{overrideKind === "pricing" && <select className="h-10 border border-input bg-background px-3" value={overridePeriod} onChange={(e) => setOverridePeriod(e.target.value as typeof overridePeriod)}><option value="weekday">{t("calendar.weekday")}</option><option value="weekend">{t("calendar.weekend")}</option></select>}<Button variant="outline" onClick={saveOverride} disabled={configure.isPending}>{t("calendar.saveOverride")}</Button></div></CardContent></Card>
     </div>
-    <Card><CardHeader><CardTitle>{t("calendar.packagesTitle")}</CardTitle><CardDescription>{t("calendar.packagesDescription")}</CardDescription></CardHeader><CardContent className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]"><form className="grid gap-3" onSubmit={(e) => { e.preventDefault(); save({ package: { name: pkg.name, includedMinutes: pkg.includedMinutes === "" ? null : Number(pkg.includedMinutes), weekdayPrice: Number(pkg.weekdayPrice), weekendPrice: Number(pkg.weekendPrice), overridePrices: {}, overtimeRate: Number(pkg.overtimeRate), deposit: Number(pkg.deposit), depositPolicy: pkg.depositPolicy } }); }}><input required className="h-10 border border-input bg-background px-3" placeholder={t("calendar.packageName")} value={pkg.name} onChange={(e) => setPkg({ ...pkg, name: e.target.value })} /><div className="grid grid-cols-2 gap-3">{(["includedMinutes", "weekdayPrice", "weekendPrice", "overtimeRate", "deposit"] as const).map((field) => <input key={field} required={field !== "includedMinutes"} type="number" min="0" className="h-10 border border-input bg-background px-3" placeholder={t(`calendar.${field}` as never)} value={pkg[field]} onChange={(e) => setPkg({ ...pkg, [field]: e.target.value })} />)}</div><select className="h-10 border border-input bg-background px-3" value={pkg.depositPolicy} onChange={(e) => setPkg({ ...pkg, depositPolicy: e.target.value as DepositPolicy })}><option value="return-remainder">{t("calendar.returnRemainder")}</option><option value="forfeit-overtime">{t("calendar.forfeitOvertime")}</option><option value="unlimited-cap">{t("calendar.unlimitedCap")}</option></select><Button type="submit" disabled={configure.isPending}><Save data-icon="inline-start" />{t("calendar.savePackage")}</Button></form><div className="grid content-start gap-3">{config.data?.packages.length ? config.data.packages.map((item) => <div key={item.id} className="flex items-center justify-between gap-4 border p-4"><div><p className="font-medium">{item.name}</p><p className="text-sm text-muted-foreground">{item.includedMinutes === null ? t("calendar.unlimited") : `${item.includedMinutes} ${t("calendar.minutes")}`} · {formatIdr(item.weekdayPrice, locale)}</p></div><CheckCircle2 className="text-primary" /></div>) : <p className="text-sm text-muted-foreground">{t("calendar.noPackages")}</p>}</div></CardContent></Card>
     {configure.isSuccess && <Alert><CheckCircle2 /><AlertTitle>{t("calendar.saved")}</AlertTitle><AlertDescription>{t("calendar.savedDescription")}</AlertDescription></Alert>}
   </section>;
 }
