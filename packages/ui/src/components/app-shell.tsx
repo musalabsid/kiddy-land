@@ -17,8 +17,9 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@workspace/ui/components/sidebar";
-import { useLocale } from "@workspace/ui/lib/i18n";
+import { useLocale, type MessageKey } from "@workspace/ui/lib/i18n";
 import { ConnectionBanner } from "@workspace/ui/components/connection-banner";
+import { useTheme } from "@workspace/ui/providers/theme-provider";
 import {
   BarChart3,
   Boxes,
@@ -32,6 +33,9 @@ import {
   ShoppingCart,
   Tags,
   Users,
+  Monitor,
+  Moon,
+  Sun,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -54,11 +58,13 @@ const modeLabelKeys: Record<
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { t, locale, setLocale } = useLocale();
+  const { theme, setTheme } = useTheme();
   const { session } = useSession();
   const { pathname } = useLocation();
   const logout = useLogout();
   const { soundEnabled, setSoundEnabled } = useNotificationSound();
   const active = (path: string) => pathname === path;
+  const pageTitleKey: MessageKey = pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/inventory" ? "app.inventory" : pathname === "/scanner/entry" ? "app.entryScanner" : pathname === "/scanner/exit" ? "app.exitScanner" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/inventory" ? "app.ownerInventory" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : "host.title";
   if (!session) return null;
   const mode = session.device.mode;
   const isOwner = session.user?.role === "Owner";
@@ -204,20 +210,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         </SidebarContent>
         <SidebarFooter>
-          <div className="flex items-center justify-between gap-2 px-2 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-            <span className="truncate">
-              {t("app.mode")}: {t(modeLabelKeys[mode] ?? "auth.modeCashier")}
-            </span>
-            <span className="truncate">
-              {session.user ? `${t("app.role")}: ${session.user.role}` : ""}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-1 group-data-[collapsible=icon]:hidden">
-            <SoundPreference enabled={soundEnabled} onChange={setSoundEnabled} className="w-fit" />
-            <Button variant="outline" size="sm" className="w-fit" onClick={() => setLocale(locale === "id" ? "en" : "id")}>
+          <div className="grid grid-cols-2 gap-1 group-data-[collapsible=icon]:hidden">
+            <SoundPreference enabled={soundEnabled} onChange={setSoundEnabled} className="w-full" />
+            <Button variant="outline" size="sm" className="w-full" onClick={() => setLocale(locale === "id" ? "en" : "id")}>
               {locale === "id" ? "EN" : "ID"}
             </Button>
-            <Button variant="outline" size="sm" className="w-fit" onClick={logout}>
+            <Button variant="outline" size="sm" className="w-full" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+              {theme === "dark" ? <Sun data-icon="inline-start" /> : theme === "light" ? <Moon data-icon="inline-start" /> : <Monitor data-icon="inline-start" />}
+              {theme === "dark" ? "Light" : "Dark"}
+            </Button>
+            <Button variant="outline" size="sm" className="w-full" onClick={logout}>
               {t("auth.logout")}
             </Button>
           </div>
@@ -225,11 +227,21 @@ export function AppShell({ children }: { children: ReactNode }) {
       </Sidebar>
       <SidebarInset>
         <ConnectionBanner />
-        <header className="flex h-12 items-center gap-2 border-b border-border px-3">
+        <header className="flex min-h-12 items-center gap-3 border-b border-border px-3">
           <SidebarTrigger />
           <span className="truncate text-sm font-medium">
-            {t("host.title")}
+            {t(pageTitleKey)}
           </span>
+          <div className="ml-auto flex min-w-0 items-center gap-2 text-xs">
+            <span className="max-w-40 truncate rounded-md bg-muted px-2 py-1 font-medium">
+              {t(modeLabelKeys[mode] ?? "auth.modeCashier")}
+            </span>
+            {session.user && (
+              <span className="max-w-28 truncate rounded-md border border-border px-2 py-1 font-medium">
+                {session.user.role}
+              </span>
+            )}
+          </div>
         </header>
         <NotificationAlerts />
         <div className="flex-1 p-6">{children}</div>
