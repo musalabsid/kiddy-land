@@ -8,7 +8,7 @@ function trustedLocalOrigin(origin: string | undefined, expectedOrigin: string) 
   if (origin === expectedOrigin) return true;
   try {
     const url = new URL(origin ?? "");
-    return ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    return /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+)$/.test(url.hostname);
   } catch { return false; }
 }
 

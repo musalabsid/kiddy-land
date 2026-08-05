@@ -10,7 +10,7 @@
   "scripts": {
     "check-types": "tsc --noEmit",
     "test": "bun test",
-    "dev": "bun run src/host.ts",
+    "dev": "bun --env-file=../../.env.local run src/host.ts",
     "start": "bun run src/host.ts",
     "acceptance": "bun run src/acceptance-cli.ts"
   },

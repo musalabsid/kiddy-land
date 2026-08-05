@@ -6,7 +6,7 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
+    "dev": "bun --env-file=../../.env.local vite dev --port 3000 --host 0.0.0.0",
     "generate-routes": "tsr generate",
     "build": "vite build",
     "preview": "vite preview",
