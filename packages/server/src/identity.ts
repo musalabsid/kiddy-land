@@ -111,10 +111,9 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     const device = devices.get(deviceId);
     if (!device || device.revokedAt) throw new Error("Device is revoked or unknown");
     const createdAt = Date.now();
-    // Public kiosks get a short-lived session; everything else (owner, staff)
-    // stays signed in for 30 days — these are owner-managed devices, not
-    // shared kiosks. A lost device is handled by revoking it.
-    const ttlMs = device.kind === "public-kiosk" ? 8 * 60 * 60_000 : 30 * 24 * 60 * 60_000;
+    // All devices are owner-managed (staff phones, kiosks inside the venue)
+    // and stay signed in for 30 days. A lost device is handled by revoking it.
+    const ttlMs = 30 * 24 * 60 * 60_000;
     const session = { token: token(), deviceId, userId, createdAt, expiresAt: createdAt + ttlMs };
     sessions.set(session.token, session);
     return session;
