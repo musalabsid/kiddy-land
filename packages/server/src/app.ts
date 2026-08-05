@@ -2,7 +2,7 @@ import { upgradeWebSocket } from "@hono/node-server";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { cors } from "hono/cors";
-import type { DeviceMode, IdentityStore } from "./identity.ts";
+import type { DeviceMode, IdentityStore, StaffInvite } from "./identity.ts";
 import type { CalendarStore } from "./calendar.ts";
 import type { SaleStore } from "./sale.ts";
 import type { LifecycleStore } from "./lifecycle.ts";
@@ -335,9 +335,17 @@ export function createApp(
       if (!rateLimit(c, 10, 60_000)) return c.json({ error: "Too many invitations; try again later" }, 429);
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
-      const body = await c.req.json<{ origin?: string; kind?: "private" | "public-kiosk" }>();
+      const body = await c.req.json<{ origin?: string; kind?: "private" | "public-kiosk"; staff?: { name?: string; role?: string } }>();
       if (!body.origin) return c.json({ error: "origin is required" }, 400);
-      return c.json(identity.createEnrollment(body.origin, body.kind ?? "private"), 201);
+      let staff: StaffInvite | undefined;
+      if (body.staff) {
+        const name = body.staff.name?.trim();
+        const role = body.staff.role;
+        if (!name) return c.json({ error: "staff name is required" }, 400);
+        if (role !== "Cashier" && role !== "Staff") return c.json({ error: "staff role must be Cashier or Staff" }, 400);
+        staff = { name, role };
+      }
+      return c.json(identity.createEnrollment(body.origin, body.kind ?? "private", 60_000, staff), 201);
     });
     app.post("/pairing/redeem", async (c) => {
       if (!rateLimit(c, 10, 60_000)) return c.json({ error: "Too many attempts; try again later" }, 429);

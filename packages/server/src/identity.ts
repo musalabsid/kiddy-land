@@ -10,7 +10,8 @@ export type PairingKind = "private" | "public-kiosk";
 export type StaffUser = { id: string; username: string; role: Role; passwordHash: string };
 export type PairedDevice = { id: string; mode: DeviceMode; kind: PairingKind; revokedAt?: number; createdAt: number };
 export type Session = { token: string; deviceId: string; userId?: string; createdAt: number; expiresAt: number };
-export type Enrollment = { token: string; origin: string; kind: PairingKind; expiresAt: number; usedAt?: number };
+export type Enrollment = { token: string; origin: string; kind: PairingKind; expiresAt: number; usedAt?: number; staff?: { username: string; role: Role } };
+export type StaffInvite = { name: string; role: Role };
 export type IdentityEvents = { deviceRevoked: (deviceId: string) => void };
 
 export type IdentityStore = ReturnType<typeof createIdentityStore>;
@@ -76,10 +77,10 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     return { device, session: createSession(device.id, owner.id) };
   }
 
-  function createEnrollment(origin: string, kind: PairingKind = "private", ttlMs = 60_000) {
-    const invitation: Enrollment = { token: token(), origin, kind, expiresAt: Date.now() + ttlMs };
+  function createEnrollment(origin: string, kind: PairingKind = "private", ttlMs = 60_000, staff?: StaffInvite) {
+    const invitation: Enrollment = { token: token(), origin, kind, expiresAt: Date.now() + ttlMs, staff: staff ? { username: `staff-${token().slice(0, 8)}`, role: staff.role } : undefined };
     enrollments.set(invitation.token, invitation);
-    return { ...invitation, qrPayload: JSON.stringify({ origin, token: invitation.token, kind }) };
+    return { ...invitation, qrPayload: JSON.stringify({ origin, token: invitation.token, kind, ...(staff ? { staff: { name: staff.name, role: staff.role } } : {}) }) };
   }
   function pair(enrollmentToken: string, mode: DeviceMode, origin?: string) {
     const invitation = enrollments.get(enrollmentToken);
@@ -94,7 +95,16 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     const device: PairedDevice = { id: id("device"), mode, kind: invitation.kind, createdAt: Date.now() };
     devices.set(device.id, device);
     persistDevice(device);
-    const session = invitation.kind === "public-kiosk" ? createSession(device.id) : undefined;
+    // When the invite carries a staff account, create the user now and bind
+    // the device session to them — the phone is logged in immediately on scan.
+    let userId: string | undefined;
+    if (invitation.staff) {
+      const user: StaffUser = { id: id("user"), username: invitation.staff.username, role: invitation.staff.role, passwordHash: hashPassword(invitation.token) };
+      users.set(user.id, user);
+      persistUser(user);
+      userId = user.id;
+    }
+    const session = invitation.kind === "public-kiosk" || invitation.staff ? createSession(device.id, userId) : undefined;
     return { device, session };
   }
   function createSession(deviceId: string, userId?: string) {

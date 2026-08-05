@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useLocale } from "@kiddy-land/localization/react";
-import { useBootstrapMutation, useBootstrapStatusQuery, useLoginMutation, useOwnerLoginMutation, usePairingMutation, useSession } from "@kiddy-land/client/react";
+import { useBootstrapMutation, useBootstrapStatusQuery, useOwnerLoginMutation, usePairingMutation, useSession } from "@kiddy-land/client/react";
 import type { DeviceMode } from "@kiddy-land/client";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
@@ -16,10 +16,6 @@ export function PairingScreen({ origin, enableScanner = false }: { origin: strin
 function PasswordField({ label, value, onChange, autoComplete, minLength }: { label: string; value: string; onChange: (value: string) => void; autoComplete?: string; minLength?: number }) {
   const [visible, setVisible] = React.useState(false);
   return <label className="grid gap-1 text-xs"><span>{label}</span><span className="relative"><input aria-label={label} className="h-9 w-full border border-input bg-background px-2 pr-10 text-sm" type={visible ? "text" : "password"} autoComplete={autoComplete} minLength={minLength} value={value} onChange={(event) => onChange(event.target.value)} required /><button type="button" className="absolute inset-y-0 right-0 grid w-9 place-items-center text-muted-foreground hover:text-foreground" aria-label={visible ? "Hide password" : "Show password"} onClick={() => setVisible((current) => !current)}>{visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></span></label>;
-}
-export function LoginScreen() {
-  const { t } = useLocale(); const mutation = useLoginMutation(); const { pairedDevice } = useSession(); const [username, setUsername] = React.useState(""); const [password, setPassword] = React.useState("");
-  return <Card><CardHeader><CardTitle>{t("auth.loginTitle")}</CardTitle><CardDescription>{t("auth.loginDescription")}</CardDescription></CardHeader><CardContent><form className="grid gap-3" onSubmit={(event) => { event.preventDefault(); if (pairedDevice) mutation.mutate({ deviceId: pairedDevice.id, username, password }); }}><label className="grid gap-1 text-xs"><span>{t("auth.username")}</span><input aria-label={t("auth.username")} className="h-9 border border-input bg-background px-2 text-sm" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" required /></label><PasswordField label={t("auth.password")} value={password} onChange={setPassword} autoComplete="current-password" /><Button type="submit" disabled={mutation.isPending || !pairedDevice}>{t("auth.login")}</Button>{mutation.isError && <p role="alert" className="text-xs text-destructive">{t("auth.invalidCredentials")}</p>}</form></CardContent></Card>;
 }
 export function OwnerLoginScreen({ onSuccess }: { onSuccess?: () => void } = {}) {
   const mutation = useOwnerLoginMutation();
@@ -39,5 +35,7 @@ export function AuthScreen({ origin, children, enableScanner = false }: { origin
   if (session) return <>{children}</>;
   if (bootstrap.data?.required) return <main className="flex min-h-[100dvh] w-full items-center justify-center bg-background p-6"><div className="mx-auto w-full max-w-sm"><BootstrapScreen /></div></main>;
   if (bootstrap.data?.ownerDevice && !pairedDevice) return <main className="flex min-h-[100dvh] w-full items-center justify-center bg-background p-6"><div className="mx-auto grid w-full max-w-sm gap-3"><PairingScreen origin={origin} enableScanner={enableScanner} /><a href="/owner-login" className="text-center text-sm text-primary underline-offset-4 hover:underline">Login as owner</a></div></main>;
-  return <main className="flex min-h-[100dvh] w-full items-center justify-center bg-background p-6"><div className="mx-auto w-full max-w-sm">{pairedDevice?.kind === "private" ? <LoginScreen /> : <PairingScreen origin={origin} enableScanner={enableScanner} />}</div></main>;
+  // Private devices are now always paired with a staff account (auto-login).
+  // On session expiry, re-pair instead of asking for credentials nobody has.
+  return <main className="flex min-h-[100dvh] w-full items-center justify-center bg-background p-6"><div className="mx-auto w-full max-w-sm"><PairingScreen origin={origin} enableScanner={enableScanner} /></div></main>;
 }

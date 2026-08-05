@@ -33,7 +33,7 @@ export function useBootstrapMutation() {
 
 export function useInvitationMutation() {
   const client = useApiClient();
-  return useMutation({ mutationFn: ({ origin, kind }: { origin: string; kind?: "private" | "public-kiosk" }) => new AuthService(client).createInvitation(origin, kind) });
+  return useMutation({ mutationFn: ({ origin, kind, staff }: { origin: string; kind?: "private" | "public-kiosk"; staff?: { name: string; role: "Cashier" | "Staff" } }) => new AuthService(client).createInvitation(origin, kind, staff) });
 }
 
 export function useDevicesQuery() {

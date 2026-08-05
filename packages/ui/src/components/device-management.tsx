@@ -10,14 +10,17 @@ export function DeviceManagement({ origin }: { origin: string }) {
   const devices = useDevicesQuery();
   const revoke = useRevokeDeviceMutation();
   const [kind, setKind] = React.useState<"private" | "public-kiosk">("private");
+  const [staffName, setStaffName] = React.useState("");
+  const [staffRole, setStaffRole] = React.useState<"Cashier" | "Staff">("Cashier");
   const [qr, setQr] = React.useState<string>();
   const [token, setToken] = React.useState<string>();
-  const create = () => invitation.mutate({ origin, kind }, { onSuccess: async (result) => { setToken(result.token); setQr(await QRCode.toDataURL(result.qrPayload, { margin: 2, width: 220 })); } });
+  const create = () => invitation.mutate({ origin, kind, staff: kind === "private" && staffName.trim() ? { name: staffName.trim(), role: staffRole } : undefined }, { onSuccess: async (result) => { setToken(result.token); setQr(await QRCode.toDataURL(result.qrPayload, { margin: 2, width: 220 })); } });
   return <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
     <Card>
       <CardHeader><CardTitle>Pair a device</CardTitle><CardDescription>Generate a one-time invitation. It expires after 60 seconds.</CardDescription></CardHeader>
       <CardContent className="grid gap-4">
         <label className="grid gap-1 text-sm"><span>Device kind</span><select className="h-9 border border-input bg-background px-2" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}><option value="private">Private device</option><option value="public-kiosk">Public kiosk</option></select></label>
+        {kind === "private" && <><label className="grid gap-1 text-sm"><span>Employee name</span><input className="h-9 border border-input bg-background px-2" placeholder="e.g. Budi" value={staffName} onChange={(e) => setStaffName(e.target.value)} /></label><label className="grid gap-1 text-sm"><span>Role</span><select className="h-9 border border-input bg-background px-2" value={staffRole} onChange={(e) => setStaffRole(e.target.value as typeof staffRole)}><option value="Cashier">Cashier</option><option value="Staff">Staff</option></select></label></>}
         <Button onClick={create} disabled={invitation.isPending}><RefreshCw data-icon="inline-start" />Generate invitation</Button>
         {qr && <div className="grid justify-items-center gap-3 border border-border p-4"><img src={qr} alt="Device pairing QR code" width={220} height={220} /><code className="max-w-full break-all text-center text-xs">{token}</code><Button variant="outline" onClick={() => token && void navigator.clipboard.writeText(token)}><Copy data-icon="inline-start" />Copy token</Button></div>}
         {invitation.isError && <p role="alert" className="text-sm text-destructive">Could not create invitation.</p>}
