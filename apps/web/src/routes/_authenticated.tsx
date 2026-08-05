@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   return (
-    <AuthScreen origin={origin}>
+    <AuthScreen origin={origin} enableScanner>
       <Outlet />
     </AuthScreen>
   );
