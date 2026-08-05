@@ -7,6 +7,7 @@ type AuthState = {
   setSession: (session?: SessionInfo) => void;
   setPairedDevice: (device?: SessionInfo["device"]) => void;
   clear: () => void;
+  clearSession: () => void;
   hydrated: boolean;
   setHydrated: (hydrated: boolean) => void;
 };
@@ -17,6 +18,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   setSession: (session) => set({ session, pairedDevice: session?.device }),
   setPairedDevice: (pairedDevice) => set({ pairedDevice }),
   clear: () => set({ session: undefined, pairedDevice: undefined }),
+  clearSession: () => set((state) => ({ session: undefined, pairedDevice: state.pairedDevice })),
   hydrated: false,
   setHydrated: (hydrated) => set({ hydrated }),
 }));

@@ -57,8 +57,8 @@ export function usePairingMutation() {
 
 export function useLogout() {
   const client = useApiClient();
-  const clear = useAuthStore((state) => state.clear);
-  return () => { client.setToken(undefined); clear(); writeStoredSession(undefined); };
+  const clearSession = useAuthStore((state) => state.clearSession);
+  return () => { client.setToken(undefined); clearSession(); writeStoredSession(undefined); };
 }
 
 export function useRestoreSession() {
