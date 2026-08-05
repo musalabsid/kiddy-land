@@ -43,6 +43,7 @@ function ConnectionSync({ client, children }: { client: ApiClient; children: Rea
 }
 
 export { useClient } from "./client-context";
+export { useAuthStore } from "./auth/store";
 export function useClientConnection() { const state = useConnectionStore(); return { ...state, canMutate: canMutate(state.state, state.synchronized) }; }
 export function useSession() { return useAuthStore(); }
 export { ApiClient, ClientError } from "./api/client";

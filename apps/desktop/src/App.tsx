@@ -1,1 +1,1 @@
-export { HostDashboard as default } from "@workspace/ui/components/host-dashboard";
+export { HostOverviewPage as default } from "@workspace/ui/components/host-overview-page";

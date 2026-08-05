@@ -65,15 +65,19 @@ export function useRestoreSession() {
   const client = useApiClient();
   const setSession = useAuthStore((state) => state.setSession);
   const setPairedDevice = useAuthStore((state) => state.setPairedDevice);
+  const setHydrated = useAuthStore((state) => state.setHydrated);
   const clear = useAuthStore((state) => state.clear);
   const stored = React.useMemo(readStoredSession, []);
   const device = React.useMemo(readStoredDevice, []);
   React.useEffect(() => {
     if (device) setPairedDevice(device);
-    if (!stored) return;
+    if (!stored) {
+      setHydrated(true);
+      return;
+    }
     client.setToken(stored.token);
-    client.get<{ device: typeof stored.device; user?: typeof stored.user }>("/auth/session").then((current) => setSession({ ...stored, ...current })).catch(() => { client.setToken(undefined); clear(); writeStoredSession(undefined); });
-  }, [client, clear, device, setPairedDevice, setSession, stored]);
+    client.get<{ device: typeof stored.device; user?: typeof stored.user }>("/auth/session").then((current) => setSession({ ...stored, ...current })).catch(() => { client.setToken(undefined); clear(); writeStoredSession(undefined); }).finally(() => setHydrated(true));
+  }, [client, clear, device, setHydrated, setPairedDevice, setSession, stored]);
   return stored;
 }
 
