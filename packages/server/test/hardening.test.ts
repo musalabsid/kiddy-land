@@ -14,6 +14,25 @@ describe("ticket 18 hardening", () => {
     expect(state.get().canWrite).toBe(true);
   });
 
+  test("allows pairing from a different origin on the same host", () => {
+    const identity = createIdentityStore({ ownerPassword: "secret" });
+    // invitation created by desktop on its loopback API origin
+    const invitation = identity.createEnrollment("http://127.0.0.1:43117");
+    // scanned from the HTTPS LAN origin of the same machine
+    const paired = identity.pair(invitation.token, "Entrance Scanner", "https://192.168.1.108:43118");
+    expect(paired.device.id).toBeTruthy();
+    // and the reverse: LAN-created invite scanned from loopback https
+    const invite2 = identity.createEnrollment("http://192.168.1.108:3000");
+    const paired2 = identity.pair(invite2.token, "Cashier", "https://127.0.0.1:43118");
+    expect(paired2.device.id).toBeTruthy();
+  });
+
+  test("rejects pairing from a different host", () => {
+    const identity = createIdentityStore({ ownerPassword: "secret" });
+    const invitation = identity.createEnrollment("http://localhost:3000");
+    expect(() => identity.pair(invitation.token, "Entrance Scanner", "https://evil.local")).toThrow();
+  });
+
   test("applies device mode and role intersection", () => {
     const identity = createIdentityStore({ ownerPassword: "secret" });
     const invitation = identity.createEnrollment("https://kiddy.local");

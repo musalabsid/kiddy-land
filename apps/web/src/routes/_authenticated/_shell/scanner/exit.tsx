@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_authenticated/_shell/scanner/exit")({
 function ExitScannerPage() {
   return (
     <RouteAccessGate requireMode="Exit Scanner">
-      <TicketScanner kind="exit" />
+      <TicketScanner kind="exit" enableCamera />
     </RouteAccessGate>
   );
 }

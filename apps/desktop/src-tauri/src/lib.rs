@@ -15,7 +15,10 @@ fn spawn_host() -> Result<Child, String> {
 
 #[cfg(not(target_os = "windows"))]
 fn spawn_host() -> Result<Child, String> {
-    Command::new("bun").args(["run", "--cwd", "../../packages/server", "start"]).stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| e.to_string())
+    // Enable the HTTPS listener so phones on the same LAN can reach this host
+    // (app + API + WebSocket on one origin via the auto-detected webDist).
+    // Desktop itself keeps talking to the plain HTTP origin below.
+    Command::new("bun").args(["run", "--cwd", "../../packages/server", "start"]).env("KIDDY_LAND_HTTPS", "1").stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| e.to_string())
 }
 
 #[tauri::command]

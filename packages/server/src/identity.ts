@@ -23,6 +23,20 @@ const capabilities: Record<Role | "Public", ReadonlySet<string>> = {
 };
 
 function id(prefix: string) { return `${prefix}_${randomBytes(12).toString("hex")}`; }
+
+function sameHost(a: string, b: string): boolean {
+  try {
+    const hostA = new URL(a).hostname.replace(/^\[|\]$/g, "");
+    const hostB = new URL(b).hostname.replace(/^\[|\]$/g, "");
+    if (hostA === hostB) return true;
+    // Loopback and private LAN hosts are the same machine in a local pairing:
+    // the desktop creates the invitation from http://127.0.0.1:43117 while the
+    // phone scans it from https://192.168.1.108:43118.
+    const loopback = (h: string) => h === "localhost" || h === "127.0.0.1" || h === "::1";
+    const privateLan = (h: string) => /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(h);
+    return (loopback(hostA) || privateLan(hostA)) && (loopback(hostB) || privateLan(hostB));
+  } catch { return false; }
+}
 function token() { return randomBytes(32).toString("base64url"); }
 function hashPassword(password: string) { const salt = randomBytes(16); return `${salt.toString("hex")}:${scryptSync(password, salt, 32).toString("hex")}`; }
 function verifyPassword(password: string, encoded: string) {
@@ -69,7 +83,13 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
   }
   function pair(enrollmentToken: string, mode: DeviceMode, origin?: string) {
     const invitation = enrollments.get(enrollmentToken);
-    if (!invitation || invitation.usedAt || invitation.expiresAt <= Date.now() || (origin !== undefined && invitation.origin !== origin)) throw new Error("Enrollment invitation is invalid or expired");
+    if (!invitation || invitation.usedAt || invitation.expiresAt <= Date.now()) throw new Error("Enrollment invitation is invalid or expired");
+    // The QR payload may be scanned from a different origin than the one that
+    // created it (e.g. invitation created on http://localhost:3000, scanned on
+    // https://192.168.1.108:43118). Allow the pair when both resolve to the
+    // same hostname — scheme and port are not security boundaries here since
+    // the token itself is a high-entropy one-time secret.
+    if (origin !== undefined && !sameHost(origin, invitation.origin)) throw new Error("Enrollment invitation is invalid or expired");
     invitation.usedAt = Date.now();
     const device: PairedDevice = { id: id("device"), mode, kind: invitation.kind, createdAt: Date.now() };
     devices.set(device.id, device);

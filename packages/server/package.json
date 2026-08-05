@@ -20,6 +20,7 @@
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.32",
     "qrcode": "^1.5.4",
+    "selfsigned": "^5.5.0",
     "ws": "^8.21.1"
   },
   "devDependencies": {

@@ -190,5 +190,7 @@
   "app.mode": "Mode",
   "app.role": "Peran",
   "access.denied": "Akses ditolak",
-  "access.deniedDescription": "Halaman ini tidak tersedia untuk mode perangkat atau peran saat ini."
+  "access.deniedDescription": "Halaman ini tidak tersedia untuk mode perangkat atau peran saat ini.",
+  "auth.pairCameraNote": "Pemindaian kamera butuh HTTPS (atau localhost) dan izin kamera. Pada penggunaan pertama, buka alamat HTTPS, terima peringatan browser, lalu izinkan kamera.",
+  "auth.pairMobileLimit": "Ponsel tidak dapat mempercayai sertifikat self-signed secara otomatis. Jika kamera tidak tersedia, ketik token di bawah sebagai gantinya."
 }

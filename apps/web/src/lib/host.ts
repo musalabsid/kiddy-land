@@ -1,3 +1,5 @@
+import { DEFAULT_ORIGIN } from "./origin";
+
 export type HostState = "starting" | "ready" | "unhealthy" | "fatal";
 
 export type HostStatus = {
@@ -8,7 +10,7 @@ export type HostStatus = {
   uptimeMs?: number;
 };
 
-const defaultOrigin = import.meta.env.VITE_LOCAL_SERVER_ORIGIN ?? "http://127.0.0.1:43117";
+const defaultOrigin = DEFAULT_ORIGIN;
 
 export async function fetchHostStatus(origin = defaultOrigin, signal?: AbortSignal): Promise<HostStatus> {
   try {

@@ -190,5 +190,7 @@
   "app.mode": "Mode",
   "app.role": "Role",
   "access.denied": "Access denied",
-  "access.deniedDescription": "This page is not available for the current device mode or role."
+  "access.deniedDescription": "This page is not available for the current device mode or role.",
+  "auth.pairCameraNote": "Camera scanning needs HTTPS (or localhost) and camera permission. On first use, open the HTTPS address, accept the browser warning, and allow the camera.",
+  "auth.pairMobileLimit": "Phones cannot automatically trust a self-signed certificate. If the camera is unavailable, type the token below instead."
 }

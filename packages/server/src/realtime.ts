@@ -8,7 +8,11 @@ function trustedLocalOrigin(origin: string | undefined, expectedOrigin: string) 
   if (origin === expectedOrigin) return true;
   try {
     const url = new URL(origin ?? "");
-    return /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+)$/.test(url.hostname);
+    if (/^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+)$/.test(url.hostname)) return true;
+    const extra = (process.env.KIDDY_LAND_TRUSTED_ORIGINS ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+    return extra.some((candidate) => {
+      try { return new URL(candidate).hostname === url.hostname; } catch { return candidate === url.hostname; }
+    });
   } catch { return false; }
 }
 

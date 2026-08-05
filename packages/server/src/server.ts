@@ -1,6 +1,10 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { serve, type ServerType } from "@hono/node-server";
+import { createServer as createHttpsServer } from "node:https";
 import { WebSocketServer } from "ws";
+import { loadOrCreateTls, type TlsConfig } from "./tls.ts";
+import { detectLanIpv4 } from "./lan.ts";
 import { createConnectionRegistry } from "./connection.ts";
 import { createCalendarStore, type CalendarStore } from "./calendar.ts";
 import { createSaleStore, type SaleStore } from "./sale.ts";
@@ -20,6 +24,12 @@ export type LocalServerOptions = {
   dataDir: string;
   host?: string;
   port?: number;
+  /** When set, also bind an HTTPS listener on this port using the persisted local self-signed certificate. */
+  httpsPort?: number;
+  /** Hosts to cover in the generated certificate SANs (beyond localhost/127.0.0.1). */
+  tlsHosts?: string[];
+  /** Optional: serve the built web app (apps/web/dist) from the HTTPS listener. */
+  webDist?: string;
   schemaVersion?: number;
   identity?: IdentityStore;
   calendar?: CalendarStore;
@@ -40,16 +50,54 @@ export type LocalServer = {
   start: () => Promise<void>;
   stop: (timeoutMs?: number) => Promise<void>;
   url: string;
+  /** Set when the HTTPS listener is enabled. */
+  httpsUrl?: string;
+  /** Certificate fingerprint (sha256, colon-separated) of the local TLS cert. */
+  tlsFingerprint?: string;
   restorePrepared: (id: string) => Promise<unknown>;
   replacePrepared: (id: string) => Promise<unknown>;
   setRecoveryBlocked: (blocked: boolean, diagnostic?: string) => void;
 };
+
+async function serveStaticFromDist(pathname: string, dist: string): Promise<Response | undefined> {
+  const safe = pathname === "/" ? "index.html" : pathname.replace(/^\.\//, "");
+  const candidate = join(dist, safe.replace(/^\//, ""));
+  try {
+    const info = await stat(candidate);
+    if (!info.isFile()) return undefined;
+    const body = await readFile(candidate);
+    return new Response(body, { headers: { "Content-Type": contentTypeOf(candidate) } });
+  } catch {
+    return undefined;
+  }
+}
+
+function contentTypeOf(path: string): string {
+  const ext = path.slice(path.lastIndexOf(".") + 1).toLowerCase();
+  const types: Record<string, string> = {
+    html: "text/html; charset=utf-8",
+    js: "text/javascript; charset=utf-8",
+    mjs: "text/javascript; charset=utf-8",
+    css: "text/css; charset=utf-8",
+    json: "application/json",
+    png: "image/png",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    svg: "image/svg+xml",
+    ico: "image/x-icon",
+    woff2: "font/woff2",
+    woff: "font/woff",
+    txt: "text/plain",
+  };
+  return types[ext] ?? "application/octet-stream";
+}
 
 function now() { return Date.now(); }
 
 export function createLocalServer(options: LocalServerOptions): LocalServer {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 43117;
+  const httpsPort = options.httpsPort;
   const schemaVersion = options.schemaVersion ?? 6;
   const startedAt = now();
   let status: HealthReport["status"] = "starting";
@@ -57,6 +105,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   let writeBlocked = false;
   let diagnostic: string | undefined;
   let httpServer: ServerType | undefined;
+  let httpsServer: ServerType | undefined;
+  let tlsMaterial: Awaited<ReturnType<typeof loadOrCreateTls>> | undefined;
   const health = (): HealthReport => ({ status, service: "local-server", schemaVersion, database: databaseStatus, writeBlocked, diagnostic, uptimeMs: Math.max(0, now() - startedAt) });
   const registry = createConnectionRegistry();
   const ownsDatabase = !options.database;
@@ -75,12 +125,50 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const replacePrepared = (id: string) => backups.replacePrepared(id);
   const restorePrepared = options.restorePrepared ?? (async () => { throw new Error("Restore requires the Host Runtime restart coordinator"); });
   const setRecoveryBlocked = (blocked: boolean, reason?: string) => { writeBlocked = blocked; diagnostic = reason; if (blocked) status = "unhealthy"; else if (databaseStatus === "ready") status = "ready"; };
-  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry }, calendar, sales, lifecycle, inventory, membership, reports, notifications, backups, restorePrepared, setRecoveryBlocked);
+  const getLanIp = () => detectLanIpv4();
+  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry, httpsUrl: () => httpsPort && tlsMaterial ? `https://${host}:${httpsPort}` : undefined, lanIp: getLanIp }, calendar, sales, lifecycle, inventory, membership, reports, notifications, backups, restorePrepared, setRecoveryBlocked);
   publishReportEvent(registry, { type: "report-changed", source: "server-ready" });
   const websocketServer = new WebSocketServer({ noServer: true });
 
+  const fetchWithWebDist = options.webDist
+    ? async (request: Request, env?: unknown) => {
+        const url = new URL(request.url);
+        if (url.pathname.startsWith("/api")) return app.fetch(request, env);
+        const staticResponse = await serveStaticFromDist(url.pathname, options.webDist!);
+        return staticResponse ?? app.fetch(request, env);
+      }
+    : app.fetch;
+  async function startHttps() {
+    if (!httpsPort || tlsMaterial) return;
+    const tls: TlsConfig = { dir: `${options.dataDir}/tls`, hosts: options.tlsHosts };
+    const material = await loadOrCreateTls(tls);
+    tlsMaterial = material;
+    // Same Hono app and same WebSocket server as the HTTP listener: CORS, /ws
+    // routing, and origin validation are therefore identical on both protocols.
+    await new Promise<void>((resolve, reject) => {
+      try {
+        httpsServer = serve(
+          {
+            fetch: fetchWithWebDist,
+            hostname: host,
+            port: httpsPort,
+            createServer: createHttpsServer,
+            serverOptions: { key: material.key, cert: material.cert },
+            websocket: { server: websocketServer },
+          },
+          (info) => {
+            if (info.port !== httpsPort) return reject(new Error(`Local Server bound unexpected HTTPS port ${info.port}`));
+            resolve();
+          },
+        );
+      } catch (error) { reject(error); }
+    });
+  }
+
   return {
     app, health, url: `http://${host}:${port}`, restorePrepared, replacePrepared, setRecoveryBlocked,
+    get httpsUrl() { return httpsPort && tlsMaterial ? `https://${host}:${httpsPort}` : undefined; },
+    get tlsFingerprint() { return tlsMaterial?.fingerprint; },
     async start() {
       if (status === "ready") return;
       await mkdir(options.dataDir, { recursive: true });
@@ -96,13 +184,24 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
           });
         } catch (error) { status = "fatal"; reject(error); }
       });
+      if (httpsPort) {
+        await startHttps();
+        if (!tlsMaterial) throw new Error("Local Server failed to start HTTPS listener");
+      }
     },
     async stop(timeoutMs = 5_000) {
       clearInterval(notificationTimer);
       if (!httpServer) { if (ownsDatabase) database.close(); return; }
       status = "starting";
       const server = httpServer; httpServer = undefined;
-      await Promise.race([new Promise<void>((resolve) => server.close(() => resolve())), new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))]);
+      const secure = httpsServer; httpsServer = undefined;
+      await Promise.race([
+        Promise.all([
+          new Promise<void>((resolve) => server.close(() => resolve())),
+          ...(secure ? [new Promise<void>((resolve) => secure.close(() => resolve()))] : []),
+        ]),
+        new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+      ]);
       databaseStatus = "unhealthy"; writeBlocked = true; diagnostic = "Local Server stopped";
       if (ownsDatabase) database.close();
     },

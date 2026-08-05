@@ -13,5 +13,5 @@ export function useHostStatus(source: HostStatusSource, intervalMs = 5_000) {
 }
 
 export function createHttpHostSource(origin: string): HostStatusSource {
-  return { read: async () => { try { const response = await fetch(`${origin}/ready`); const report = await response.json() as HostStatus & { status?: HostState }; return { ...report, origin, state: report.status ?? (response.ok ? "ready" : "unhealthy") }; } catch { return { state: "unhealthy", origin }; } } };
+  return { read: async () => { try { const response = await fetch(`${origin}/ready`); const report = await response.json() as HostStatus & { status?: HostState; httpsUrl?: string; lanIp?: string }; return { ...report, origin, state: report.status ?? (response.ok ? "ready" : "unhealthy") }; } catch { return { state: "unhealthy", origin }; } } };
 }
