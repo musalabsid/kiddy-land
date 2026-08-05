@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test } from "bun:test";
 import { createHostRuntime } from "../src/supervisor.ts";
+import { httpBootstrapOwner } from "./helpers.ts";
 
 const runtimes: Array<Awaited<ReturnType<typeof createHostRuntime>>> = [];
 afterEach(async () => { for (const runtime of runtimes.splice(0)) await runtime.stop(); });
@@ -12,14 +13,12 @@ describe("cashier sale HTTP workflow", () => {
     const dataDir = await mkdtemp(join(tmpdir(), "kiddy-sale-http-"));
     const runtime = createHostRuntime({ dataDir, port: 43133 }); runtimes.push(runtime); await runtime.start();
     const base = runtime.server.url;
-    const ownerInvite = await (await fetch(`${base}/pairing/invitations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ origin: base }) })).json() as { token: string };
-    const ownerPair = await (await fetch(`${base}/pairing/redeem`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: ownerInvite.token, mode: "Owner Dashboard" }) })).json() as { device: { id: string } };
-    const ownerLogin = await (await fetch(`${base}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ deviceId: ownerPair.device.id, username: "owner", password: "change-me" }) })).json() as { token: string };
-    const ownerAuth = { authorization: `Bearer ${ownerLogin.token}`, "content-type": "application/json" };
+    const owner = await httpBootstrapOwner(base);
+    const ownerAuth = { authorization: `Bearer ${owner.token}`, "content-type": "application/json" };
     for (const day of ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]) await fetch(`${base}/calendar/configure`, { method: "POST", headers: ownerAuth, body: JSON.stringify({ day, hours: { open: "00:00", close: "23:59" } }) });
     await fetch(`${base}/calendar/configure`, { method: "POST", headers: ownerAuth, body: JSON.stringify({ package: { name: "Play", includedMinutes: 90, weekdayPrice: 50000, weekendPrice: 70000, overridePrices: {}, overtimeRate: 1000, deposit: 20000, depositPolicy: "return-remainder" } }) });
     const config = await (await fetch(`${base}/calendar/config`, { headers: ownerAuth })).json() as { packages: Array<{ id: string }> };
-    const cashierInvite = await (await fetch(`${base}/pairing/invitations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ origin: base }) })).json() as { token: string };
+    const cashierInvite = await (await fetch(`${base}/pairing/invitations`, { method: "POST", headers: ownerAuth, body: JSON.stringify({ origin: base }) })).json() as { token: string };
     const cashierPair = await (await fetch(`${base}/pairing/redeem`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: cashierInvite.token, mode: "Cashier" }) })).json() as { device: { id: string } };
     const cashierLogin = await (await fetch(`${base}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ deviceId: cashierPair.device.id, username: "owner", password: "change-me" }) })).json() as { token: string };
     const auth = { authorization: `Bearer ${cashierLogin.token}`, "content-type": "application/json" };
