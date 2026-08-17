@@ -44,15 +44,17 @@ export function useRouteAccess() {
 export function RouteAccessGate({
   requireMode,
   requireRole,
+  allowCashier,
   children,
 }: {
   requireMode?: DeviceMode;
   requireRole?: "Owner";
+  allowCashier?: boolean;
   children: ReactNode;
 }) {
   const { session, hydrated, mode, isOwner } = useRouteAccess();
   if (!hydrated || !session) return null;
-  if (requireRole === "Owner" && !isOwner) return <RouteAccessDenied />;
+  if (requireRole === "Owner" && !isOwner && !(allowCashier && mode === "Cashier")) return <RouteAccessDenied />;
   if (requireMode && mode !== requireMode) return <RouteAccessDenied />;
   return <>{children}</>;
 }

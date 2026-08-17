@@ -1,46 +1,55 @@
 import * as React from "react";
-import { useMemberByCode, useRegisterMember, useSearchMembers } from "@kiddy-land/client/react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { LoaderCircle, Search, X } from "lucide-react";
+import { useSearchMembers } from "@kiddy-land/client/react";
 import { Button } from "@workspace/ui/components/button";
 import { FormField } from "@workspace/ui/components/form-field";
 
-const registerSchema = z.object({
-  name: z.string().trim().min(1, "Child name is required"),
-  phone: z.string().trim().min(1, "Phone is required"),
-});
-type RegisterValues = z.infer<typeof registerSchema>;
+export type SelectedMember = {
+  id: string;
+  childId: string;
+  code: string;
+  name: string;
+  phone?: string;
+  status: "active" | "deactivated";
+};
 
-export function MemberPicker({ onSelect }: { onSelect: (member: { id: string; childId: string; code: string; name: string; status: "active" | "deactivated" }) => void }) {
-  const [code, setCode] = React.useState("");
-  const [searchName, setSearchName] = React.useState("");
-  const [searchPhone, setSearchPhone] = React.useState("");
-  const [searching, setSearching] = React.useState(false);
-  const [registeredCode, setRegisteredCode] = React.useState("");
-  const found = useMemberByCode(searching ? undefined : code);
-  const matches = useSearchMembers(searching ? searchName : "", searching ? searchPhone : "");
-  const register = useRegisterMember();
-  const { register: registerField, handleSubmit, reset, formState: { errors } } = useForm<RegisterValues>({ resolver: zodResolver(registerSchema), defaultValues: { name: "", phone: "" } });
-  const select = (value: { member: { id: string; childId: string; code: string; status: "active" | "deactivated" }; child: { id: string; name: string } }) => { setRegisteredCode(value.member.code); onSelect({ id: value.member.id, childId: value.child.id, code: value.member.code, name: value.child.name, status: value.member.status }); };
-  const submitRegister = handleSubmit((values) => { register.mutate({ name: values.name, phone: values.phone }, { onSuccess: (value) => { select(value); reset(); } }); });
-  return <div className="grid gap-3 border p-3">
-    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-      <FormField label="Membership code" optional htmlFor="member-code" className="gap-1.5"><input id="member-code" className="h-9 min-w-0 border border-input bg-background px-2 text-sm" placeholder="Membership code" value={code} onChange={(e) => { setCode(e.target.value); setSearching(false); }} /></FormField>
-      <Button className="!h-9 self-end" onClick={() => { const value = found.data; if (value) select(value); }}>Find</Button>
-    </div>
-    <form className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]" onSubmit={submitRegister} noValidate>
-      <FormField label="Child name" required htmlFor="member-name" error={errors.name?.message} className="gap-1.5"><input id="member-name" className="h-9 min-w-0 border border-input bg-background px-2 text-sm" placeholder="Child name" aria-invalid={errors.name ? true : undefined} {...registerField("name")} /></FormField>
-      <FormField label="Phone" required htmlFor="member-phone" error={errors.phone?.message} className="gap-1.5"><input id="member-phone" className="h-9 min-w-0 border border-input bg-background px-2 text-sm" placeholder="Phone" aria-invalid={errors.phone ? true : undefined} {...registerField("phone")} /></FormField>
-      <Button className="!h-9 self-end" size="sm" variant="outline" type="button" onClick={() => { setSearching(true); void matches.refetch(); }}>{"Find by name/phone"}</Button>
-      <Button className="!h-9 self-end" size="sm" variant="outline" type="submit">Register</Button>
-    </form>
-    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <FormField label="Search by child name" optional htmlFor="member-search-name" className="gap-1.5"><input id="member-search-name" className="h-9 min-w-0 border border-input bg-background px-2 text-sm" placeholder="Child name" value={searchName} onChange={(e) => setSearchName(e.target.value)} /></FormField>
-      <FormField label="Search by phone" optional htmlFor="member-search-phone" className="gap-1.5"><input id="member-search-phone" className="h-9 min-w-0 border border-input bg-background px-2 text-sm" placeholder="Phone" value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)} /></FormField>
-    </div>
-    {registeredCode ? <p className="text-sm font-mono">Membership code: {registeredCode}</p> : null}
-    {found.data ? <p className="text-sm">{found.data.child.name} · {found.data.member.status}</p> : null}
-    {matches.data?.map((value) => <Button key={value.member.id} size="sm" variant="ghost" onClick={() => select(value)}>{value.child.name} · {value.member.status}</Button>)}
+function maskPhone(phone?: string) {
+  const value = phone ?? "";
+  if (!value) return "No phone";
+  return value.length > 6 ? `${value.slice(0, 3)}••••${value.slice(-3)}` : value;
+}
+
+export function MemberPicker({ onSelect }: { onSelect: (member?: SelectedMember) => void }) {
+  const [query, setQuery] = React.useState("");
+  const [debouncedQuery, setDebouncedQuery] = React.useState("");
+  const [selected, setSelected] = React.useState<SelectedMember>();
+  const matches = useSearchMembers(debouncedQuery);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 500);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const select = (value: NonNullable<typeof matches.data>[number]) => {
+    const member = { id: value.member.id, childId: value.child.id, code: value.member.code, name: value.child.name, phone: value.child.phone, status: value.member.status } satisfies SelectedMember;
+    setSelected(member);
+    onSelect(member);
+  };
+  const clear = () => { setSelected(undefined); setQuery(""); setDebouncedQuery(""); onSelect(undefined); };
+
+  if (selected) return <div className="flex items-center justify-between gap-3 border p-3">
+    <div className="min-w-0"><p className="font-medium">{selected.name}</p><p className="truncate text-xs text-muted-foreground">{selected.code} · {maskPhone(selected.phone)}</p></div>
+    <Button type="button" variant="ghost" size="sm" onClick={clear}><X data-icon="inline-start" />Change member</Button>
+  </div>;
+
+  return <div className="relative">
+    <FormField label="Member code or name" optional htmlFor="member-search" className="gap-1.5">
+      <span className="relative block"><Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input id="member-search" className="h-10 w-full border border-input bg-background pl-8 pr-3 text-sm" placeholder="Search member code or name" value={query} onChange={(event) => setQuery(event.target.value)} /></span>
+    </FormField>
+    {debouncedQuery && matches.isFetching ? <div className="absolute z-10 mt-1 w-full border bg-popover p-3 text-sm text-muted-foreground"><span className="inline-flex items-center gap-2"><LoaderCircle className="size-4 animate-spin" />Searching members…</span></div> : null}
+    {debouncedQuery && !matches.isFetching && matches.data?.length ? <div className="absolute z-10 mt-1 w-full border bg-popover p-1 shadow-md">
+      {matches.data.map((value) => <Button key={value.member.id} type="button" variant="ghost" className="h-auto w-full justify-start py-2 text-left" onClick={() => select(value)}><span className="min-w-0 truncate"><strong>{value.child.name}</strong><span className="ml-2 text-muted-foreground">{value.member.code} · {maskPhone(value.child.phone)}</span></span></Button>)}
+    </div> : null}
+    {debouncedQuery && matches.isSuccess && !matches.data?.length ? <p className="mt-1 text-xs text-muted-foreground">No matching member.</p> : null}
   </div>;
 }

@@ -4,7 +4,7 @@ import { createMembershipStore } from "../src/membership.ts";
 describe("membership", () => {
   test("registers, reissues, deactivates, and preserves history", () => {
     const store = createMembershipStore();
-    const first = store.register({ name: "Alya", phone: "0812" }, "owner");
+    const first = store.register({ name: "Alya", phone: "0812345678" }, "owner");
     expect(first.member.code).toMatch(/^MEM-/);
     const second = store.reissue(first.member.id, "Lost card", "cashier");
     expect(second.member.id).toBe(first.member.id);

@@ -103,6 +103,16 @@ const salesRoute = createRoute({
   ),
 });
 
+const membersRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/members",
+  component: () => (
+    <RouteAccessGate requireRole="Owner" allowCashier>
+      <MembershipDashboard />
+    </RouteAccessGate>
+  ),
+});
+
 const inventoryRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/inventory",
@@ -266,6 +276,7 @@ export const routeTree = rootRoute.addChildren([
     shellRoute.addChildren([
       indexRoute,
       salesRoute,
+      membersRoute,
       inventoryRoute,
       scannerEntryRoute,
       scannerExitRoute,

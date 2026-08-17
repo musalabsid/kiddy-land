@@ -15,6 +15,7 @@ import { Route as AuthenticatedShellRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedKioskRouteImport } from './routes/_authenticated/kiosk'
 import { Route as AuthenticatedShellIndexRouteImport } from './routes/_authenticated/_shell/index'
 import { Route as AuthenticatedShellInventoryRouteImport } from './routes/_authenticated/_shell/inventory'
+import { Route as AuthenticatedShellMembersRouteImport } from './routes/_authenticated/_shell/members'
 import { Route as AuthenticatedShellSalesRouteImport } from './routes/_authenticated/_shell/sales'
 import { Route as AuthenticatedShellOwnerBackupsRouteImport } from './routes/_authenticated/_shell/owner/backups'
 import { Route as AuthenticatedShellOwnerCalendarRouteImport } from './routes/_authenticated/_shell/owner/calendar'
@@ -55,6 +56,12 @@ const AuthenticatedShellInventoryRoute =
   AuthenticatedShellInventoryRouteImport.update({
     id: '/inventory',
     path: '/inventory',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellMembersRoute =
+  AuthenticatedShellMembersRouteImport.update({
+    id: '/members',
+    path: '/members',
     getParentRoute: () => AuthenticatedShellRoute,
   } as any)
 const AuthenticatedShellSalesRoute = AuthenticatedShellSalesRouteImport.update({
@@ -134,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/owner-login': typeof OwnerLoginRoute
   '/kiosk': typeof AuthenticatedKioskRoute
   '/inventory': typeof AuthenticatedShellInventoryRoute
+  '/members': typeof AuthenticatedShellMembersRoute
   '/sales': typeof AuthenticatedShellSalesRoute
   '/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
   '/owner/calendar': typeof AuthenticatedShellOwnerCalendarRoute
@@ -152,6 +160,7 @@ export interface FileRoutesByTo {
   '/owner-login': typeof OwnerLoginRoute
   '/kiosk': typeof AuthenticatedKioskRoute
   '/inventory': typeof AuthenticatedShellInventoryRoute
+  '/members': typeof AuthenticatedShellMembersRoute
   '/sales': typeof AuthenticatedShellSalesRoute
   '/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
   '/owner/calendar': typeof AuthenticatedShellOwnerCalendarRoute
@@ -172,6 +181,7 @@ export interface FileRoutesById {
   '/_authenticated/_shell': typeof AuthenticatedShellRouteWithChildren
   '/_authenticated/kiosk': typeof AuthenticatedKioskRoute
   '/_authenticated/_shell/inventory': typeof AuthenticatedShellInventoryRoute
+  '/_authenticated/_shell/members': typeof AuthenticatedShellMembersRoute
   '/_authenticated/_shell/sales': typeof AuthenticatedShellSalesRoute
   '/_authenticated/_shell/': typeof AuthenticatedShellIndexRoute
   '/_authenticated/_shell/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/owner-login'
     | '/kiosk'
     | '/inventory'
+    | '/members'
     | '/sales'
     | '/owner/backups'
     | '/owner/calendar'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/owner-login'
     | '/kiosk'
     | '/inventory'
+    | '/members'
     | '/sales'
     | '/owner/backups'
     | '/owner/calendar'
@@ -230,6 +242,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell'
     | '/_authenticated/kiosk'
     | '/_authenticated/_shell/inventory'
+    | '/_authenticated/_shell/members'
     | '/_authenticated/_shell/sales'
     | '/_authenticated/_shell/'
     | '/_authenticated/_shell/owner/backups'
@@ -292,6 +305,13 @@ declare module '@tanstack/react-router' {
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof AuthenticatedShellInventoryRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/members': {
+      id: '/_authenticated/_shell/members'
+      path: '/members'
+      fullPath: '/members'
+      preLoaderRoute: typeof AuthenticatedShellMembersRouteImport
       parentRoute: typeof AuthenticatedShellRoute
     }
     '/_authenticated/_shell/sales': {
@@ -383,6 +403,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedShellRouteChildren {
   AuthenticatedShellInventoryRoute: typeof AuthenticatedShellInventoryRoute
+  AuthenticatedShellMembersRoute: typeof AuthenticatedShellMembersRoute
   AuthenticatedShellSalesRoute: typeof AuthenticatedShellSalesRoute
   AuthenticatedShellIndexRoute: typeof AuthenticatedShellIndexRoute
   AuthenticatedShellOwnerBackupsRoute: typeof AuthenticatedShellOwnerBackupsRoute
@@ -400,6 +421,7 @@ interface AuthenticatedShellRouteChildren {
 
 const AuthenticatedShellRouteChildren: AuthenticatedShellRouteChildren = {
   AuthenticatedShellInventoryRoute: AuthenticatedShellInventoryRoute,
+  AuthenticatedShellMembersRoute: AuthenticatedShellMembersRoute,
   AuthenticatedShellSalesRoute: AuthenticatedShellSalesRoute,
   AuthenticatedShellIndexRoute: AuthenticatedShellIndexRoute,
   AuthenticatedShellOwnerBackupsRoute: AuthenticatedShellOwnerBackupsRoute,

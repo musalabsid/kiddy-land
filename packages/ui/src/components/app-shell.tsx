@@ -67,7 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const logout = useLogout();
   const { soundEnabled, setSoundEnabled } = useNotificationSound();
   const active = (path: string) => pathname === path;
-  const pageTitleKey: MessageKey = pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/inventory" ? "app.inventory" : pathname === "/scanner/entry" ? "app.entryScanner" : pathname === "/scanner/exit" ? "app.exitScanner" : pathname === "/kiosk" ? "app.kiosk" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/inventory" ? "app.ownerInventory" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : "host.title";
+  const pageTitleKey: MessageKey = pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/members" ? "app.members" : pathname === "/inventory" ? "app.inventory" : pathname === "/scanner/entry" ? "app.entryScanner" : pathname === "/scanner/exit" ? "app.exitScanner" : pathname === "/kiosk" ? "app.kiosk" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/inventory" ? "app.ownerInventory" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : "host.title";
   if (!session) return null;
   const mode = session.device.mode;
   const isOwner = session.user?.role === "Owner";
@@ -114,12 +114,20 @@ export function AppShell({ children }: { children: ReactNode }) {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {mode === "Cashier" && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton render={<Link to="/sales" />} isActive={active("/sales")}>
-                        <ShoppingCart />
-                        {t("app.sales")}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+                    <>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link to="/sales" />} isActive={active("/sales")}>
+                          <ShoppingCart />
+                          {t("app.sales")}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link to="/members" />} isActive={active("/members")}>
+                          <Users />
+                          {t("app.members")}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    </>
                   )}
                   {mode === "Inventory" && (
                     <SidebarMenuItem>
