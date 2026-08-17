@@ -133,9 +133,17 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const fetchWithWebDist = options.webDist
     ? async (request: Request, env?: unknown) => {
         const url = new URL(request.url);
-        if (url.pathname.startsWith("/api")) return app.fetch(request, env);
         const staticResponse = await serveStaticFromDist(url.pathname, options.webDist!);
-        return staticResponse ?? app.fetch(request, env);
+        if (staticResponse) return staticResponse;
+        const apiResponse = await app.fetch(request, env);
+        // Vite's SPA routes (/sales, /inventory, …) are client-side routes.
+        // Serve index.html on an otherwise-unmatched GET so browser refreshes
+        // do not become server 404s. Real API responses keep their status.
+        const isKnownGetApiPath = /^(\/ready|\/health|\/auth\/(bootstrap-status|session|capability\/[^/]+)|\/pairing\/devices|\/products(?:\/[^/]+)?|\/inventory\/(movements|low-stock|exceptions|counts)|\/members(?:\/[^/]+)?|\/membership\/(events|discounts)|\/calendar\/(config|schedule|packages\/[^/]+\/snapshot)|\/notifications\/(settings|routes)|\/reports\/(financial|playground|inventory|membership|live)|\/backups)$/.test(url.pathname);
+        if (request.method === "GET" && apiResponse.status === 404 && !isKnownGetApiPath && !url.pathname.includes(".")) {
+          return (await serveStaticFromDist("/", options.webDist!)) ?? apiResponse;
+        }
+        return apiResponse;
       }
     : app.fetch;
   async function startHttps() {
