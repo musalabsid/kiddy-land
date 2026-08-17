@@ -59,7 +59,7 @@ export function createApp(
     if (entry.count > max) return false;
     return true;
   };
-  app.use("*", cors({ origin: (origin) => { try { const hostname = new URL(origin).hostname; const trusted = /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+)$/.test(hostname) || (process.env.KIDDY_LAND_TRUSTED_ORIGINS ?? "").split(",").map((value) => value.trim()).filter(Boolean).some((candidate) => { try { return new URL(candidate).hostname === hostname; } catch { return candidate === hostname; } }); return trusted ? origin : undefined; } catch { return undefined; } }, allowHeaders: ["Content-Type", "Authorization"], allowMethods: ["GET", "POST", "PUT", "PATCH", "OPTIONS"] }));
+  app.use("*", cors({ origin: (origin) => { try { const hostname = new URL(origin).hostname; const trusted = /^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+)$/.test(hostname) || (process.env.KIDDY_LAND_TRUSTED_ORIGINS ?? "").split(",").map((value) => value.trim()).filter(Boolean).some((candidate) => { try { return new URL(candidate).hostname === hostname; } catch { return candidate === hostname; } }); return trusted ? origin : undefined; } catch { return undefined; } }, allowHeaders: ["Content-Type", "Authorization"], allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] }));
   app.use("*", async (c, next) => {
     if (c.req.method !== "GET" && getHealth().writeBlocked && !c.req.path.includes("/restore") && !c.req.path.startsWith("/health") && !c.req.path.startsWith("/ready")) return c.json({ error: "Server is in recovery mode", diagnostic: getHealth().diagnostic }, 503);
     await next();
