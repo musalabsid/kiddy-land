@@ -14,7 +14,7 @@
     "react-dom": "^19.2.8",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
-    "@tanstack/react-router": "latest",
+    "@tanstack/react-router": "1.170.29",
     "@workspace/ui": "workspace:*",
     "@kiddy-land/client": "workspace:*",
     "@kiddy-land/localization": "workspace:*"
