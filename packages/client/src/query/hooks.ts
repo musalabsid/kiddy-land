@@ -28,7 +28,7 @@ export function useBootstrapMutation() {
   const client = useApiClient();
   const queryClient = useQueryClient();
   const setSession = useAuthStore((state) => state.setSession);
-  return useMutation({ mutationFn: (password: string) => new AuthService(client).bootstrap(password), onSuccess: (result) => { client.setToken(result.session.token); const session = { token: result.session.token, deviceId: result.session.deviceId, device: result.device, user: { id: "owner", username: "owner", role: "Owner" as const } }; setSession(session); writeStoredSession(session); writeStoredDevice(result.device); void queryClient.invalidateQueries({ queryKey: ["auth", "bootstrap-status"] }); } });
+  return useMutation({ mutationFn: (password: string) => new AuthService(client).bootstrap(password), onSuccess: (result) => { queueMicrotask(() => { client.setToken(result.session.token); const session = { token: result.session.token, deviceId: result.session.deviceId, device: result.device, user: { id: "owner", username: "owner", role: "Owner" as const } }; setSession(session); writeStoredSession(session); writeStoredDevice(result.device); void queryClient.invalidateQueries({ queryKey: ["auth", "bootstrap-status"] }); }); } });
 }
 
 export function useInvitationMutation() {
@@ -58,7 +58,17 @@ export function usePairingMutation() {
   const queryClient = useQueryClient();
   const setSession = useAuthStore((state) => state.setSession);
   const setPairedDevice = useAuthStore((state) => state.setPairedDevice);
-  return useMutation({ mutationFn: ({ token, mode, origin }: { token: string; mode: DeviceMode; origin?: string }) => new AuthService(client).pair(token, mode, origin), onSuccess: (result) => { setPairedDevice(result.device); writeStoredDevice(result.device); if (result.session) { client.setToken(result.session.token); const session = { ...result.session, device: result.device }; setSession(session); writeStoredSession(session); } queryClient.invalidateQueries({ queryKey: clientQueryKeys.session }); } });
+  return useMutation({ mutationFn: ({ token, mode, origin }: { token: string; mode: DeviceMode; origin?: string }) => new AuthService(client).pair(token, mode, origin), onSuccess: (result) => {
+    // Defer the store writes out of React's render/commit cycle. React 19's
+    // production build throws "Cannot read properties of null (reading
+    // 'stores')" (pushStoreConsistencyCheck) when a zustand store is written
+    // synchronously from a mutation onSuccess while React is committing.
+    queueMicrotask(() => {
+      setPairedDevice(result.device); writeStoredDevice(result.device);
+      if (result.session) { client.setToken(result.session.token); const session = { ...result.session, device: result.device }; setSession(session); writeStoredSession(session); }
+      void queryClient.invalidateQueries({ queryKey: clientQueryKeys.session });
+    });
+  } });
 }
 
 export function useLogout() {
@@ -92,5 +102,5 @@ export function useLoginMutation() {
   const queryClient = useQueryClient();
   const setSession = useAuthStore((state) => state.setSession);
   const pairedDevice = useAuthStore((state) => state.pairedDevice);
-  return useMutation({ mutationFn: ({ deviceId, username, password }: { deviceId: string; username: string; password: string }) => new AuthService(client).login(deviceId, username, password), onSuccess: async (result) => { if (!pairedDevice) return; client.setToken(result.token); const current = await client.get<{ device: typeof pairedDevice; user?: SessionInfo["user"] }>("/auth/session"); const session = { token: result.token, deviceId: result.deviceId, device: current.device, user: current.user }; setSession(session); writeStoredSession(session); queryClient.invalidateQueries({ queryKey: clientQueryKeys.session }); } });
+  return useMutation({ mutationFn: ({ deviceId, username, password }: { deviceId: string; username: string; password: string }) => new AuthService(client).login(deviceId, username, password), onSuccess: async (result) => { if (!pairedDevice) return; client.setToken(result.token); const current = await client.get<{ device: typeof pairedDevice; user?: SessionInfo["user"] }>("/auth/session"); const session = { token: result.token, deviceId: result.deviceId, device: current.device, user: current.user }; queueMicrotask(() => { setSession(session); writeStoredSession(session); queryClient.invalidateQueries({ queryKey: clientQueryKeys.session }); }); } });
 }
