@@ -82,3 +82,19 @@ describe("owner device protection", () => {
     expect(del.status).toBe(200);
   });
 });
+
+describe("device self-logout deletion", () => {
+  test("a non-owner device can delete itself, but not another device", async () => {
+    const identity = createIdentityStore();
+    const app = createApp(() => ({ status: "ready", service: "local-server", schemaVersion: 6, database: "ready", uptimeMs: 1 }), identity);
+    const owner = await appBootstrapOwner(app);
+    const staff = await appPairDevice(app, owner.token, "Cashier");
+    const other = await appPairDevice(app, owner.token, "Entrance Scanner");
+    const denied = await json(app, `/pairing/devices/${other.deviceId}`, { method: "DELETE", headers: { authorization: `Bearer ${staff.token}` } });
+    expect(denied.status).toBe(403);
+    const self = await json(app, `/pairing/devices/${staff.deviceId}`, { method: "DELETE", headers: { authorization: `Bearer ${staff.token}` } });
+    expect(self.status).toBe(200);
+    const session = await json(app, "/auth/session", { headers: { authorization: `Bearer ${staff.token}` } });
+    expect(session.status).toBe(401);
+  });
+});

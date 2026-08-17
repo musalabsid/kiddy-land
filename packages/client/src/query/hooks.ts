@@ -73,8 +73,17 @@ export function usePairingMutation() {
 
 export function useLogout() {
   const client = useApiClient();
-  const clearSession = useAuthStore((state) => state.clearSession);
-  return () => { client.setToken(undefined); clearSession(); writeStoredSession(undefined); };
+  const session = useAuthStore((state) => state.session);
+  const clear = useAuthStore((state) => state.clear);
+  return () => {
+    const deviceId = session?.device.id;
+    const isOwnerDevice = session?.device.mode === "Owner Dashboard" && session.user?.role === "Owner";
+    if (deviceId && !isOwnerDevice) void client.delete(`/pairing/devices/${deviceId}`).catch(() => undefined);
+    client.setToken(undefined);
+    clear();
+    writeStoredSession(undefined);
+    writeStoredDevice(undefined);
+  };
 }
 
 export function useRestoreSession() {
