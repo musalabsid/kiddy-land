@@ -1,7 +1,7 @@
 import * as React from "react";
 import QRCode from "qrcode";
-import { Copy, RefreshCw, Smartphone, X } from "lucide-react";
-import { useDevicesQuery, useInvitationMutation, useRevokeDeviceMutation } from "@kiddy-land/client/react";
+import { Copy, RefreshCw, Smartphone, Trash2, X } from "lucide-react";
+import { useDevicesQuery, useInvitationMutation, useRevokeDeviceMutation, useDeleteDeviceMutation } from "@kiddy-land/client/react";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 
@@ -9,30 +9,44 @@ export function DeviceManagement({ origin }: { origin: string }) {
   const invitation = useInvitationMutation();
   const devices = useDevicesQuery();
   const revoke = useRevokeDeviceMutation();
+  const remove = useDeleteDeviceMutation();
   const [kind, setKind] = React.useState<"private" | "public-kiosk">("private");
   const [staffName, setStaffName] = React.useState("");
   const [staffRole, setStaffRole] = React.useState<"Cashier" | "Staff">("Cashier");
   const [qr, setQr] = React.useState<string>();
   const [token, setToken] = React.useState<string>();
+  const [confirming, setConfirming] = React.useState<string>();
   const create = () => invitation.mutate({ origin, kind, staff: kind === "private" && staffName.trim() ? { name: staffName.trim(), role: staffRole } : undefined }, { onSuccess: async (result) => { setToken(result.token); setQr(await QRCode.toDataURL(result.qrPayload, { margin: 2, width: 220 })); } });
-  return <section className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+  return <div className="grid gap-4">
     <Card>
       <CardHeader><CardTitle>Pair a device</CardTitle><CardDescription>Generate a one-time invitation. It expires after 60 seconds.</CardDescription></CardHeader>
-      <CardContent className="grid gap-4">
-        <label className="grid gap-1 text-sm"><span>Device kind</span><select className="h-9 border border-input bg-background px-2" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}><option value="private">Private device</option><option value="public-kiosk">Public kiosk</option></select></label>
-        {kind === "private" && <><label className="grid gap-1 text-sm"><span>Employee name</span><input className="h-9 border border-input bg-background px-2" placeholder="e.g. Budi" value={staffName} onChange={(e) => setStaffName(e.target.value)} /></label><label className="grid gap-1 text-sm"><span>Role</span><select className="h-9 border border-input bg-background px-2" value={staffRole} onChange={(e) => setStaffRole(e.target.value as typeof staffRole)}><option value="Cashier">Cashier</option><option value="Staff">Staff</option></select></label></>}
-        <Button onClick={create} disabled={invitation.isPending}><RefreshCw data-icon="inline-start" />Generate invitation</Button>
-        {qr && <div className="grid justify-items-center gap-3 border border-border p-4"><img src={qr} alt="Device pairing QR code" width={220} height={220} /><code className="max-w-full break-all text-center text-xs">{token}</code><Button variant="outline" onClick={() => token && void navigator.clipboard.writeText(token)}><Copy data-icon="inline-start" />Copy token</Button></div>}
-        {invitation.isError && <p role="alert" className="text-sm text-destructive">Could not create invitation.</p>}
+      <CardContent>
+        <div className="grid gap-6 md:grid-cols-[1fr_auto]">
+          <div className="grid gap-4">
+            <label className="grid gap-1 text-sm"><span>Device kind</span><select className="h-9 border border-input bg-background px-2" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}><option value="private">Private device</option><option value="public-kiosk">Public kiosk</option></select></label>
+            {kind === "private" && <><label className="grid gap-1 text-sm"><span>Employee name</span><input className="h-9 border border-input bg-background px-2" placeholder="e.g. Budi" value={staffName} onChange={(e) => setStaffName(e.target.value)} /></label><label className="grid gap-1 text-sm"><span>Role</span><select className="h-9 border border-input bg-background px-2" value={staffRole} onChange={(e) => setStaffRole(e.target.value as typeof staffRole)}><option value="Cashier">Cashier</option><option value="Staff">Staff</option></select></label></>}
+            <div><Button onClick={create} disabled={invitation.isPending}><RefreshCw data-icon="inline-start" />Generate invitation</Button></div>
+            {invitation.isError && <p role="alert" className="text-sm text-destructive">Could not create invitation.</p>}
+          </div>
+          {qr && <div className="grid justify-items-center gap-3 border border-border p-4 md:w-60"><img src={qr} alt="Device pairing QR code" width={220} height={220} /><code className="max-w-full break-all text-center text-xs">{token}</code><Button variant="outline" onClick={() => token && void navigator.clipboard.writeText(token)}><Copy data-icon="inline-start" />Copy token</Button></div>}
+        </div>
       </CardContent>
     </Card>
     <Card>
-      <CardHeader><CardTitle>Paired devices</CardTitle><CardDescription>Revoke lost or untrusted devices immediately.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>Paired devices</CardTitle><CardDescription>Revoke a lost device immediately, or delete it to remove its pairing history.</CardDescription></CardHeader>
       <CardContent className="grid gap-2">
         {devices.isLoading && <p className="text-sm text-muted-foreground">Loading devices…</p>}
-        {devices.data?.devices.map((device) => <div className="flex items-center justify-between gap-3 border border-border p-3" key={device.id}><div className="flex min-w-0 items-center gap-3"><Smartphone className="size-4 shrink-0 text-primary" /><div className="min-w-0"><p className="font-medium">{device.mode}</p><p className="truncate text-xs text-muted-foreground">{device.id} · {device.kind}</p></div></div>{device.revokedAt ? <span className="text-xs text-destructive">Revoked</span> : <Button variant="outline" size="sm" onClick={() => revoke.mutate(device.id)} disabled={revoke.isPending}><X data-icon="inline-start" />Revoke</Button>}</div>)}
+        {devices.data?.devices.map((device) => <div className="flex items-center justify-between gap-3 border border-border p-3" key={device.id}>
+          <div className="flex min-w-0 items-center gap-3"><Smartphone className="size-4 shrink-0 text-primary" /><div className="min-w-0"><p className="font-medium">{device.mode}</p><p className="truncate text-xs text-muted-foreground">{device.id} · {device.kind}</p></div></div>
+          <div className="flex items-center gap-2">
+            {device.revokedAt ? <span className="text-xs text-destructive">Revoked</span> : <Button variant="outline" size="sm" onClick={() => revoke.mutate(device.id)} disabled={revoke.isPending}><X data-icon="inline-start" />Revoke</Button>}
+            {confirming === device.id
+              ? <span className="flex items-center gap-2"><span className="text-xs text-muted-foreground">Delete?</span><Button size="sm" variant="destructive" onClick={() => { remove.mutate(device.id); setConfirming(undefined); }} disabled={remove.isPending}>Yes, delete</Button><Button size="sm" variant="ghost" onClick={() => setConfirming(undefined)}>Cancel</Button></span>
+              : <Button size="sm" variant="outline" onClick={() => setConfirming(device.id)} disabled={remove.isPending}><Trash2 data-icon="inline-start" />Delete</Button>}
+          </div>
+        </div>)}
         {!devices.isLoading && !devices.data?.devices.length && <p className="text-sm text-muted-foreground">No paired devices.</p>}
       </CardContent>
     </Card>
-  </section>;
+  </div>;
 }

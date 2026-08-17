@@ -39,3 +39,21 @@ describe("staff-invite pairing", () => {
     expect(kiosk.token).toBeTruthy();
   });
 });
+
+describe("device deletion", () => {
+  test("delete removes the device permanently (hard delete)", async () => {
+    const identity = createIdentityStore();
+    const app = createApp(() => ({ status: "ready", service: "local-server", schemaVersion: 6, database: "ready", uptimeMs: 1 }), identity);
+    const owner = await appBootstrapOwner(app);
+    const paired = await appPairDevice(app, owner.token, "Entrance Scanner");
+    const list = await json(app, "/pairing/devices", { headers: { authorization: `Bearer ${owner.token}` } });
+    expect(list.body.devices.some((d: { id: string }) => d.id === paired.deviceId)).toBe(true);
+    const del = await json(app, "/pairing/devices/" + paired.deviceId, { method: "DELETE", headers: { authorization: `Bearer ${owner.token}` } });
+    expect(del.status).toBe(200);
+    const after = await json(app, "/pairing/devices", { headers: { authorization: `Bearer ${owner.token}` } });
+    expect(after.body.devices.some((d: { id: string }) => d.id === paired.deviceId)).toBe(false);
+    // non-owner cannot delete
+    const guest = await json(app, "/pairing/devices/" + paired.deviceId, { method: "DELETE", headers: { authorization: "Bearer invalid" } });
+    expect(guest.status).toBe(403);
+  });
+});

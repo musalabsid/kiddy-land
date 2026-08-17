@@ -152,7 +152,17 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     initial?.events?.deviceRevoked?.(deviceId);
     return true;
   }
-  return { owner, users, devices, sessions, isBootstrapped, ownerDevice, bootstrap, createEnrollment, pair, login, authenticate, can, revokeDevice };
+  function deleteDevice(deviceId: string) {
+    const device = devices.get(deviceId);
+    if (!device) return false;
+    // Hard delete: also revokes (kills sessions) and removes the pairing history.
+    for (const [key, session] of sessions) if (session.deviceId === deviceId) sessions.delete(key);
+    devices.delete(deviceId);
+    database?.db.run("DELETE FROM paired_devices WHERE id = ?", [deviceId]);
+    initial?.events?.deviceRevoked?.(deviceId);
+    return true;
+  }
+  return { owner, users, devices, sessions, isBootstrapped, ownerDevice, bootstrap, createEnrollment, pair, login, authenticate, can, revokeDevice, deleteDevice };
 }
 
 export type Identity = NonNullable<ReturnType<IdentityStore["authenticate"]>>;

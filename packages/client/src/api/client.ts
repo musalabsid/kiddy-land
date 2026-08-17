@@ -21,5 +21,6 @@ export class ApiClient {
   post<T>(path: string, body: unknown, init?: RequestInit) { return this.request<T>(path, { ...init, method: "POST", body: JSON.stringify(body) }); }
   patch<T>(path: string, body: unknown, init?: RequestInit) { return this.request<T>(path, { ...init, method: "PATCH", body: JSON.stringify(body) }); }
   put<T>(path: string, body: unknown, init?: RequestInit) { return this.request<T>(path, { ...init, method: "PUT", body: JSON.stringify(body) }); }
+  delete<T>(path: string, init?: RequestInit) { return this.request<T>(path, { ...init, method: "DELETE" }); }
   async download(path: string) { const response = await fetch(`${this.origin}${path}`, { headers: { Authorization: this.token ? `Bearer ${this.token}` : "" } }); if (!response.ok) throw new ClientError(response.status, `Request failed (${response.status})`); return response.blob(); }
 }

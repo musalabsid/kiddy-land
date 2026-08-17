@@ -47,6 +47,12 @@ export function useRevokeDeviceMutation() {
   return useMutation({ mutationFn: (deviceId: string) => new AuthService(client).revokeDevice(deviceId), onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["pairing", "devices"] }) });
 }
 
+export function useDeleteDeviceMutation() {
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: (deviceId: string) => new AuthService(client).deleteDevice(deviceId), onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["pairing", "devices"] }) });
+}
+
 export function usePairingMutation() {
   const client = useApiClient();
   const queryClient = useQueryClient();
