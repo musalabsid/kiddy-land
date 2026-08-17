@@ -25,10 +25,26 @@ export function DeviceManagement({ origin }: { origin: string }) {
           <div className="grid gap-4">
             <label className="grid gap-1 text-sm"><span>Device kind</span><select className="h-9 border border-input bg-background px-2" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}><option value="private">Private device</option><option value="public-kiosk">Public kiosk</option></select></label>
             {kind === "private" && <><label className="grid gap-1 text-sm"><span>Employee name</span><input className="h-9 border border-input bg-background px-2" placeholder="e.g. Budi" value={staffName} onChange={(e) => setStaffName(e.target.value)} /></label><label className="grid gap-1 text-sm"><span>Role</span><select className="h-9 border border-input bg-background px-2" value={staffRole} onChange={(e) => setStaffRole(e.target.value as typeof staffRole)}><option value="Cashier">Cashier</option><option value="Staff">Staff</option></select></label></>}
-            <div><Button onClick={create} disabled={invitation.isPending}><RefreshCw data-icon="inline-start" />Generate invitation</Button></div>
             {invitation.isError && <p role="alert" className="text-sm text-destructive">Could not create invitation.</p>}
           </div>
-          {qr && <div className="grid justify-items-center gap-3 border border-border p-4 md:w-60"><img src={qr} alt="Device pairing QR code" width={220} height={220} /><code className="max-w-full break-all text-center text-xs">{token}</code><Button variant="outline" onClick={() => token && void navigator.clipboard.writeText(token)}><Copy data-icon="inline-start" />Copy token</Button></div>}
+          {/* Reserved right column — no layout shift when the QR appears. */}
+          <div className="grid min-h-56 w-full gap-3 place-items-center border border-dashed p-4 md:w-64">
+            {qr ? (
+              <>
+                <img src={qr} alt="Device pairing QR code" width={220} height={220} className="h-44 w-44" />
+                <code className="max-w-full break-all text-center text-xs">{token}</code>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => token && void navigator.clipboard.writeText(token)}><Copy data-icon="inline-start" />Copy token</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setQr(undefined); setToken(undefined); }}>New invitation</Button>
+                </div>
+              </>
+            ) : (
+              <div className="grid justify-items-center gap-2 text-center">
+                <Button onClick={create} disabled={invitation.isPending}><RefreshCw data-icon="inline-start" />Generate invitation</Button>
+                <p className="text-xs text-muted-foreground">QR code appears here</p>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
