@@ -49,6 +49,7 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
     if (!PAYMENT_METHODS.includes(input.paymentMethod)) throw new Error("Unsupported payment method");
     const ticketLines = input.lines.filter((line): line is TicketLineInput => line.kind !== "product");
     const productLines = input.lines.filter((line): line is ProductLineInput => line.kind === "product");
+    if (ticketLines.length > 12) throw new Error("A sale cannot contain more than 12 tickets");
     const snapshots = ticketLines.map((line) => { if (!line.childId || !line.packageId) throw new Error("Ticket Line requires child and package"); return calendar.snapshot(line.packageId, input.operatingDate); });
     const memberFor = (memberId?: string) => memberId ? membership?.find(memberId) ?? (() => { throw new Error("Member unavailable"); })() : undefined;
     const ticketDiscounts = ticketLines.map((line, index) => { const found = memberFor(line.memberId); if (found && found.member.childId !== line.childId) throw new Error("Member does not belong to child"); return line.memberId ? Math.min(membership!.discount(line.memberId, "ticketPackages", line.packageId), snapshots[index]!.price) : 0; });

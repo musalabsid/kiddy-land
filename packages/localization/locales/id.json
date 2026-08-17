@@ -120,6 +120,8 @@
  "sale.childName": "Nama anak",
  "sale.choosePackage": "Pilih paket",
  "sale.addLine": "Tambah tiket",
+ "sale.ticketCount": "Jumlah tiket",
+ "sale.ticketLimit": "Maksimal 12 tiket per penjualan",
  "sale.addProduct": "Tambah produk",
  "sale.total": "Total",
  "sale.cash": "Tunai",

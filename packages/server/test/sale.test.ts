@@ -17,6 +17,12 @@ describe("cashier ticket sale", () => {
     expect(new Set(sale.tickets.map((ticket) => ticket.id)).size).toBe(2);
     expect(sale.receipt.number).toBe("R-00000001");
   });
+  test("allows at most 12 tickets per sale", () => {
+    const { store, pkg } = fixture();
+    const lines = Array.from({ length: 12 }, (_, index) => ({ childId: `child-${index}`, packageId: pkg.id }));
+    expect(store.complete({ idempotencyKey: "twelve", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "cash", lines }).tickets).toHaveLength(12);
+    expect(() => store.complete({ idempotencyKey: "thirteen", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "cash", lines: [...lines, { childId: "child-13", packageId: pkg.id }] })).toThrow("12 tickets");
+  });
   test("duplicate submit returns original sale", () => {
     const { store, pkg } = fixture();
     const input = { idempotencyKey: "same", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "QRIS" as const, lines: [{ childId: "child", packageId: pkg.id, paymentConfirmed: true }] };
