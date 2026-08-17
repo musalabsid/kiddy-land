@@ -28,10 +28,10 @@ export function DeviceManagement({ origin }: { origin: string }) {
             {invitation.isError && <p role="alert" className="text-sm text-destructive">Could not create invitation.</p>}
           </div>
           {/* Reserved right column — no layout shift when the QR appears. */}
-          <div className="grid min-h-56 w-full gap-3 place-items-center border border-dashed p-4 md:w-64">
+          <div className="grid min-h-72 w-full gap-3 place-items-center border border-dashed p-4 md:w-80">
             {qr ? (
               <>
-                <img src={qr} alt="Device pairing QR code" width={220} height={220} className="h-44 w-44" />
+                <img src={qr} alt="Device pairing QR code" width={256} height={256} className="h-56 w-56" />
                 <code className="max-w-full break-all text-center text-xs">{token}</code>
                 <div className="flex flex-wrap justify-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => token && void navigator.clipboard.writeText(token)}><Copy data-icon="inline-start" />Copy token</Button>
