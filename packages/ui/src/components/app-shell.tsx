@@ -28,6 +28,7 @@ import {
   HardDrive,
   PackageCheck,
   LayoutDashboard,
+  MonitorPlay,
   PackageIcon,
   Percent,
   ScanLine,
@@ -66,7 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const logout = useLogout();
   const { soundEnabled, setSoundEnabled } = useNotificationSound();
   const active = (path: string) => pathname === path;
-  const pageTitleKey: MessageKey = pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/inventory" ? "app.inventory" : pathname === "/scanner/entry" ? "app.entryScanner" : pathname === "/scanner/exit" ? "app.exitScanner" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/inventory" ? "app.ownerInventory" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : "host.title";
+  const pageTitleKey: MessageKey = pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/inventory" ? "app.inventory" : pathname === "/scanner/entry" ? "app.entryScanner" : pathname === "/scanner/exit" ? "app.exitScanner" : pathname === "/kiosk" ? "app.kiosk" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/inventory" ? "app.ownerInventory" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : "host.title";
   if (!session) return null;
   const mode = session.device.mode;
   const isOwner = session.user?.role === "Owner";
@@ -74,7 +75,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     mode === "Cashier" ||
     mode === "Inventory" ||
     mode === "Entrance Scanner" ||
-    mode === "Exit Scanner";
+    mode === "Exit Scanner" ||
+    mode === "Public Kiosk";
   const showOverview =
     mode !== "Public Kiosk" &&
     (mode === "Owner Dashboard" || session.user?.role === "Owner");
@@ -140,6 +142,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                       <SidebarMenuButton render={<Link to="/scanner/exit" />} isActive={active("/scanner/exit")}>
                         <ScanLine />
                         {t("app.exitScanner")}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                  {mode === "Public Kiosk" && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton render={<Link to="/kiosk" />} isActive={active("/kiosk")}>
+                        <MonitorPlay />
+                        {t("app.kiosk")}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )}
