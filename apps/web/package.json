@@ -20,8 +20,8 @@
     "@tanstack/react-router-devtools": "latest",
     "@workspace/ui": "workspace:*",
     "@kiddy-land/client": "workspace:*",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
@@ -29,8 +29,8 @@
     "@tanstack/router-cli": "^1.132.0",
     "@tanstack/router-plugin": "latest",
     "@types/node": "^22.10.2",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
+    "@types/react": "^19.1.9",
+    "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^6.0.1",
     "typescript": "^6.0.2",
     "vite": "^8.0.0"
@@ -42,4 +42,3 @@
     ]
   }
 }
-
