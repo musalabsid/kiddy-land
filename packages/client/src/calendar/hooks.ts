@@ -23,4 +23,10 @@ export function useConfigureCalendar() {
   return useMutation({ mutationFn: (input: CalendarConfigureInput) => client.post<{ ok: true }>("/calendar/configure", input), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.calendarConfig }); } });
 }
 
+export function useDeleteTicketPackage() {
+  const client = useClient();
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: (id: string) => client.request<{ ok: true }>(`/calendar/packages/${id}`, { method: "DELETE" }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.calendarConfig }); } });
+}
+
 export type * from "./types";

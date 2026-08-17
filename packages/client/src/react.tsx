@@ -49,7 +49,7 @@ export function useSession() { return useAuthStore(); }
 export { ApiClient, ClientError } from "./api/client";
 export { AuthService } from "./auth/service";
 export { useLoginMutation, useOwnerLoginMutation, usePairingMutation, useSessionQuery, useDevicesQuery, useInvitationMutation, useRevokeDeviceMutation, useDeleteDeviceMutation, useBootstrapStatusQuery, useBootstrapMutation, useLogout } from "./query/hooks";
-export { useCalendarConfig, useConfigureCalendar, useSchedule, usePackageSnapshot } from "./calendar/hooks";
+export { useCalendarConfig, useConfigureCalendar, useDeleteTicketPackage, useSchedule, usePackageSnapshot } from "./calendar/hooks";
 export { useCompleteSale, usePrintAttempt, useSale, useSaleArtifact, saleArtifactUrl, saleQrUrl } from "./sales/hooks";
 export { useTicketScan, useTicketRecovery, useCollectCharge } from "./lifecycle/hooks";
 export * from "./inventory/hooks";

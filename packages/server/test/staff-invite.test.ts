@@ -10,6 +10,14 @@ async function json(app: Hono, path: string, init: RequestInit = {}) {
 }
 
 describe("staff-invite pairing", () => {
+  test("private invitations require staff details", async () => {
+    const identity = createIdentityStore();
+    const app = createApp(() => ({ status: "ready", service: "local-server", schemaVersion: 6, database: "ready", uptimeMs: 1 }), identity);
+    const owner = await appBootstrapOwner(app);
+    const response = await json(app, "/pairing/invitations", { method: "POST", headers: { authorization: `Bearer ${owner.token}`, "content-type": "application/json" }, body: JSON.stringify({ origin: "http://localhost:3000", kind: "private" }) });
+    expect(response.status).toBe(400);
+  });
+
   test("invite with staff creates a staff user and auto-logs-in the device", async () => {
     const identity = createIdentityStore();
     const app = createApp(() => ({ status: "ready", service: "local-server", schemaVersion: 6, database: "ready", uptimeMs: 1 }), identity);

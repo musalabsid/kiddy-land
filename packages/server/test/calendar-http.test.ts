@@ -19,6 +19,14 @@ describe("calendar HTTP contract", () => {
     const schedule = await (await fetch(`${base}/calendar/schedule?date=2024-01-01`)).json() as { hours: { open: string; close: string } };
     expect(schedule.hours).toEqual({ open: "09:00", close: "18:00" });
     expect((await fetch(`${base}/calendar/config`, { headers: { authorization: `Bearer ${owner.token}` } })).status).toBe(200);
+    const created = await fetch(`${base}/calendar/configure`, { method: "POST", headers: auth, body: JSON.stringify({ package: { name: "Play", includedMinutes: 60, weekdayPrice: 15000, weekendPrice: 20000, overridePrices: {}, overtimeRate: 1000, deposit: 5000, depositPolicy: "return-remainder" } }) });
+    expect(created.status).toBe(200);
+    const configured = await (await fetch(`${base}/calendar/config`, { headers: { authorization: `Bearer ${owner.token}` } })).json() as { packages: Array<{ id: string; active: boolean }> };
+    const packageId = configured.packages.at(-1)?.id;
+    expect(packageId).toBeDefined();
+    expect((await fetch(`${base}/calendar/packages/${packageId}`, { method: "DELETE", headers: { authorization: `Bearer ${owner.token}` } })).status).toBe(200);
+    const archived = await (await fetch(`${base}/calendar/config`, { headers: { authorization: `Bearer ${owner.token}` } })).json() as { packages: Array<{ id: string; active: boolean }> };
+    expect(archived.packages.find((item) => item.id === packageId)?.active).toBe(false);
     await runtime.stop();
     const restarted = createHostRuntime({ dataDir, port: 43132 }); runtimes.push(restarted); await restarted.start();
     const restartedLogin = await (await fetch(`${restarted.server.url}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ deviceId: owner.deviceId, username: "owner", password: "change-me" }) })).json() as { token: string };

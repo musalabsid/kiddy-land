@@ -20,11 +20,11 @@ export async function appBootstrapOwner(app: Hono, password = "change-me"): Prom
 
 /** Pair a fresh device with the given Owner session and return its token. */
 export async function appPairDevice(app: Hono, ownerToken: string, mode: string, kind = "private"): Promise<{ token: string; deviceId: string }> {
-  const invite = await appJson(app, "/pairing/invitations", { method: "POST", headers: { authorization: `Bearer ${ownerToken}` }, body: JSON.stringify({ origin: "http://local", kind }) });
+  const invite = await appJson(app, "/pairing/invitations", { method: "POST", headers: { authorization: `Bearer ${ownerToken}` }, body: JSON.stringify({ origin: "http://local", kind, ...(kind === "private" ? { staff: { name: "Test Staff", role: "Cashier" } } : {}) }) });
   if (invite.status !== 201) throw new Error(`invite failed: ${invite.status} ${JSON.stringify(invite.body)}`);
   const paired = await appJson(app, "/pairing/redeem", { method: "POST", headers: { origin: "http://local" }, body: JSON.stringify({ token: invite.body.token, mode }) });
   if (paired.status !== 201) throw new Error(`redeem failed: ${paired.status} ${JSON.stringify(paired.body)}`);
-  if (kind === "public-kiosk") return { token: paired.body.session?.token, deviceId: paired.body.device.id };
+  if (paired.body.session?.token) return { token: paired.body.session.token, deviceId: paired.body.device.id };
   const login = await appJson(app, "/auth/login", { method: "POST", body: JSON.stringify({ deviceId: paired.body.device.id, username: "owner", password: "change-me" }) });
   if (login.status !== 200) throw new Error(`login failed: ${login.status} ${JSON.stringify(login.body)}`);
   return { token: login.body.token, deviceId: paired.body.device.id };

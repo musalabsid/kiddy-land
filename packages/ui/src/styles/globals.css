@@ -127,4 +127,12 @@
   body {
     @apply bg-background text-foreground;
     }
+  select option {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
+  .dark select option {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
 }

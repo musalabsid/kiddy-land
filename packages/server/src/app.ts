@@ -348,6 +348,7 @@ export function createApp(
       if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
       const body = await c.req.json<{ origin?: string; kind?: "private" | "public-kiosk"; staff?: { name?: string; role?: string } }>();
       if (!body.origin) return c.json({ error: "origin is required" }, 400);
+      if ((body.kind ?? "private") === "private" && !body.staff) return c.json({ error: "staff details are required for private devices" }, 400);
       let staff: StaffInvite | undefined;
       if (body.staff) {
         const name = body.staff.name?.trim();
@@ -395,6 +396,11 @@ export function createApp(
       const body = await c.req.json<{ timezone?: string; day?: import("./calendar.ts").Weekday; hours?: import("./calendar.ts").DailyHours; override?: import("./calendar.ts").ScheduleOverride; package?: Parameters<CalendarStore["upsertPackage"]>[0] }>();
       try { calendar.configure(body, current.user.id); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "calendar" }); return c.json({ ok: true }); }
       catch { return c.json({ error: "Invalid calendar configuration" }, 400); }
+    });
+    app.delete("/calendar/packages/:id", (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!calendar || !current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      return calendar.deletePackage(c.req.param("id"), current.user.id) ? c.json({ ok: true }) : c.json({ error: "Package not found" }, 404);
     });
   }
 

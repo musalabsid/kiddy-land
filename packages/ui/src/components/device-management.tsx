@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { Copy, RefreshCw, Smartphone, Trash2, X } from "lucide-react";
 import { useDevicesQuery, useInvitationMutation, useRevokeDeviceMutation, useDeleteDeviceMutation } from "@kiddy-land/client/react";
 import { Button } from "@workspace/ui/components/button";
+import { FormField } from "@workspace/ui/components/form-field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 
 export function DeviceManagement({ origin }: { origin: string }) {
@@ -16,7 +17,7 @@ export function DeviceManagement({ origin }: { origin: string }) {
   const [qr, setQr] = React.useState<string>();
   const [token, setToken] = React.useState<string>();
   const [confirming, setConfirming] = React.useState<string>();
-  const create = () => invitation.mutate({ origin, kind, staff: kind === "private" && staffName.trim() ? { name: staffName.trim(), role: staffRole } : undefined }, { onSuccess: async (result) => { setToken(result.token); setQr(await QRCode.toDataURL(result.qrPayload, { margin: 2, width: 220 })); } });
+  const create = () => { if (kind === "private" && !staffName.trim()) return; invitation.mutate({ origin, kind, staff: kind === "private" ? { name: staffName.trim(), role: staffRole } : undefined }, { onSuccess: async (result) => { setToken(result.token); setQr(await QRCode.toDataURL(result.qrPayload, { margin: 2, width: 220 })); } }); };
   return <div className="grid gap-4">
     <Card>
       <CardHeader><CardTitle>Pair a device</CardTitle><CardDescription>Generate a one-time invitation. It expires after 60 seconds.</CardDescription></CardHeader>
@@ -24,7 +25,7 @@ export function DeviceManagement({ origin }: { origin: string }) {
         <div className="grid gap-6 md:grid-cols-[1fr_auto]">
           <div className="grid gap-4">
             <label className="grid gap-1 text-sm"><span>Device kind</span><select className="h-9 border border-input bg-background px-2" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}><option value="private">Private device</option><option value="public-kiosk">Public kiosk</option></select></label>
-            {kind === "private" && <><label className="grid gap-1 text-sm"><span>Employee name</span><input className="h-9 border border-input bg-background px-2" placeholder="e.g. Budi" value={staffName} onChange={(e) => setStaffName(e.target.value)} /></label><label className="grid gap-1 text-sm"><span>Role</span><select className="h-9 border border-input bg-background px-2" value={staffRole} onChange={(e) => setStaffRole(e.target.value as typeof staffRole)}><option value="Cashier">Cashier</option><option value="Staff">Staff</option></select></label></>}
+            {kind === "private" && <><FormField label="Employee name" required htmlFor="pairing-staff-name" error={!staffName.trim() ? "Employee name is required" : undefined}><input id="pairing-staff-name" className="h-9 border border-input bg-background px-2" placeholder="e.g. Budi" value={staffName} onChange={(e) => setStaffName(e.target.value)} /></FormField><FormField label="Role" required htmlFor="pairing-staff-role"><select id="pairing-staff-role" className="h-9 border border-input bg-background px-2" value={staffRole} onChange={(e) => setStaffRole(e.target.value as typeof staffRole)}><option value="Cashier">Cashier</option><option value="Staff">Staff</option></select></FormField></>}
             {invitation.isError && <p role="alert" className="text-sm text-destructive">Could not create invitation.</p>}
           </div>
           {/* Reserved right column — no layout shift when the QR appears. */}
@@ -40,7 +41,7 @@ export function DeviceManagement({ origin }: { origin: string }) {
               </>
             ) : (
               <div className="grid justify-items-center gap-2 text-center">
-                <Button onClick={create} disabled={invitation.isPending}><RefreshCw data-icon="inline-start" />Generate invitation</Button>
+                <Button onClick={create} disabled={invitation.isPending || (kind === "private" && !staffName.trim())}><RefreshCw data-icon="inline-start" />Generate invitation</Button>
                 <p className="text-xs text-muted-foreground">QR code appears here</p>
               </div>
             )}
