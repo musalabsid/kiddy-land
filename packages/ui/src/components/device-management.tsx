@@ -52,15 +52,15 @@ export function DeviceManagement({ origin }: { origin: string }) {
       <CardHeader><CardTitle>Paired devices</CardTitle><CardDescription>Revoke a lost device immediately, or delete it to remove its pairing history.</CardDescription></CardHeader>
       <CardContent className="grid gap-2">
         {devices.isLoading && <p className="text-sm text-muted-foreground">Loading devices…</p>}
-        {devices.data?.devices.map((device) => <div className="flex items-center justify-between gap-3 border border-border p-3" key={device.id}>
-          <div className="flex min-w-0 items-center gap-3"><Smartphone className="size-4 shrink-0 text-primary" /><div className="min-w-0"><p className="font-medium">{device.mode}</p><p className="truncate text-xs text-muted-foreground">{device.id} · {device.kind}</p></div></div>
+        {devices.data?.devices.map((device) => { const isOwnerDevice = device.mode === "Owner Dashboard"; return <div className="flex items-center justify-between gap-3 border border-border p-3" key={device.id}>
+          <div className="flex min-w-0 items-center gap-3"><Smartphone className="size-4 shrink-0 text-primary" /><div className="min-w-0"><p className="font-medium">{device.mode}{isOwnerDevice && <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs">Owner device</span>}</p><p className="truncate text-xs text-muted-foreground">{device.id} · {device.kind}</p></div></div>
           <div className="flex items-center gap-2">
-            {device.revokedAt ? <span className="text-xs text-destructive">Revoked</span> : <Button variant="outline" size="sm" onClick={() => revoke.mutate(device.id)} disabled={revoke.isPending}><X data-icon="inline-start" />Revoke</Button>}
-            {confirming === device.id
+            {device.revokedAt ? <span className="text-xs text-destructive">Revoked</span> : isOwnerDevice ? <span className="text-xs text-muted-foreground">Protected</span> : <Button variant="outline" size="sm" onClick={() => revoke.mutate(device.id)} disabled={revoke.isPending}><X data-icon="inline-start" />Revoke</Button>}
+            {isOwnerDevice ? <span className="text-xs text-muted-foreground" title="The owner device cannot be removed">—</span> : confirming === device.id
               ? <span className="flex items-center gap-2"><span className="text-xs text-muted-foreground">Delete?</span><Button size="sm" variant="destructive" onClick={() => { remove.mutate(device.id); setConfirming(undefined); }} disabled={remove.isPending}>Yes, delete</Button><Button size="sm" variant="ghost" onClick={() => setConfirming(undefined)}>Cancel</Button></span>
               : <Button size="sm" variant="outline" onClick={() => setConfirming(device.id)} disabled={remove.isPending}><Trash2 data-icon="inline-start" />Delete</Button>}
           </div>
-        </div>)}
+        </div>; })}
         {!devices.isLoading && !devices.data?.devices.length && <p className="text-sm text-muted-foreground">No paired devices.</p>}
       </CardContent>
     </Card>

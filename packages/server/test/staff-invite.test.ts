@@ -57,3 +57,28 @@ describe("device deletion", () => {
     expect(guest.status).toBe(403);
   });
 });
+
+describe("owner device protection", () => {
+  test("cannot revoke or delete the owner device", async () => {
+    const identity = createIdentityStore();
+    const app = createApp(() => ({ status: "ready", service: "local-server", schemaVersion: 6, database: "ready", uptimeMs: 1 }), identity);
+    const owner = await appBootstrapOwner(app); // creates the owner device
+    const ownerDeviceId = owner.deviceId;
+    const revoke = await json(app, `/pairing/devices/${ownerDeviceId}/revoke`, { method: "POST", headers: { authorization: `Bearer ${owner.token}` }, body: "{}" });
+    expect(revoke.status).toBe(409);
+    const del = await json(app, `/pairing/devices/${ownerDeviceId}`, { method: "DELETE", headers: { authorization: `Bearer ${owner.token}` } });
+    expect(del.status).toBe(409);
+    // owner device still listed
+    const list = await json(app, "/pairing/devices", { headers: { authorization: `Bearer ${owner.token}` } });
+    expect(list.body.devices.some((d: { id: string }) => d.id === ownerDeviceId)).toBe(true);
+  });
+
+  test("non-owner devices can still be deleted", async () => {
+    const identity = createIdentityStore();
+    const app = createApp(() => ({ status: "ready", service: "local-server", schemaVersion: 6, database: "ready", uptimeMs: 1 }), identity);
+    const owner = await appBootstrapOwner(app);
+    const paired = await appPairDevice(app, owner.token, "Entrance Scanner");
+    const del = await json(app, `/pairing/devices/${paired.deviceId}`, { method: "DELETE", headers: { authorization: `Bearer ${owner.token}` } });
+    expect(del.status).toBe(200);
+  });
+});

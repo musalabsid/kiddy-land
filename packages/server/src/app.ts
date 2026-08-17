@@ -320,11 +320,13 @@ export function createApp(
     app.post("/pairing/devices/:id/revoke", (c) => {
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      if (c.req.param("id") === identity.ownerDevice()?.id) return c.json({ error: "Cannot revoke the owner device" }, 409);
       return identity.revokeDevice(c.req.param("id")) ? c.json({ ok: true }) : c.json({ error: "Device not found" }, 404);
     });
     app.delete("/pairing/devices/:id", (c) => {
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      if (c.req.param("id") === identity.ownerDevice()?.id) return c.json({ error: "Cannot delete the owner device" }, 409);
       return identity.deleteDevice(c.req.param("id")) ? c.json({ ok: true }) : c.json({ error: "Device not found" }, 404);
     });
     app.get("/auth/bootstrap-status", (c) => c.json({ required: !identity.isBootstrapped(), ownerDevice: identity.ownerDevice() }));
