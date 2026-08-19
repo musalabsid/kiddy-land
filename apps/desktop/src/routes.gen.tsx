@@ -19,6 +19,7 @@ import { DeviceManagement } from "@workspace/ui/components/device-management";
 import { HostOverviewPage } from "@workspace/ui/components/host-overview-page";
 import { InventoryDashboard } from "@workspace/ui/components/inventory-dashboard";
 import { MembershipDashboard } from "@workspace/ui/components/membership-dashboard";
+import { MemberCardPrint } from "@workspace/ui/components/member-card-print";
 import { MembershipDiscountSettings } from "@workspace/ui/components/membership-discount-settings";
 import { OwnerInventory } from "@workspace/ui/components/owner-inventory";
 import { ProductCatalog } from "@workspace/ui/components/product-catalog";
@@ -75,6 +76,15 @@ const kioskRoute = createRoute({
       <PublicKiosk />
     </RouteAccessGate>
   ),
+});
+
+const memberCardPrintRoute = createRoute({
+  getParentRoute: () => authenticatedRoute,
+  path: "/member-card/print",
+  component: () => {
+    const search = new URLSearchParams(window.location.search);
+    return <MemberCardPrint name={search.get("name") ?? "Member"} code={search.get("code") ?? ""} phone={search.get("phone") || undefined} />;
+  },
 });
 
 const shellRoute = createRoute({
@@ -272,6 +282,7 @@ function OwnerLoginRouteComponent() {
 export const routeTree = rootRoute.addChildren([
   ownerLoginRoute,
   authenticatedRoute.addChildren([
+    memberCardPrintRoute,
     kioskRoute,
     shellRoute.addChildren([
       indexRoute,

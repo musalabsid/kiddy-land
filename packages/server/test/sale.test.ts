@@ -28,6 +28,11 @@ describe("cashier ticket sale", () => {
     const input = { idempotencyKey: "same", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "QRIS" as const, lines: [{ childId: "child", packageId: pkg.id, paymentConfirmed: true }] };
     expect(store.complete(input)).toBe(store.complete(input));
   });
+  test("limits each product line to 24 units", () => {
+    const calendar = createCalendarStore(); calendar.setWeeklyHours("monday", { open: "00:00", close: "23:59" }, "owner"); const inventory = createInventoryStore(); const product = inventory.create({ sku: "LIMIT", name: "Limited product", price: 100, stock: 30 }, "owner"); const sales = createSaleStore(calendar, undefined, inventory);
+    expect(sales.complete({ idempotencyKey: "product-24", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "cash", lines: [{ kind: "product", productId: product.id, quantity: 24 }] }).lines[0]?.kind).toBe("product");
+    expect(() => sales.complete({ idempotencyKey: "product-25", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "cash", lines: [{ kind: "product", productId: product.id, quantity: 25 }] })).toThrow("1 to 24");
+  });
   test("artifacts and print attempts are separate from completion", () => {
     const { store, pkg } = fixture();
     const sale = store.complete({ idempotencyKey: "print", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "bank-transfer", lines: [{ childId: "child", packageId: pkg.id, paymentConfirmed: true }] });

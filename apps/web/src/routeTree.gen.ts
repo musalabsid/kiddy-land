@@ -17,6 +17,7 @@ import { Route as AuthenticatedShellIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedShellInventoryRouteImport } from './routes/_authenticated/_shell/inventory'
 import { Route as AuthenticatedShellMembersRouteImport } from './routes/_authenticated/_shell/members'
 import { Route as AuthenticatedShellSalesRouteImport } from './routes/_authenticated/_shell/sales'
+import { Route as AuthenticatedMemberCardPrintRouteImport } from './routes/_authenticated/member-card/print'
 import { Route as AuthenticatedShellOwnerBackupsRouteImport } from './routes/_authenticated/_shell/owner/backups'
 import { Route as AuthenticatedShellOwnerCalendarRouteImport } from './routes/_authenticated/_shell/owner/calendar'
 import { Route as AuthenticatedShellOwnerCatalogRouteImport } from './routes/_authenticated/_shell/owner/catalog'
@@ -69,6 +70,12 @@ const AuthenticatedShellSalesRoute = AuthenticatedShellSalesRouteImport.update({
   path: '/sales',
   getParentRoute: () => AuthenticatedShellRoute,
 } as any)
+const AuthenticatedMemberCardPrintRoute =
+  AuthenticatedMemberCardPrintRouteImport.update({
+    id: '/member-card/print',
+    path: '/member-card/print',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedShellOwnerBackupsRoute =
   AuthenticatedShellOwnerBackupsRouteImport.update({
     id: '/owner/backups',
@@ -143,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof AuthenticatedShellInventoryRoute
   '/members': typeof AuthenticatedShellMembersRoute
   '/sales': typeof AuthenticatedShellSalesRoute
+  '/member-card/print': typeof AuthenticatedMemberCardPrintRoute
   '/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
   '/owner/calendar': typeof AuthenticatedShellOwnerCalendarRoute
   '/owner/catalog': typeof AuthenticatedShellOwnerCatalogRoute
@@ -162,6 +170,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof AuthenticatedShellInventoryRoute
   '/members': typeof AuthenticatedShellMembersRoute
   '/sales': typeof AuthenticatedShellSalesRoute
+  '/member-card/print': typeof AuthenticatedMemberCardPrintRoute
   '/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
   '/owner/calendar': typeof AuthenticatedShellOwnerCalendarRoute
   '/owner/catalog': typeof AuthenticatedShellOwnerCatalogRoute
@@ -183,6 +192,7 @@ export interface FileRoutesById {
   '/_authenticated/_shell/inventory': typeof AuthenticatedShellInventoryRoute
   '/_authenticated/_shell/members': typeof AuthenticatedShellMembersRoute
   '/_authenticated/_shell/sales': typeof AuthenticatedShellSalesRoute
+  '/_authenticated/member-card/print': typeof AuthenticatedMemberCardPrintRoute
   '/_authenticated/_shell/': typeof AuthenticatedShellIndexRoute
   '/_authenticated/_shell/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
   '/_authenticated/_shell/owner/calendar': typeof AuthenticatedShellOwnerCalendarRoute
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/members'
     | '/sales'
+    | '/member-card/print'
     | '/owner/backups'
     | '/owner/calendar'
     | '/owner/catalog'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/members'
     | '/sales'
+    | '/member-card/print'
     | '/owner/backups'
     | '/owner/calendar'
     | '/owner/catalog'
@@ -244,6 +256,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/inventory'
     | '/_authenticated/_shell/members'
     | '/_authenticated/_shell/sales'
+    | '/_authenticated/member-card/print'
     | '/_authenticated/_shell/'
     | '/_authenticated/_shell/owner/backups'
     | '/_authenticated/_shell/owner/calendar'
@@ -320,6 +333,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sales'
       preLoaderRoute: typeof AuthenticatedShellSalesRouteImport
       parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/member-card/print': {
+      id: '/_authenticated/member-card/print'
+      path: '/member-card/print'
+      fullPath: '/member-card/print'
+      preLoaderRoute: typeof AuthenticatedMemberCardPrintRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/_shell/owner/backups': {
       id: '/_authenticated/_shell/owner/backups'
@@ -445,11 +465,13 @@ const AuthenticatedShellRouteWithChildren =
 interface AuthenticatedRouteChildren {
   AuthenticatedShellRoute: typeof AuthenticatedShellRouteWithChildren
   AuthenticatedKioskRoute: typeof AuthenticatedKioskRoute
+  AuthenticatedMemberCardPrintRoute: typeof AuthenticatedMemberCardPrintRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedShellRoute: AuthenticatedShellRouteWithChildren,
   AuthenticatedKioskRoute: AuthenticatedKioskRoute,
+  AuthenticatedMemberCardPrintRoute: AuthenticatedMemberCardPrintRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
