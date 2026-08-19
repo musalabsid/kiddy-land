@@ -24,7 +24,7 @@ export function MembershipDashboard() {
   const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const members = useMembers();
   const searchResults = useSearchMembers(debouncedSearch);
-  const history = useMemberHistory(selected);
+  const history = useMemberHistory(selected, isOwner);
   const reissue = useReissueMemberCode();
   const deactivate = useDeactivateMember();
   const reactivate = useReactivateMember();
@@ -71,7 +71,7 @@ export function MembershipDashboard() {
         {debouncedSearch && searchResults.isSuccess && !visibleMembers.length && <p className="text-sm text-muted-foreground">No matching member.</p>}
       </div>
       {member ? <div className="grid gap-2 border p-3"><p><strong>{member.child.name}</strong> · {member.member.status} · {member.member.code}</p><div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" onClick={printCard}>Print membership card</Button><Button size="sm" variant="outline" onClick={() => reissue.mutate({ id: member.member.id, reason: "Lost card" })}>{t("membership.reissue")}</Button>{isOwner && (member.member.status === "active" ? <Button size="sm" variant="outline" onClick={() => deactivate.mutate({ id: member.member.id, reason: "Owner deactivation" })}>{t("membership.deactivate")}</Button> : <Button size="sm" variant="outline" onClick={() => reactivate.mutate({ id: member.member.id, reason: "Owner reactivation" })}>{t("membership.reactivate")}</Button>)}</div></div> : null}
-      {selected ? <div className="grid gap-1 text-sm text-muted-foreground"><p>{t("membership.history")}: {history.data?.length ?? 0}</p>{history.isLoading ? <p>{t("membership.historyLoading")}</p> : null}{history.isError ? <p role="alert" className="text-destructive">{t("membership.historyError")}</p> : null}{history.data?.map((event) => <p key={event.id}>{event.type}{event.amount ? ` · IDR ${event.amount}` : ""}</p>)}</div> : null}
+      {isOwner && selected ? <div className="grid gap-1 text-sm text-muted-foreground"><p>{t("membership.history")}: {history.data?.length ?? 0}</p>{history.isLoading ? <p>{t("membership.historyLoading")}</p> : null}{history.isError ? <p role="alert" className="text-destructive">{t("membership.historyError")}</p> : null}{history.data?.map((event) => <p key={event.id}>{event.type}{event.amount ? ` · IDR ${event.amount}` : ""}</p>)}</div> : null}
     </CardContent>
   </Card>;
 }
