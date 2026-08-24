@@ -17,6 +17,8 @@ import { Route as AuthenticatedShellIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedShellInventoryRouteImport } from './routes/_authenticated/_shell/inventory'
 import { Route as AuthenticatedShellMembersRouteImport } from './routes/_authenticated/_shell/members'
 import { Route as AuthenticatedShellSalesRouteImport } from './routes/_authenticated/_shell/sales'
+import { Route as AuthenticatedShellSalesHistoryRouteImport } from './routes/_authenticated/_shell/sales-history'
+import { Route as AuthenticatedShellScannerRouteImport } from './routes/_authenticated/_shell/scanner'
 import { Route as AuthenticatedMemberCardPrintRouteImport } from './routes/_authenticated/member-card/print'
 import { Route as AuthenticatedShellOwnerBackupsRouteImport } from './routes/_authenticated/_shell/owner/backups'
 import { Route as AuthenticatedShellOwnerCalendarRouteImport } from './routes/_authenticated/_shell/owner/calendar'
@@ -27,8 +29,6 @@ import { Route as AuthenticatedShellOwnerMembershipDiscountsRouteImport } from '
 import { Route as AuthenticatedShellOwnerMembershipsRouteImport } from './routes/_authenticated/_shell/owner/memberships'
 import { Route as AuthenticatedShellOwnerPackagesRouteImport } from './routes/_authenticated/_shell/owner/packages'
 import { Route as AuthenticatedShellOwnerReportsRouteImport } from './routes/_authenticated/_shell/owner/reports'
-import { Route as AuthenticatedShellScannerEntryRouteImport } from './routes/_authenticated/_shell/scanner/entry'
-import { Route as AuthenticatedShellScannerExitRouteImport } from './routes/_authenticated/_shell/scanner/exit'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -70,6 +70,18 @@ const AuthenticatedShellSalesRoute = AuthenticatedShellSalesRouteImport.update({
   path: '/sales',
   getParentRoute: () => AuthenticatedShellRoute,
 } as any)
+const AuthenticatedShellSalesHistoryRoute =
+  AuthenticatedShellSalesHistoryRouteImport.update({
+    id: '/sales-history',
+    path: '/sales-history',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
+const AuthenticatedShellScannerRoute =
+  AuthenticatedShellScannerRouteImport.update({
+    id: '/scanner',
+    path: '/scanner',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
 const AuthenticatedMemberCardPrintRoute =
   AuthenticatedMemberCardPrintRouteImport.update({
     id: '/member-card/print',
@@ -130,18 +142,6 @@ const AuthenticatedShellOwnerReportsRoute =
     path: '/owner/reports',
     getParentRoute: () => AuthenticatedShellRoute,
   } as any)
-const AuthenticatedShellScannerEntryRoute =
-  AuthenticatedShellScannerEntryRouteImport.update({
-    id: '/scanner/entry',
-    path: '/scanner/entry',
-    getParentRoute: () => AuthenticatedShellRoute,
-  } as any)
-const AuthenticatedShellScannerExitRoute =
-  AuthenticatedShellScannerExitRouteImport.update({
-    id: '/scanner/exit',
-    path: '/scanner/exit',
-    getParentRoute: () => AuthenticatedShellRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedShellIndexRoute
@@ -150,6 +150,8 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof AuthenticatedShellInventoryRoute
   '/members': typeof AuthenticatedShellMembersRoute
   '/sales': typeof AuthenticatedShellSalesRoute
+  '/sales-history': typeof AuthenticatedShellSalesHistoryRoute
+  '/scanner': typeof AuthenticatedShellScannerRoute
   '/member-card/print': typeof AuthenticatedMemberCardPrintRoute
   '/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
   '/owner/calendar': typeof AuthenticatedShellOwnerCalendarRoute
@@ -160,8 +162,6 @@ export interface FileRoutesByFullPath {
   '/owner/memberships': typeof AuthenticatedShellOwnerMembershipsRoute
   '/owner/packages': typeof AuthenticatedShellOwnerPackagesRoute
   '/owner/reports': typeof AuthenticatedShellOwnerReportsRoute
-  '/scanner/entry': typeof AuthenticatedShellScannerEntryRoute
-  '/scanner/exit': typeof AuthenticatedShellScannerExitRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedShellIndexRoute
@@ -170,6 +170,8 @@ export interface FileRoutesByTo {
   '/inventory': typeof AuthenticatedShellInventoryRoute
   '/members': typeof AuthenticatedShellMembersRoute
   '/sales': typeof AuthenticatedShellSalesRoute
+  '/sales-history': typeof AuthenticatedShellSalesHistoryRoute
+  '/scanner': typeof AuthenticatedShellScannerRoute
   '/member-card/print': typeof AuthenticatedMemberCardPrintRoute
   '/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
   '/owner/calendar': typeof AuthenticatedShellOwnerCalendarRoute
@@ -180,8 +182,6 @@ export interface FileRoutesByTo {
   '/owner/memberships': typeof AuthenticatedShellOwnerMembershipsRoute
   '/owner/packages': typeof AuthenticatedShellOwnerPackagesRoute
   '/owner/reports': typeof AuthenticatedShellOwnerReportsRoute
-  '/scanner/entry': typeof AuthenticatedShellScannerEntryRoute
-  '/scanner/exit': typeof AuthenticatedShellScannerExitRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -192,6 +192,8 @@ export interface FileRoutesById {
   '/_authenticated/_shell/inventory': typeof AuthenticatedShellInventoryRoute
   '/_authenticated/_shell/members': typeof AuthenticatedShellMembersRoute
   '/_authenticated/_shell/sales': typeof AuthenticatedShellSalesRoute
+  '/_authenticated/_shell/sales-history': typeof AuthenticatedShellSalesHistoryRoute
+  '/_authenticated/_shell/scanner': typeof AuthenticatedShellScannerRoute
   '/_authenticated/member-card/print': typeof AuthenticatedMemberCardPrintRoute
   '/_authenticated/_shell/': typeof AuthenticatedShellIndexRoute
   '/_authenticated/_shell/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
@@ -203,8 +205,6 @@ export interface FileRoutesById {
   '/_authenticated/_shell/owner/memberships': typeof AuthenticatedShellOwnerMembershipsRoute
   '/_authenticated/_shell/owner/packages': typeof AuthenticatedShellOwnerPackagesRoute
   '/_authenticated/_shell/owner/reports': typeof AuthenticatedShellOwnerReportsRoute
-  '/_authenticated/_shell/scanner/entry': typeof AuthenticatedShellScannerEntryRoute
-  '/_authenticated/_shell/scanner/exit': typeof AuthenticatedShellScannerExitRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -215,6 +215,8 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/members'
     | '/sales'
+    | '/sales-history'
+    | '/scanner'
     | '/member-card/print'
     | '/owner/backups'
     | '/owner/calendar'
@@ -225,8 +227,6 @@ export interface FileRouteTypes {
     | '/owner/memberships'
     | '/owner/packages'
     | '/owner/reports'
-    | '/scanner/entry'
-    | '/scanner/exit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -235,6 +235,8 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/members'
     | '/sales'
+    | '/sales-history'
+    | '/scanner'
     | '/member-card/print'
     | '/owner/backups'
     | '/owner/calendar'
@@ -245,8 +247,6 @@ export interface FileRouteTypes {
     | '/owner/memberships'
     | '/owner/packages'
     | '/owner/reports'
-    | '/scanner/entry'
-    | '/scanner/exit'
   id:
     | '__root__'
     | '/_authenticated'
@@ -256,6 +256,8 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/inventory'
     | '/_authenticated/_shell/members'
     | '/_authenticated/_shell/sales'
+    | '/_authenticated/_shell/sales-history'
+    | '/_authenticated/_shell/scanner'
     | '/_authenticated/member-card/print'
     | '/_authenticated/_shell/'
     | '/_authenticated/_shell/owner/backups'
@@ -267,8 +269,6 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/owner/memberships'
     | '/_authenticated/_shell/owner/packages'
     | '/_authenticated/_shell/owner/reports'
-    | '/_authenticated/_shell/scanner/entry'
-    | '/_authenticated/_shell/scanner/exit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -332,6 +332,20 @@ declare module '@tanstack/react-router' {
       path: '/sales'
       fullPath: '/sales'
       preLoaderRoute: typeof AuthenticatedShellSalesRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/sales-history': {
+      id: '/_authenticated/_shell/sales-history'
+      path: '/sales-history'
+      fullPath: '/sales-history'
+      preLoaderRoute: typeof AuthenticatedShellSalesHistoryRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
+    '/_authenticated/_shell/scanner': {
+      id: '/_authenticated/_shell/scanner'
+      path: '/scanner'
+      fullPath: '/scanner'
+      preLoaderRoute: typeof AuthenticatedShellScannerRouteImport
       parentRoute: typeof AuthenticatedShellRoute
     }
     '/_authenticated/member-card/print': {
@@ -404,20 +418,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellOwnerReportsRouteImport
       parentRoute: typeof AuthenticatedShellRoute
     }
-    '/_authenticated/_shell/scanner/entry': {
-      id: '/_authenticated/_shell/scanner/entry'
-      path: '/scanner/entry'
-      fullPath: '/scanner/entry'
-      preLoaderRoute: typeof AuthenticatedShellScannerEntryRouteImport
-      parentRoute: typeof AuthenticatedShellRoute
-    }
-    '/_authenticated/_shell/scanner/exit': {
-      id: '/_authenticated/_shell/scanner/exit'
-      path: '/scanner/exit'
-      fullPath: '/scanner/exit'
-      preLoaderRoute: typeof AuthenticatedShellScannerExitRouteImport
-      parentRoute: typeof AuthenticatedShellRoute
-    }
   }
 }
 
@@ -425,6 +425,8 @@ interface AuthenticatedShellRouteChildren {
   AuthenticatedShellInventoryRoute: typeof AuthenticatedShellInventoryRoute
   AuthenticatedShellMembersRoute: typeof AuthenticatedShellMembersRoute
   AuthenticatedShellSalesRoute: typeof AuthenticatedShellSalesRoute
+  AuthenticatedShellSalesHistoryRoute: typeof AuthenticatedShellSalesHistoryRoute
+  AuthenticatedShellScannerRoute: typeof AuthenticatedShellScannerRoute
   AuthenticatedShellIndexRoute: typeof AuthenticatedShellIndexRoute
   AuthenticatedShellOwnerBackupsRoute: typeof AuthenticatedShellOwnerBackupsRoute
   AuthenticatedShellOwnerCalendarRoute: typeof AuthenticatedShellOwnerCalendarRoute
@@ -435,14 +437,14 @@ interface AuthenticatedShellRouteChildren {
   AuthenticatedShellOwnerMembershipsRoute: typeof AuthenticatedShellOwnerMembershipsRoute
   AuthenticatedShellOwnerPackagesRoute: typeof AuthenticatedShellOwnerPackagesRoute
   AuthenticatedShellOwnerReportsRoute: typeof AuthenticatedShellOwnerReportsRoute
-  AuthenticatedShellScannerEntryRoute: typeof AuthenticatedShellScannerEntryRoute
-  AuthenticatedShellScannerExitRoute: typeof AuthenticatedShellScannerExitRoute
 }
 
 const AuthenticatedShellRouteChildren: AuthenticatedShellRouteChildren = {
   AuthenticatedShellInventoryRoute: AuthenticatedShellInventoryRoute,
   AuthenticatedShellMembersRoute: AuthenticatedShellMembersRoute,
   AuthenticatedShellSalesRoute: AuthenticatedShellSalesRoute,
+  AuthenticatedShellSalesHistoryRoute: AuthenticatedShellSalesHistoryRoute,
+  AuthenticatedShellScannerRoute: AuthenticatedShellScannerRoute,
   AuthenticatedShellIndexRoute: AuthenticatedShellIndexRoute,
   AuthenticatedShellOwnerBackupsRoute: AuthenticatedShellOwnerBackupsRoute,
   AuthenticatedShellOwnerCalendarRoute: AuthenticatedShellOwnerCalendarRoute,
@@ -455,8 +457,6 @@ const AuthenticatedShellRouteChildren: AuthenticatedShellRouteChildren = {
     AuthenticatedShellOwnerMembershipsRoute,
   AuthenticatedShellOwnerPackagesRoute: AuthenticatedShellOwnerPackagesRoute,
   AuthenticatedShellOwnerReportsRoute: AuthenticatedShellOwnerReportsRoute,
-  AuthenticatedShellScannerEntryRoute: AuthenticatedShellScannerEntryRoute,
-  AuthenticatedShellScannerExitRoute: AuthenticatedShellScannerExitRoute,
 }
 
 const AuthenticatedShellRouteWithChildren =

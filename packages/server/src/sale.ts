@@ -24,8 +24,149 @@ export type PrintAttempt = { id: string; saleId: string; artifact: "tickets" | "
 function id(prefix: string) { return `${prefix}_${randomBytes(12).toString("hex")}`; }
 function opaque() { return `kp1.${randomBytes(24).toString("base64url")}`; }
 function reasonValid(value: string) { return Boolean(value?.trim()); }
-function pdf(title: string, lines: string[], width = 612, height = 792) { const text = [title, ...lines].map((line) => line.replace(/[()\\]/g, "")).join("\\n"); const stream = `BT /F1 10 Tf 36 ${height - 40} Td (${text.replace(/\\n/g, ") Tj 0 -14 Td (")}) Tj ET`; return `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${width} ${height}]/Resources<</Font<</F1 4 0 R>>>>/Contents 5 0 R>>endobj\n4 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n5 0 obj<</Length ${Buffer.byteLength(stream, "utf8")}>>stream\n${stream}\nendstream\nendobj\ntrailer<</Root 1 0 R>>\n%%EOF`; }
+function pdfText(value: string) { return value.replace(/[()\\]/g, "\\$&"); }
+function pdfDocument(stream: string, width: number, height: number) {
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream`,
+  ];
+  let output = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(output, "utf8"));
+    output += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xref = Buffer.byteLength(output, "utf8");
+  output += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n `).join("\n")}\ntrailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return output;
+}
+function pdf(title: string, lines: string[], width = 612, height = 792) {
+  const text = [title, ...lines].map(pdfText).join("\n");
+  const stream = `BT /F1 10 Tf 36 ${height - 40} Td (${text.replace(/\n/g, ") Tj 0 -14 Td (")}) Tj ET`;
+  return pdfDocument(stream, width, height);
+}
+function fitPdfText(value: string, max = 38) { return value.length > max ? `${value.slice(0, max - 3)}...` : value; }
+function qrPdf(rows: Array<{ code: string; token: string; packageName: string; duration: string }>) {
+  const W = 595;
+  const H = 842;
+  const left = 28;
+  const right = W - left;
+  const top = 22;
+  const rowH = 66;
+  const cellH = 60;
+  const qrUnit = 1.45;
+  const quiet = 4;
+  let stream = "";
+  rows.forEach((row, index) => {
+    const cellTop = top + index * rowH;
+    const cellW = right - left;
+    stream += `0.65 w ${left} ${H - cellTop - cellH} ${cellW} ${cellH} re S\n`;
+    const qr = QRCode.create(row.token, { errorCorrectionLevel: "M" });
+    const size = qr.modules.size;
+    const qrPx = (size + quiet * 2) * qrUnit;
+    const qrX = left + 9;
+    const qrTop = cellTop + (cellH - qrPx) / 2;
+    for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (qr.modules.data[r * size + c]) stream += `${qrX + (c + quiet) * qrUnit} ${H - qrTop - (r + quiet + 1) * qrUnit} ${qrUnit} ${qrUnit} re f\n`;
+    const textX = qrX + qrPx + 14;
+    const textTop = H - cellTop;
+    stream += `BT /F1 7 Tf ${textX} ${textTop - 13} Td (${pdfText("KIDDY LAND")}) Tj ET\nBT /F1 11 Tf ${textX} ${textTop - 28} Td (${pdfText(fitPdfText(row.packageName))}) Tj ET\nBT /F1 8 Tf ${textX} ${textTop - 43} Td (${pdfText(row.duration)}) Tj ET\nBT /F1 8 Tf ${textX} ${textTop - 55} Td (${pdfText(row.code)}) Tj ET\n`;
+    const cx = right - 37;
+    const cy = H - (cellTop + cellH / 2);
+    const radius = 11;
+    const k = radius * 0.5523;
+    stream += `0.55 G 0.8 w ${cx + radius} ${cy} m ${cx + radius} ${cy + k} ${cx + k} ${cy + radius} ${cx} ${cy + radius} c ${cx - k} ${cy + radius} ${cx - radius} ${cy + k} ${cx - radius} ${cy} c ${cx - radius} ${cy - k} ${cx - k} ${cy - radius} ${cx} ${cy - radius} c ${cx + k} ${cy - radius} ${cx + radius} ${cy - k} ${cx + radius} ${cy} c S\n`;
+    for (let ray = 0; ray < 8; ray++) { const angle = ray * Math.PI / 4; const dx = Math.cos(angle) * 18; const dy = Math.sin(angle) * 18; stream += `${cx + dx * 0.45} ${cy + dy * 0.45} m ${cx + dx} ${cy + dy} l S\n`; }
+    stream += "0 G 1 w\n";
+  });
+  return pdfDocument(stream, W, H);
+}
+function receiptMoney(amount: number, locale: "id" | "en") {
+  const value = new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { maximumFractionDigits: 0 }).format(amount);
+  return `${locale === "id" ? "Rp" : "IDR"} ${value}`;
+}
+function receiptPdf(sale: SaleRecord) {
+  const locale = sale.receipt.locale;
+  const copy = locale === "id"
+    ? { receipt: "STRUK", number: "Nomor", date: "Tanggal", payment: "Pembayaran", discount: "Diskon", subtotal: "Subtotal", total: "TOTAL", deposit: "Deposit ditahan", thanks: "Terima kasih sudah berkunjung" }
+    : { receipt: "RECEIPT", number: "No.", date: "Date", payment: "Payment", discount: "Discount", subtotal: "Subtotal", total: "TOTAL", deposit: "Deposit held", thanks: "Thank you for visiting" };
+  const payment = ({ cash: locale === "id" ? "Tunai" : "Cash", QRIS: "QRIS", "bank-transfer": locale === "id" ? "Transfer bank" : "Bank transfer" })[sale.paymentMethod];
+  const subtotal = sale.receipt.lines.reduce((sum, line) => line.kind === "ticket" ? sum + line.originalPrice : sum + line.unitPrice * line.quantity, 0);
+  const deposit = sale.receipt.lines.reduce((sum, line) => sum + (line.kind === "ticket" ? line.deposit : 0), 0);
+  const discount = Math.max(0, subtotal - (sale.total - deposit));
+  // group same ticket packages for compact receipt (same package, price, deposit, member)
+  const grouped: typeof sale.receipt.lines = [];
+  const ticketGroups = new Map<string, any>();
+  for (const line of sale.receipt.lines) {
+    if (line.kind === "product") {
+      grouped.push(line);
+    } else {
+      const key = `${line.packageName}|${line.originalPrice}|${line.price}|${line.deposit}|${line.memberId ?? ""}`;
+      const existing = ticketGroups.get(key);
+      if (existing) {
+        existing._count += 1;
+        existing.price += line.price;
+        existing.originalPrice += line.originalPrice;
+        existing.deposit += line.deposit;
+        existing.membershipDiscount += line.membershipDiscount;
+      } else {
+        ticketGroups.set(key, { ...line, _count: 1 });
+      }
+    }
+  }
+  for (const g of ticketGroups.values()) grouped.push(g);
+  const displayLines: any[] = grouped;
+  const itemHeight = displayLines.reduce((sum, line) => sum + (line.kind === "ticket" ? 29 + (line.membershipDiscount ? 10 : 0) + (line.deposit ? 10 : 0) : 29 + (line.discount ? 10 : 0)), 0);
+  const W = 227;
+  const H = 112 + itemHeight + (discount ? 24 : 12) + (deposit ? 16 : 0) + 30;
+  const padding = 16;
+  const right = W - padding;
+  let top = 18;
+  let stream = "";
+  const width = (value: string, size: number) => value.length * size * 0.52;
+  const text = (value: string, size: number, x = padding) => { stream += `BT /F1 ${size} Tf ${x} ${H - top - size} Td (${pdfText(value)}) Tj ET\n`; };
+  const centered = (value: string, size: number) => text(value, size, Math.max(padding, (W - width(value, size)) / 2));
+  const amount = (value: number) => receiptMoney(value, locale);
+  const rightText = (value: string, size: number) => text(value, size, Math.max(padding, right - width(value, size)));
+  const rule = () => { stream += `${padding} ${H - top} m ${right} ${H - top} l S\n`; top += 8; };
 
+  centered("KIDDY LAND", 16); top += 22;
+  centered(copy.receipt, 9); top += 16;
+  text(`${copy.number}: ${sale.receipt.number}`, 8); top += 11;
+  text(`${copy.date}: ${sale.operatingDate}`, 8); top += 11;
+  text(`${copy.payment}: ${payment}`, 8); top += 12;
+  rule();
+  displayLines.forEach((line) => {
+    const count = (line as any)._count ?? (line.kind === "product" ? line.quantity : 1);
+    const name = line.kind === "ticket" ? fitPdfText(count > 1 ? `${line.packageName} × ${count}` : line.packageName, 24) : fitPdfText(line.productName, 24);
+    const lineTotal = line.kind === "ticket" ? line.price : line.total;
+    text(name, 9);
+    rightText(amount(lineTotal), 9);
+    top += 12;
+    if (line.kind === "ticket") {
+      const unit = line.originalPrice / count;
+      text(count > 1 ? `${count} x ${amount(unit)}` : `1 x ${amount(line.originalPrice)}`, 7.5);
+      top += 10;
+      if (line.membershipDiscount) { text(`${copy.discount}: -${amount(line.membershipDiscount)}`, 7.5); top += 10; }
+      if (line.deposit) { text(`${copy.deposit}: ${amount(line.deposit)}`, 7.5); top += 10; }
+    } else {
+      text(`${line.quantity} x ${amount(line.unitPrice)}`, 7.5);
+      top += 10;
+      if (line.discount) { text(`${copy.discount}: -${amount(line.discount)}`, 7.5); top += 10; }
+    }
+    top += 5;
+  });
+  rule();
+  text(copy.subtotal, 8); rightText(amount(subtotal), 8); top += 12;
+  if (discount) { text(copy.discount, 8); rightText(`-${amount(discount)}`, 8); top += 12; }
+  text(copy.total, 11); rightText(amount(sale.total), 11); top += 16;
+  if (deposit) { text(copy.deposit, 7.5); rightText(amount(deposit), 7.5); top += 12; }
+  rule();
+  centered(copy.thanks, 8);
+  return pdfDocument(stream, W, H);
+}
 export function createSaleStore(calendar: CalendarStore, database?: LocalDatabase, inventory?: InventoryStore, membership?: MembershipStore) {
   const sales = new Map<string, SaleRecord>();
   const idempotency = new Map<string, SaleRecord>();
@@ -55,7 +196,8 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
     const ticketDiscounts = ticketLines.map((line, index) => { const found = memberFor(line.memberId); if (found && found.member.childId !== line.childId) throw new Error("Member does not belong to child"); return line.memberId ? Math.min(membership!.discount(line.memberId, "ticketPackages", line.packageId), snapshots[index]!.price) : 0; });
     const productSnapshots: ProductSnapshot[] = productLines.map((line) => { if (!inventory) throw new Error("Inventory unavailable"); const item = inventory.products.get(line.productId); if (!item || item.archived) throw new Error("Product unavailable"); if (!Number.isInteger(line.quantity) || line.quantity <= 0 || line.quantity > 24) throw new Error("Product quantity must be an integer from 1 to 24"); const configured = line.memberId && membership ? membership.discount(line.memberId, "products", line.productId) : 0; const discount = line.discount ?? 0; if (configured && discount) throw new Error("Membership discount cannot stack"); const membershipDiscount = Math.min(configured, item.price * line.quantity); if (!Number.isInteger(discount) || discount < 0 || discount > item.price * line.quantity) throw new Error("Invalid product discount"); return { productId: item.id, sku: item.sku, name: item.name, unitPrice: item.price, quantity: line.quantity, discount: discount + membershipDiscount, membershipDiscount, total: item.price * line.quantity - discount - membershipDiscount }; });
     if (input.paymentMethod !== "cash" && (ticketLines.some((line) => line.paymentConfirmed !== true) || productLines.some((line) => (line as ProductLineInput & { paymentConfirmed?: boolean }).paymentConfirmed !== true))) throw new Error("External payment requires manual confirmation");
-    const total = snapshots.reduce((sum, item, index) => sum + item.price - ticketDiscounts[index]!, 0) + productSnapshots.reduce((sum, item) => sum + item.total, 0);
+    const depositTotal = snapshots.reduce((sum, item) => sum + item.deposit, 0);
+    const total = snapshots.reduce((sum, item, index) => sum + item.price - ticketDiscounts[index]!, 0) + productSnapshots.reduce((sum, item) => sum + item.total, 0) + depositTotal;
     const saleId = id("sale");
     inventory?.reserveBatch(productLines.map((line) => ({ productId: line.productId, quantity: line.quantity, actorId: input.cashierId, exception: line.outOfStockException })));
     const tickets = ticketLines.map((line, index) => ({ id: id("ticket"), code: `T-${randomBytes(6).toString("hex").toUpperCase()}`, qrToken: opaque(), childId: line.childId, childName: line.childName, package: snapshots[index]!, status: "waiting" as const }));
@@ -73,6 +215,13 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
     return sale;
   }
   function complete(input: Parameters<typeof completeSale>[0]) { return database ? database.transaction(() => completeSale(input)) : completeSale(input); }
+  function list(filter?: { operatingDate?: string; limit?: number }) {
+    let result = [...sales.values()];
+    if (filter?.operatingDate) result = result.filter((sale) => sale.operatingDate === filter.operatingDate);
+    result.sort((a, b) => b.createdAt - a.createdAt);
+    if (filter?.limit) result = result.slice(0, filter.limit);
+    return result;
+  }
   function get(idValue: string) { return sales.get(idValue); }
   function voidSale(saleId: string, actorId: string, reason: string, at = Date.now()) { const sale = sales.get(saleId); if (!sale || sale.status !== "completed" || !reason.trim()) throw new Error("Sale cannot be voided"); const correction: SaleCorrection = { id: id("correction"), kind: "void", saleId, originalOperatingDate: sale.operatingDate, correctionDate: calendar.operatingDate(new Date(at)), actorId, reason, originalAmount: sale.total, correctedAmount: 0, at }; sale.status = "void"; sale.deposits.forEach((deposit) => { if (deposit.status === "held") { deposit.status = "refunded"; deposit.refundedAmount = deposit.amount; } }); sale.corrections ??= []; sale.corrections.push(correction); persist(); return correction; }
   function addCorrection(input: { saleId: string; lineId?: string; kind: "price-override" | "refund"; correctedAmount: number; actorId: string; reason: string; at?: number }) { const sale = sales.get(input.saleId); if (!sale || sale.status !== "completed" || !reasonValid(input.reason) || !Number.isInteger(input.correctedAmount) || input.correctedAmount < 0) throw new Error("Invalid correction"); if (!input.lineId) throw new Error("Correction line is required"); const line = sale.lines.find((item) => (item.kind === "product" ? item.lineId : item.ticketId) === input.lineId); if (!line) throw new Error("Correction line not found"); const originalAmount = line.kind === "product" ? line.total : line.price; const prior = (sale.corrections ?? []).filter((item) => item.lineId === input.lineId); if (prior.length || input.correctedAmount > originalAmount) throw new Error("Correction exceeds original line"); const at = input.at ?? Date.now(); const correction: SaleCorrection = { id: id("correction"), ...input, saleId: sale.id, originalOperatingDate: sale.operatingDate, correctionDate: calendar.operatingDate(new Date(at)), originalAmount, at }; sale.corrections ??= []; sale.corrections.push(correction); persist(); return correction; }
@@ -83,10 +232,10 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
   async function qr(saleId: string, ticketId: string) { const sale = sales.get(saleId); const ticket = sale?.tickets.find((candidate) => candidate.id === ticketId); if (!sale || !ticket || sale.status !== "completed") throw new Error("Ticket unavailable"); return { contentType: "image/png", filename: `${ticket.code}.png`, body: await QRCode.toBuffer(ticket.qrToken, { type: "png", margin: 1, width: 320 }) }; }
   function artifact(saleId: string, kind: "tickets" | "receipt") {
     const sale = sales.get(saleId); if (!sale || sale.status !== "completed") throw new Error("Sale unavailable");
-    if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: pdf("Receipt", [sale.receipt.number, ...sale.receipt.lines.map((line) => line.kind === "ticket" ? `${line.packageName} ${line.childId} IDR ${line.originalPrice}${line.membershipDiscount ? ` MEMBER DISCOUNT -${line.membershipDiscount}` : ""} FINAL IDR ${line.price} deposit IDR ${line.deposit}` : `${line.productName} ${line.sku} x${line.quantity} IDR ${line.unitPrice * line.quantity}${line.membershipDiscount ? ` MEMBER DISCOUNT -${line.membershipDiscount}` : ""} FINAL IDR ${line.total}`), `TOTAL IDR ${sale.total}`], 227, 500) };
-    return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: pdf("Tickets", sale.tickets.flatMap((ticket) => [`CHILD: ${ticket.childName ?? ticket.childId}`, `TICKET: ${ticket.code}`, `QR: ${ticket.qrToken}`, `PACKAGE: ${ticket.package.name}`, "--------------------"]), 612, Math.max(792, sale.tickets.length * 120)) };
+    if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: receiptPdf(sale) };
+    return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: qrPdf(sale.tickets.map((ticket) => ({ code: ticket.code, token: ticket.qrToken, packageName: ticket.package.name, duration: ticket.package.includedMinutes === null ? (sale.receipt.locale === "id" ? "Tanpa batas" : "Unlimited") : `${ticket.package.includedMinutes} ${sale.receipt.locale === "id" ? "menit" : "min"}` }))) };
   }
-  return { sales, printAttempts, complete, get, voidSale, addCorrection, recordPrintAttempt, artifact, qr, persist };
+  return { sales, printAttempts, complete, list, get, voidSale, addCorrection, recordPrintAttempt, artifact, qr, persist };
 }
 
 export type SaleStore = ReturnType<typeof createSaleStore>;

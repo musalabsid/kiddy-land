@@ -1,15 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { OwnerInventory } from "@workspace/ui/components/owner-inventory";
+import { InventoryDashboard } from "@workspace/ui/components/inventory-dashboard";
 import { RouteAccessGate } from "@workspace/ui/components/route-access-guard";
 
 export const Route = createFileRoute("/_authenticated/_shell/owner/inventory")({
-  component: OwnerInventoryPage,
+  component: InventoryPage,
 });
 
-function OwnerInventoryPage() {
+function InventoryPage() {
   return (
     <RouteAccessGate requireRole="Owner">
-      <OwnerInventory />
+      <InventoryDashboard />
     </RouteAccessGate>
   );
 }

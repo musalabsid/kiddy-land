@@ -20,7 +20,8 @@ export async function appBootstrapOwner(app: Hono, password = "change-me"): Prom
 
 /** Pair a fresh device with the given Owner session and return its token. */
 export async function appPairDevice(app: Hono, ownerToken: string, mode: string, kind = "private"): Promise<{ token: string; deviceId: string }> {
-  const invite = await appJson(app, "/pairing/invitations", { method: "POST", headers: { authorization: `Bearer ${ownerToken}` }, body: JSON.stringify({ origin: "http://local", kind, ...(kind === "private" ? { staff: { name: "Test Staff", role: "Cashier" } } : {}) }) });
+  const role = mode === "Scanner" || mode === "Inventory" || mode === "Entrance Scanner" || mode === "Exit Scanner" ? "Staff" : "Cashier";
+  const invite = await appJson(app, "/pairing/invitations", { method: "POST", headers: { authorization: `Bearer ${ownerToken}` }, body: JSON.stringify({ origin: "http://local", kind, ...(kind === "private" ? { staff: { name: "Test Staff", role } } : {}) }) });
   if (invite.status !== 201) throw new Error(`invite failed: ${invite.status} ${JSON.stringify(invite.body)}`);
   const paired = await appJson(app, "/pairing/redeem", { method: "POST", headers: { origin: "http://local" }, body: JSON.stringify({ token: invite.body.token, mode }) });
   if (paired.status !== 201) throw new Error(`redeem failed: ${paired.status} ${JSON.stringify(paired.body)}`);

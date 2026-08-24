@@ -42,7 +42,7 @@ export function MembershipDiscountSettings() {
     }
   });
 
-  return <Card>
+  return <><header className="mb-4"><p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">{t("membershipDiscount.pageEyebrow")}</p><h2 className="text-2xl font-semibold tracking-tight">{t("membershipDiscount.pageTitle")}</h2><p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t("membershipDiscount.pageDescription")}</p></header><Card>
     <CardHeader><CardTitle>{t("membership.discounts")}</CardTitle></CardHeader>
     <CardContent>
       <form className="grid gap-3" onSubmit={submit} noValidate>
@@ -62,5 +62,5 @@ export function MembershipDiscountSettings() {
         <Button type="submit" disabled={!isDirty || isSubmitting || save.isPending}>{t("membership.saveDiscounts")}</Button>
       </form>
     </CardContent>
-  </Card>;
+  </Card></>;
 }

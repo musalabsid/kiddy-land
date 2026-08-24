@@ -16,14 +16,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
-  SidebarTrigger,
+  SidebarTrigger
 } from "@workspace/ui/components/sidebar";
 import { useLocale, type MessageKey } from "@workspace/ui/lib/i18n";
 import { ConnectionBanner } from "@workspace/ui/components/connection-banner";
 import { useTheme } from "@workspace/ui/providers/theme-provider";
 import {
   BarChart3,
-  Boxes,
   CalendarDays,
   HardDrive,
   PackageCheck,
@@ -34,29 +33,28 @@ import {
   ScanLine,
   Settings2,
   ShoppingCart,
+  History,
   Tags,
   Users,
   Monitor,
   Moon,
-  Sun,
+  Sun
 } from "lucide-react";
 import type { ReactNode } from "react";
 
 const modeLabelKeys: Record<
   string,
   | "auth.modeCashier"
-  | "auth.modeEntrance"
-  | "auth.modeExit"
+  | "auth.modeScanner"
   | "auth.modeInventory"
   | "auth.modeKiosk"
   | "auth.modeOwner"
 > = {
   Cashier: "auth.modeCashier",
-  "Entrance Scanner": "auth.modeEntrance",
-  "Exit Scanner": "auth.modeExit",
+  Scanner: "auth.modeScanner",
   Inventory: "auth.modeInventory",
   "Public Kiosk": "auth.modeKiosk",
-  "Owner Dashboard": "auth.modeOwner",
+  "Owner Dashboard": "auth.modeOwner"
 };
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -67,15 +65,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const logout = useLogout();
   const { soundEnabled, setSoundEnabled } = useNotificationSound();
   const active = (path: string) => pathname === path;
-  const pageTitleKey: MessageKey = pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/members" ? "app.members" : pathname === "/inventory" ? "app.inventory" : pathname === "/scanner/entry" ? "app.entryScanner" : pathname === "/scanner/exit" ? "app.exitScanner" : pathname === "/kiosk" ? "app.kiosk" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/inventory" ? "app.ownerInventory" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : "host.title";
+  const pageTitleKey: MessageKey = pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/sales-history" ? "app.salesHistory" : pathname === "/members" ? "app.members" : pathname === "/inventory" || pathname === "/owner/inventory" ? "app.inventory" : pathname === "/scanner/entry" ? "app.entryScanner" : pathname === "/scanner/exit" ? "app.exitScanner" : pathname === "/kiosk" ? "app.kiosk" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : "host.title";
   if (!session) return null;
   const mode = session.device.mode;
   const isOwner = session.user?.role === "Owner";
   const showOperational =
     mode === "Cashier" ||
-    mode === "Inventory" ||
-    mode === "Entrance Scanner" ||
-    mode === "Exit Scanner" ||
+    mode === "Scanner" ||
     mode === "Public Kiosk";
   const showOverview =
     mode !== "Public Kiosk" &&
@@ -122,6 +118,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                       <SidebarMenuItem>
+                        <SidebarMenuButton render={<Link to="/sales-history" />} isActive={active("/sales-history")}>
+                          <History />
+                          {t("app.salesHistory")}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                      <SidebarMenuItem>
                         <SidebarMenuButton render={<Link to="/members" />} isActive={active("/members")}>
                           <Users />
                           {t("app.members")}
@@ -129,27 +131,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                       </SidebarMenuItem>
                     </>
                   )}
-                  {mode === "Inventory" && (
+
+                  {mode === "Scanner" && (
                     <SidebarMenuItem>
-                      <SidebarMenuButton render={<Link to="/inventory" />} isActive={active("/inventory")}>
-                        <PackageIcon />
-                        {t("app.inventory")}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )}
-                  {mode === "Entrance Scanner" && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton render={<Link to="/scanner/entry" />} isActive={active("/scanner/entry")}>
+                      <SidebarMenuButton render={<Link to="/scanner" />} isActive={active("/scanner")}>
                         <ScanLine />
-                        {t("app.entryScanner")}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )}
-                  {mode === "Exit Scanner" && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton render={<Link to="/scanner/exit" />} isActive={active("/scanner/exit")}>
-                        <ScanLine />
-                        {t("app.exitScanner")}
+                        {t("app.scanner")}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   )}
@@ -178,7 +165,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton render={<Link to="/owner/calendar" />} isActive={active("/owner/calendar")}>
-                      <CalendarDays />
+                      <CalendarDays className="size-5 text-primary" />
                       {t("app.calendar")}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -196,8 +183,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton render={<Link to="/owner/inventory" />} isActive={active("/owner/inventory")}>
-                      <Boxes />
-                      {t("app.ownerInventory")}
+                      <PackageIcon />
+                      {t("app.inventory")}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>

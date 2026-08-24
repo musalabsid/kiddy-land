@@ -41,6 +41,7 @@ export function createApp(
   backups?: BackupService,
   restorePrepared?: (id: string) => Promise<unknown>,
   setRecoveryBlocked?: (blocked: boolean, diagnostic?: string) => void,
+  dataDir?: string,
 ) {
   const app = new Hono();
 
@@ -74,6 +75,11 @@ export function createApp(
     const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
     if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
     return c.json(await backups?.backup("on-demand"), 201);
+  });
+  app.delete("/backups/:id", async (c) => {
+    const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+    if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+    try { return c.json(await backups?.deleteBackup(c.req.param("id"))); } catch (error) { return c.json({ error: error instanceof Error ? error.message : "Delete failed" }, 404); }
   });
   app.post("/backups/:id/restore/stage", async (c) => {
     const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
@@ -120,12 +126,12 @@ export function createApp(
     });
     app.post("/tickets/scan/entry", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
-      if (!current || current.device.mode !== "Entrance Scanner" || !identity?.can(current, "ticket:admit")) return c.json({ error: "Forbidden" }, 403);
+      if (!current || !identity?.can(current, "ticket:admit")) return c.json({ error: "Forbidden" }, 403);
       const result = lifecycle.admit((await c.req.json<{ code?: string }>()).code ?? ""); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "session" }); return c.json(result);
     });
     app.post("/tickets/scan/exit", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
-      if (!current || current.device.mode !== "Exit Scanner" || !identity?.can(current, "ticket:exit")) return c.json({ error: "Forbidden" }, 403);
+      if (!current || !identity?.can(current, "ticket:exit")) return c.json({ error: "Forbidden" }, 403);
       const result = lifecycle.exit((await c.req.json<{ code?: string }>()).code ?? ""); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "session" }); return c.json(result);
     });
     app.post("/tickets/close", async (c) => {
@@ -156,20 +162,56 @@ export function createApp(
     });
   }
 
+  const productImageDir = dataDir ? `${dataDir}/product-images` : undefined;
+  // ponytail: filesystem for product images, falls back to no-op if dataDir missing (tests)
+  async function saveProductImage(productId: string, file: File): Promise<string> {
+    if (!productImageDir) throw new Error("Image storage unavailable");
+    if (file.size > 5 * 1024 * 1024) throw new Error("Image must be <= 5MB");
+    if (!file.type.startsWith("image/")) throw new Error("Only image files allowed");
+    const { mkdir, writeFile, readdir, unlink } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+    await mkdir(productImageDir, { recursive: true });
+    const ext = file.type === "image/png" ? ".png" : file.type === "image/webp" ? ".webp" : file.type === "image/gif" ? ".gif" : ".jpg";
+    try { for (const f of await readdir(productImageDir)) if (f.startsWith(productId + ".")) await unlink(join(productImageDir, f)); } catch {}
+    await writeFile(join(productImageDir, productId + ext), Buffer.from(await file.arrayBuffer()));
+    return `/products/${productId}/image`;
+  }
+
   if (inventory) {
+    app.get("/products/:id/image", async (c) => {
+      const token = c.req.header("Authorization")?.replace(/^Bearer /, "") ?? c.req.query("access_token") ?? c.req.query("token") ?? "";
+      const current = identity?.authenticate(token);
+      if (!current || (!identity?.can(current, "read") && !identity?.can(current, "public:read"))) return c.json({ error: "Unauthorized — add Authorization: Bearer <token> or ?access_token=<token>" }, 401);
+      if (!productImageDir) return c.json({ error: "Image not found" }, 404);
+      const { readFile, readdir } = await import("node:fs/promises");
+      const { join } = await import("node:path");
+      try { for (const f of await readdir(productImageDir)) if (f.startsWith(c.req.param("id") + ".")) { const buf = await readFile(join(productImageDir, f)); const ct = f.endsWith(".png") ? "image/png" : f.endsWith(".webp") ? "image/webp" : f.endsWith(".gif") ? "image/gif" : "image/jpeg"; return new Response(buf, { headers: { "Content-Type": ct, "Cache-Control": "public, max-age=3600" } }); } } catch {}
+      return c.json({ error: "Image not found" }, 404);
+    });
+    app.post("/products/:id/image", async (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      try { const body = await c.req.parseBody(); const file = body["image"] as File | undefined; if (!(file instanceof File)) return c.json({ error: "image file required" }, 400); const url = await saveProductImage(c.req.param("id"), file); const item = (inventory as any).setImage(c.req.param("id"), url); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(item); } catch (e) { return c.json({ error: e instanceof Error ? e.message : "Image upload failed" }, 400); }
+    });
+    app.delete("/products/:id/image", async (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      try { if (productImageDir) { const { readdir, unlink } = await import("node:fs/promises"); const { join } = await import("node:path"); try { for (const f of await readdir(productImageDir)) if (f.startsWith(c.req.param("id") + ".")) await unlink(join(productImageDir, f)); } catch {} } const item = (inventory as any).setImage(c.req.param("id"), undefined); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(item); } catch { return c.json({ error: "Image cannot be removed" }, 400); }
+    });
     app.get("/public/products", (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.device.mode !== "Public Kiosk" || !identity?.can(current, "public:read")) return c.json({ error: "Forbidden" }, 403);
-      return c.json(inventory.list(c.req.query("search"), false).map(({ id, sku, name, price, barcode }) => ({ id, sku, name, price, barcode })));
+      return c.json(inventory.list(c.req.query("search"), false, 100).map(({ id, sku, name, price, barcode, imageUrl }) => ({ id, sku, name, price, barcode, imageUrl })));
+
     });
-    app.get("/products", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.list(c.req.query("search"), current.user?.role === "Owner")); });
+    app.get("/products", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.list(c.req.query("search"), current.user?.role === "Owner", c.req.query("search") ? undefined : 10)); });
     app.get("/products/:id", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); const item = inventory.products.get(c.req.param("id")); return item ? c.json(item) : c.json({ error: "Product not found" }, 404); });
     app.post("/products", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { const result = inventory.create(await c.req.json(), current.user.id); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(result, 201); } catch { return c.json({ error: "Product cannot be created" }, 409); } });
     app.patch("/products/:id", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { const result = inventory.update(c.req.param("id"), await c.req.json()); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(result); } catch { return c.json({ error: "Product cannot be updated" }, 409); } });
     app.post("/products/:id/archive", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { const result = inventory.archive(c.req.param("id")); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(result); } catch { return c.json({ error: "Product cannot be archived" }, 409); } });
     app.post("/products/:id/reactivate", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { const result = inventory.reactivate(c.req.param("id")); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(result); } catch { return c.json({ error: "Product cannot be reactivated" }, 409); } });
     app.post("/inventory/intake", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "inventory:write")) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ productId: string; quantity: number; reason: string }>(); const result = inventory.intake(body.productId, body.quantity, current.user?.id ?? "inventory", body.reason); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(result); } catch { return c.json({ error: "Stock intake cannot be recorded" }, 409); } });
-    app.post("/inventory/counts", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "inventory:write")) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ productId: string; counted: number }>(); const result = inventory.submitCount(body.productId, body.counted, current.user?.id ?? "inventory"); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(result, 201); } catch { return c.json({ error: "Stock count cannot be submitted" }, 409); } });
+    app.post("/inventory/counts", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "inventory:write")) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ productId: string; counted: number }>(); const result = inventory.submitCount(body.productId, body.counted, current.user?.id ?? "inventory"); if (current.user?.role === "Owner") { try { const approved = inventory.approveCount(result.id, current.user.id); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(approved, 201); } catch {} } if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(result, 201); } catch { return c.json({ error: "Stock count cannot be submitted" }, 409); } });
     app.post("/inventory/counts/:id/approve", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { const result = inventory.approveCount(c.req.param("id"), current.user.id); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "inventory" }); return c.json(result); } catch { return c.json({ error: "Stock count cannot be approved" }, 409); } });
     app.get("/inventory/movements", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.movements); });
     app.get("/inventory/low-stock", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); return c.json(inventory.list(undefined, false).filter((item) => item.stock <= item.lowStockThreshold)); });
@@ -182,7 +224,7 @@ export function createApp(
     app.get("/members", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Forbidden" }, 403); return c.json(membership.list()); });
     app.get("/members/:code", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401); const found = membership.findByCode(c.req.param("code")); return found ? c.json(found) : c.json({ error: "Member not found" }, 404); });
     app.post("/members", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.device.mode !== "Cashier" || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403); try { const result = membership.register(await c.req.json(), current.user?.id ?? "cashier"); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "membership" }); return c.json(result, 201); } catch { return c.json({ error: "Member cannot be registered" }, 409); } });
-    app.post("/members/:id/reissue", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !((current.device.mode === "Cashier" && identity?.can(current, "write")) || (current.user?.role === "Owner" && identity?.can(current, "admin")))) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ reason: string }>(); const result = membership.reissue(c.req.param("id"), body.reason, current.user?.id ?? "owner"); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "membership" }); return c.json(result); } catch { return c.json({ error: "Member code cannot be reissued" }, 409); } });
+    app.post("/members/:id/reissue", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || !((current.device.mode === "Cashier" && identity?.can(current, "write")) || (current.user?.role === "Owner" && identity?.can(current, "admin")))) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ reason: string }>(); const result = membership.reissue(c.req.param("id"), body.reason, current.user?.id ?? "owner"); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "membership" }); return c.json(result); } catch (error) { return c.json({ error: error instanceof Error ? error.message : "Member code cannot be reissued" }, 409); } });
     for (const [action, status] of [["deactivate", "deactivated"], ["reactivate", "active"]] as const) app.post(`/members/:id/${action}`, async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ reason: string }>(); const result = membership.setStatus(c.req.param("id"), status, body.reason, current.user.id); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "membership" }); return c.json(result); } catch { return c.json({ error: "Member status cannot be changed" }, 409); } });
     app.get("/members/:id/history", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); const allowed = current && identity?.can(current, "read") && (current.device.mode === "Cashier" || current.user?.role === "Owner"); if (!allowed) return c.json({ error: "Forbidden" }, 403); return c.json(membership.history(c.req.param("id"))); });
     app.get("/membership/events", (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "read")) return c.json({ error: "Forbidden" }, 403); return c.json(membership.state.events); });
@@ -194,10 +236,19 @@ export function createApp(
     app.post("/sales", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || current.device.mode !== "Cashier" || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
-      try { const body = await c.req.json(); const lines = Array.isArray(body.lines) ? body.lines : []; if (lines.some((line: { outOfStockException?: unknown }) => line.outOfStockException) && current.user?.role !== "Owner") return c.json({ error: "Owner authorization required for out-of-stock exception" }, 403); const at = Date.now(); const result = sales.complete({ ...body, operatingDate: calendar?.operatingDate(new Date(at)) ?? body.operatingDate, cashierId: current.user?.id ?? "cashier", at }); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "sale" }); return c.json(result, 201); } catch { return c.json({ error: "Sale cannot be completed" }, 409); }
+      try { const body = await c.req.json(); const lines = Array.isArray(body.lines) ? body.lines : []; if (lines.some((line: { outOfStockException?: unknown }) => line.outOfStockException) && current.user?.role !== "Owner") return c.json({ error: "Owner authorization required for out-of-stock exception" }, 403); const at = Date.now(); const result = sales.complete({ ...body, operatingDate: calendar?.operatingDate(new Date(at)) ?? body.operatingDate, cashierId: current.user?.id ?? "cashier", at }); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "sale" }); return c.json(result, 201); } catch (error) { return c.json({ error: error instanceof Error ? error.message : "Sale cannot be completed" }, 409); }
     });
     app.post("/sales/:id/void", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ reason: string }>(); const result = sales.voidSale(c.req.param("id"), current.user.id, body.reason); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "correction" }); return c.json(result, 201); } catch { return c.json({ error: "Sale cannot be voided" }, 409); } });
     app.post("/sales/:id/corrections", async (c) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403); try { const body = await c.req.json<{ lineId?: string; kind: "price-override" | "refund"; correctedAmount: number; reason: string }>(); const result = sales.addCorrection({ ...body, saleId: c.req.param("id"), actorId: current.user.id }); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "correction" }); return c.json(result, 201); } catch { return c.json({ error: "Correction cannot be recorded" }, 409); } });
+    app.get("/sales", (c) => {
+      const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401);
+      const operatingDate = c.req.query("operatingDate");
+      const limitRaw = c.req.query("limit");
+      const limit = limitRaw ? Math.min(Math.max(parseInt(limitRaw, 10) || 50, 1), 100) : 50;
+      const result = sales.list({ operatingDate, limit });
+      return c.json(result);
+    });
     app.get("/sales/:id", (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401);
@@ -364,7 +415,11 @@ export function createApp(
       const body = await c.req.json<{ token?: string; mode?: DeviceMode }>();
       if (!body.token || !body.mode) return c.json({ error: "token and mode are required" }, 400);
       try { return c.json(identity.pair(body.token, body.mode, c.req.header("Origin")), 201); }
-      catch { return c.json({ error: "Enrollment invitation is invalid or expired" }, 409); }
+      catch (e) {
+        const msg = e instanceof Error ? e.message : "";
+        if (msg.startsWith("Role ")) return c.json({ error: msg }, 400);
+        return c.json({ error: "Enrollment invitation is invalid or expired" }, 409);
+      }
     });
     app.post("/auth/owner-login", async (c) => {
       if (!rateLimit(c, 5, 60_000)) return c.json({ error: "Too many attempts; try again later" }, 429);
@@ -378,7 +433,11 @@ export function createApp(
       const body = await c.req.json<{ deviceId?: string; username?: string; password?: string }>();
       if (!body.deviceId || !body.username || !body.password) return c.json({ error: "deviceId, username and password are required" }, 400);
       try { return c.json(identity.login(body.deviceId, body.username, body.password)); }
-      catch { return c.json({ error: "Invalid credentials" }, 401); }
+      catch (e) {
+        const msg = e instanceof Error ? e.message : "";
+        if (msg.startsWith("Role ")) return c.json({ error: msg }, 403);
+        return c.json({ error: "Invalid credentials" }, 401);
+      }
     });
     app.get("/auth/session", (c) => {
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
@@ -396,6 +455,11 @@ export function createApp(
       const body = await c.req.json<{ timezone?: string; day?: import("./calendar.ts").Weekday; hours?: import("./calendar.ts").DailyHours; override?: import("./calendar.ts").ScheduleOverride; package?: Parameters<CalendarStore["upsertPackage"]>[0] }>();
       try { calendar.configure(body, current.user.id); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "calendar" }); return c.json({ ok: true }); }
       catch { return c.json({ error: "Invalid calendar configuration" }, 400); }
+    });
+    app.delete("/calendar/overrides/:date", (c) => {
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!calendar || !current || current.user?.role !== "Owner" || !identity.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+      return calendar.deleteOverride(c.req.param("date"), current.user.id) ? c.json({ ok: true }) : c.json({ error: "Override not found" }, 404);
     });
     app.delete("/calendar/packages/:id", (c) => {
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));

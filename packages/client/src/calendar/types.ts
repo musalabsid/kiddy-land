@@ -14,6 +14,8 @@ export type TicketPackage = {
   weekendPrice: number;
   overridePrices: Record<string, number>;
   overtimeRate: number;
+  overtimeThreshold: number;
+  overtimePercentage: number;
   deposit: number;
   depositPolicy: DepositPolicy;
   active: boolean;

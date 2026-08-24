@@ -31,5 +31,5 @@ type CashierDraftActions = {
 export const useCashierDraftStore = create<CashierDraft & CashierDraftActions>((set) => ({
   ...initial,
   set: (draft) => set(draft),
-  reset: () => set({ ...initial, products: {} }),
+  reset: () => set({ ...initial, products: {}, member: undefined, product: undefined }),
 }));

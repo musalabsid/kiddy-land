@@ -50,7 +50,7 @@ describe("venue calendar and ticket packages", () => {
   test("validates unlimited packages and operating boundaries", () => {
     expect(() => calendarForValidation().upsertPackage({ name: "Bad", includedMinutes: 60, weekdayPrice: 1, weekendPrice: 1, overridePrices: { "2024-01-01": -1 }, overtimeRate: 0, deposit: 0, depositPolicy: "return-remainder" }, "owner")).toThrow();
     const calendar = createCalendarStore();
-    expect(() => calendar.upsertPackage({ name: "Unlimited", includedMinutes: 60, weekdayPrice: 1, weekendPrice: 1, overridePrices: {}, overtimeRate: 0, deposit: 0, depositPolicy: "unlimited-cap" }, "owner")).toThrow();
+    expect(calendar.upsertPackage({ name: "Gradual", includedMinutes: 60, weekdayPrice: 1, weekendPrice: 1, overridePrices: {}, overtimeRate: 0, overtimeThreshold: 5, overtimePercentage: 10, deposit: 0, depositPolicy: "unlimited-cap" }, "owner").depositPolicy).toBe("unlimited-cap");
     calendar.setWeeklyHours("monday", { open: "10:00", close: "20:00" }, "owner");
     expect(calendar.canOperate("2024-01-01", "20:00").allowed).toBe(false);
   });

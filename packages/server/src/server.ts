@@ -117,16 +117,40 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const membership = options.membership ?? createMembershipStore(database);
   const sales = options.sales ?? createSaleStore(calendar, database, inventory, membership);
   const lifecycle = options.lifecycle ?? createLifecycleStore(sales, calendar, database);
-  const reports = options.reports ?? createReportService(calendar, sales, lifecycle, inventory, membership);
+  const reports = options.reports ?? createReportService(calendar, sales, lifecycle, inventory, membership, identity);
   const notifications = options.notifications ?? createNotificationService(identity, registry, lifecycle, inventory);
   const backups = options.backups ?? createBackupService(database, `${options.dataDir}/backups`, schemaVersion);
   const notificationTimer = setInterval(() => notifications.check(), 30_000);
+  const backupTimer = setInterval(() => { void backups.backup("auto-daily").catch(() => {}); }, 24 * 60 * 60 * 1000);
+  const autoCloseTimer = setInterval(() => {
+    try {
+      const now = new Date();
+      for (const offset of [0, -1]) {
+        const d = new Date(now);
+        d.setDate(d.getDate() + offset);
+        const date = calendar.operatingDate(d);
+        const time = calendar.operatingTime(now);
+        const schedule = calendar.effectiveSchedule(date);
+        if ("closed" in schedule.hours) continue;
+        const closeMin = Number(schedule.hours.close.slice(0, 2)) * 60 + Number(schedule.hours.close.slice(3));
+        const nowMin = Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+        const graceEnd = closeMin + 60;
+        // only auto-close after grace, and only if now is after grace ( handles midnight wrap)
+        const shouldClose = offset === 0 ? nowMin >= graceEnd : true;
+        if (!shouldClose) continue;
+        const hasTickets = [...sales.sales.values()].some((sale) => sale.operatingDate === date && sale.tickets.some((t) => t.status === "waiting" || t.status === "active"));
+        if (!hasTickets) continue;
+        const result = lifecycle.close(date, Date.now());
+        if (result.length) console.log(`[auto-close] ${date} settled ${result.length} tickets after grace`);
+      }
+    } catch {}
+  }, 60_000);
   const backupLoaded = backups.load();
   const replacePrepared = (id: string) => backups.replacePrepared(id);
   const restorePrepared = options.restorePrepared ?? (async () => { throw new Error("Restore requires the Host Runtime restart coordinator"); });
   const setRecoveryBlocked = (blocked: boolean, reason?: string) => { writeBlocked = blocked; diagnostic = reason; if (blocked) status = "unhealthy"; else if (databaseStatus === "ready") status = "ready"; };
   const getLanIp = () => detectLanIpv4();
-  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry, httpsUrl: () => httpsPort && tlsMaterial ? `https://${host}:${httpsPort}` : undefined, lanIp: getLanIp }, calendar, sales, lifecycle, inventory, membership, reports, notifications, backups, restorePrepared, setRecoveryBlocked);
+  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry, httpsUrl: () => httpsPort && tlsMaterial ? `https://${host}:${httpsPort}` : undefined, lanIp: getLanIp }, calendar, sales, lifecycle, inventory, membership, reports, notifications, backups, restorePrepared, setRecoveryBlocked, options.dataDir);
   publishReportEvent(registry, { type: "report-changed", source: "server-ready" });
   const websocketServer = new WebSocketServer({ noServer: true });
 
@@ -139,7 +163,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
         // Vite's SPA routes (/sales, /inventory, …) are client-side routes.
         // Serve index.html on an otherwise-unmatched GET so browser refreshes
         // do not become server 404s. Real API responses keep their status.
-        const isKnownGetApiPath = /^(\/ready|\/health|\/auth\/(bootstrap-status|session|capability\/[^/]+)|\/pairing\/devices|\/products(?:\/[^/]+)?|\/inventory\/(movements|low-stock|exceptions|counts)|\/members(?:\/[^/]+)?|\/membership\/(events|discounts)|\/calendar\/(config|schedule|packages\/[^/]+\/snapshot)|\/notifications\/(settings|routes)|\/reports\/(financial|playground|inventory|membership|live)|\/backups)$/.test(url.pathname);
+        const isKnownGetApiPath = /^(\/ready|\/health|\/auth\/(bootstrap-status|session|capability\/[^/]+)|\/pairing\/devices|\/products(?:\/[^/]+(?:\/image)?)?|\/inventory\/(movements|low-stock|exceptions|counts)|\/members(?:\/[^/]+)?|\/membership\/(events|discounts)|\/calendar\/(config|schedule|packages\/[^/]+\/snapshot)|\/notifications\/(settings|routes)|\/reports\/(financial|playground|inventory|membership|live)|\/backups)$/.test(url.pathname);
         if (request.method === "GET" && apiResponse.status === 404 && !isKnownGetApiPath && !url.pathname.includes(".")) {
           return (await serveStaticFromDist("/", options.webDist!)) ?? apiResponse;
         }

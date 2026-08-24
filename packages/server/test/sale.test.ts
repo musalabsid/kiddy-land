@@ -36,7 +36,11 @@ describe("cashier ticket sale", () => {
   test("artifacts and print attempts are separate from completion", () => {
     const { store, pkg } = fixture();
     const sale = store.complete({ idempotencyKey: "print", cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "bank-transfer", lines: [{ childId: "child", packageId: pkg.id, paymentConfirmed: true }] });
-    expect(store.artifact(sale.id, "tickets").body.startsWith("%PDF")).toBe(true);
+    const ticketPdf = store.artifact(sale.id, "tickets").body;
+    expect(ticketPdf.startsWith("%PDF")).toBe(true);
+    expect(ticketPdf).toContain("/MediaBox [0 0 595 842]");
+    expect(ticketPdf).toContain("KIDDY LAND");
+    expect(ticketPdf).toContain("90 menit");
     expect(store.artifact(sale.id, "receipt").filename).toContain("R-");
     store.recordPrintAttempt({ saleId: sale.id, artifact: "tickets", actorId: "cashier", status: "unknown" });
     expect(store.get(sale.id)?.tickets).toHaveLength(1);

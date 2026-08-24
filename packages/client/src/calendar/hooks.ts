@@ -23,6 +23,17 @@ export function useConfigureCalendar() {
   return useMutation({ mutationFn: (input: CalendarConfigureInput) => client.post<{ ok: true }>("/calendar/configure", input), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.calendarConfig }); } });
 }
 
+export function useDeleteCalendarOverride() {
+  const client = useClient();
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: (date: string) => client.request<{ ok: true }>(`/calendar/overrides/${encodeURIComponent(date)}`, { method: "DELETE" }), onSuccess: () => { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.calendarConfig }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.calendarSchedule }); } });
+}
+
+export function useCloseVenue() {
+  const client = useClient();
+  return useMutation({ mutationFn: (date: string) => client.post<{ closed: number; expired: number }>(`/tickets/close`, { date }) });
+}
+
 export function useDeleteTicketPackage() {
   const client = useClient();
   const queryClient = useQueryClient();

@@ -7,7 +7,7 @@ describe("ticket and play session lifecycle", () => {
   function fixture(includedMinutes = 60, depositPolicy: "return-remainder" | "forfeit-overtime" | "unlimited-cap" = "return-remainder") {
     const calendar = createCalendarStore();
     calendar.setWeeklyHours("monday", { open: "10:00", close: "20:00" }, "owner");
-    const pkg = calendar.upsertPackage({ name: "Play", includedMinutes, weekdayPrice: 50000, weekendPrice: 70000, overridePrices: {}, overtimeRate: 1000, deposit: 20000, depositPolicy }, "owner");
+    const pkg = calendar.upsertPackage({ name: "Play", includedMinutes, weekdayPrice: 50000, weekendPrice: 70000, overridePrices: {}, overtimeRate: 1000, overtimeThreshold: 0, overtimePercentage: 10, deposit: 20000, depositPolicy }, "owner");
     const sales = createSaleStore(calendar);
     const sale = sales.complete({ idempotencyKey: crypto.randomUUID(), cashierId: "cashier", operatingDate: "2024-01-01", paymentMethod: "cash", lines: [{ childId: "child-1", packageId: pkg.id }] });
     return { lifecycle: createLifecycleStore(sales, calendar), ticket: sale.tickets[0]! };

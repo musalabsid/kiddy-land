@@ -35,7 +35,7 @@ export function createBackupService(database: LocalDatabase, destination: string
       const record: BackupRecord = { id, createdAt, appVersion, schemaVersion, sizeBytes: 0, destination: path, status: "failed", error: error instanceof Error ? error.message : String(error) }; records = [record, ...records]; await save(); return record;
     }
   }
-  async function prune(keep = 7) {
+  async function prune(keep = 10) {
     const good = records.filter((item) => item.status === "verified" && item.id !== staged?.id);
     for (const item of good.slice(keep)) { try { await rm(item.destination, { force: true }); } catch {} }
     records = records.filter((item) => item.status !== "verified" || item.id === staged?.id || good.indexOf(item) < keep); await save();
@@ -69,6 +69,15 @@ export function createBackupService(database: LocalDatabase, destination: string
       await rm(rollback, { force: true }); staged = undefined; return selected;
     } catch (error) { await rm(temporary, { force: true }); throw error; }
   }
-  return { load, health, backup, prepareRestore, replacePrepared, prune, records: () => records, verify, staged: () => staged };
+  async function deleteBackup(id: string) {
+    const idx = records.findIndex((r) => r.id === id);
+    if (idx === -1) throw new Error("Backup not found");
+    if (staged?.id === id) throw new Error("Cannot delete staged backup");
+    const [removed] = records.splice(idx, 1) as [BackupRecord];
+    try { await rm(removed.destination, { force: true }); } catch {}
+    await save();
+    return removed;
+  }
+  return { load, health, backup, prepareRestore, replacePrepared, prune, deleteBackup, records: () => records, verify, staged: () => staged };
 }
 export type BackupService = ReturnType<typeof createBackupService>;

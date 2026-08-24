@@ -49,8 +49,8 @@ export function useSession() { return useAuthStore(); }
 export { ApiClient, ClientError } from "./api/client";
 export { AuthService } from "./auth/service";
 export { useLoginMutation, useOwnerLoginMutation, usePairingMutation, useSessionQuery, useDevicesQuery, useInvitationMutation, useRevokeDeviceMutation, useDeleteDeviceMutation, useBootstrapStatusQuery, useBootstrapMutation, useLogout } from "./query/hooks";
-export { useCalendarConfig, useConfigureCalendar, useDeleteTicketPackage, useSchedule, usePackageSnapshot } from "./calendar/hooks";
-export { useCompleteSale, usePrintAttempt, useSale, useSaleArtifact, saleArtifactUrl, saleQrUrl } from "./sales/hooks";
+export { useCalendarConfig, useConfigureCalendar, useDeleteCalendarOverride, useDeleteTicketPackage, useSchedule, usePackageSnapshot } from "./calendar/hooks";
+export { useCompleteSale, usePrintAttempt, useSale, useSales, useSaleArtifact, saleArtifactUrl, saleQrUrl } from "./sales/hooks";
 export { useCashierDraftStore } from "./sales/store";
 export { useTicketScan, useTicketRecovery, useCollectCharge } from "./lifecycle/hooks";
 export * from "./inventory/hooks";
@@ -58,5 +58,6 @@ export * from "./kiosk";
 export * from "./members/hooks";
 export * from "./reports/hooks";
 export type * from "./calendar/types";
+export * from "./calendar/hooks";
 export { formatDate, formatIdr } from "@kiddy-land/localization";
 export type * from "./api/types";

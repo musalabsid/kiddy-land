@@ -15,13 +15,13 @@ import {
 import { BackupDashboard } from "@workspace/ui/components/backup-dashboard";
 import { CalendarSettings } from "@workspace/ui/components/calendar-settings";
 import { CashierSale } from "@workspace/ui/components/cashier-sale";
+import { CashierTodaySales } from "@workspace/ui/components/cashier-today-sales";
 import { DeviceManagement } from "@workspace/ui/components/device-management";
 import { HostOverviewPage } from "@workspace/ui/components/host-overview-page";
 import { InventoryDashboard } from "@workspace/ui/components/inventory-dashboard";
 import { MembershipDashboard } from "@workspace/ui/components/membership-dashboard";
 import { MemberCardPrint } from "@workspace/ui/components/member-card-print";
 import { MembershipDiscountSettings } from "@workspace/ui/components/membership-discount-settings";
-import { OwnerInventory } from "@workspace/ui/components/owner-inventory";
 import { ProductCatalog } from "@workspace/ui/components/product-catalog";
 import { PublicKiosk } from "@workspace/ui/components/public-kiosk";
 import { ReportsDashboard } from "@workspace/ui/components/reports-dashboard";
@@ -40,7 +40,12 @@ const origin =
   import.meta.env.VITE_LOCAL_SERVER_ORIGIN ?? "http://127.0.0.1:43117";
 const source = createHttpHostSource(origin);
 const stop = async () => {
-  await invoke("stop_host");
+  console.log("[DEBUG-host] invoke stop_host");
+  try { await invoke("stop_host"); console.log("[DEBUG-host] stop_host ok"); } catch(e){ console.log("[DEBUG-host] stop_host failed", e); throw e; }
+};
+const start = async () => {
+  console.log("[DEBUG-host] invoke start_host");
+  try { await invoke("start_host"); console.log("[DEBUG-host] start_host ok"); } catch(e){ console.log("[DEBUG-host] start_host failed", e); throw e; }
 };
 
 const rootRoute = createRootRoute({
@@ -98,7 +103,7 @@ const indexRoute = createRoute({
   path: "/",
   component: () => (
     <RouteAccessGate requireRole="Owner">
-      <HostOverviewPage source={source} origin={origin} onStop={stop} />
+      <HostOverviewPage source={source} origin={origin} onStop={stop} onStart={start} />
     </RouteAccessGate>
   ),
 });
@@ -109,6 +114,16 @@ const salesRoute = createRoute({
   component: () => (
     <RouteAccessGate requireMode="Cashier">
       <CashierSale />
+    </RouteAccessGate>
+  ),
+});
+
+const salesHistoryRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/sales-history",
+  component: () => (
+    <RouteAccessGate requireMode="Cashier">
+      <CashierTodaySales />
     </RouteAccessGate>
   ),
 });
@@ -126,11 +141,11 @@ const membersRoute = createRoute({
 const inventoryRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/inventory",
-  component: () => (
-    <RouteAccessGate requireMode="Inventory">
-      <InventoryDashboard />
-    </RouteAccessGate>
-  ),
+  component: () => {
+    const navigate = useNavigate();
+    useEffect(() => { void navigate({ to: "/owner/inventory" }); }, [navigate]);
+    return null;
+  },
 });
 
 const scannerEntryRoute = createRoute({
@@ -179,6 +194,16 @@ const ownerCalendarRoute = createRoute({
   ),
 });
 
+const ownerInventoryRedirectRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/owner/inventory",
+  component: () => (
+    <RouteAccessGate requireRole="Owner">
+      <InventoryDashboard />
+    </RouteAccessGate>
+  ),
+});
+
 const ownerCatalogRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/owner/catalog",
@@ -189,22 +214,16 @@ const ownerCatalogRoute = createRoute({
   ),
 });
 
-const ownerInventoryRoute = createRoute({
-  getParentRoute: () => shellRoute,
-  path: "/owner/inventory",
-  component: () => (
-    <RouteAccessGate requireRole="Owner">
-      <OwnerInventory />
-    </RouteAccessGate>
-  ),
-});
+
 
 const ownerMembershipsRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/owner/memberships",
   component: () => (
     <RouteAccessGate requireRole="Owner">
-      <MembershipDashboard />
+      <div className="w-full max-w-6xl px-5 py-8 sm:px-8">
+        <MembershipDashboard />
+      </div>
     </RouteAccessGate>
   ),
 });
@@ -214,7 +233,9 @@ const ownerMembershipDiscountsRoute = createRoute({
   path: "/owner/membership-discounts",
   component: () => (
     <RouteAccessGate requireRole="Owner">
-      <MembershipDiscountSettings />
+      <div className="w-full max-w-6xl px-5 py-8 sm:px-8">
+        <MembershipDiscountSettings />
+      </div>
     </RouteAccessGate>
   ),
 });
@@ -287,6 +308,7 @@ export const routeTree = rootRoute.addChildren([
     shellRoute.addChildren([
       indexRoute,
       salesRoute,
+      salesHistoryRoute,
       membersRoute,
       inventoryRoute,
       scannerEntryRoute,
@@ -294,8 +316,8 @@ export const routeTree = rootRoute.addChildren([
       ownerDevicesRoute,
       ownerCalendarRoute,
       ownerPackagesRoute,
+      ownerInventoryRedirectRoute,
       ownerCatalogRoute,
-      ownerInventoryRoute,
       ownerMembershipsRoute,
       ownerMembershipDiscountsRoute,
       ownerReportsRoute,

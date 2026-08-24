@@ -3,14 +3,14 @@ import type { LocalDatabase } from "./database.ts";
 
 export const ROLES = ["Owner", "Cashier", "Staff"] as const;
 export type Role = (typeof ROLES)[number];
-export const DEVICE_MODES = ["Cashier", "Entrance Scanner", "Exit Scanner", "Inventory", "Public Kiosk", "Owner Dashboard"] as const;
+export const DEVICE_MODES = ["Cashier", "Scanner", "Inventory", "Public Kiosk", "Owner Dashboard"] as const;
 export type DeviceMode = (typeof DEVICE_MODES)[number];
 export type PairingKind = "private" | "public-kiosk";
 
-export type StaffUser = { id: string; username: string; role: Role; passwordHash: string };
-export type PairedDevice = { id: string; mode: DeviceMode; kind: PairingKind; revokedAt?: number; createdAt: number };
+export type StaffUser = { id: string; username: string; role: Role; passwordHash: string; displayName?: string };
+export type PairedDevice = { id: string; mode: DeviceMode; kind: PairingKind; revokedAt?: number; createdAt: number; employeeName?: string };
 export type Session = { token: string; deviceId: string; userId?: string; createdAt: number; expiresAt: number };
-export type Enrollment = { token: string; origin: string; kind: PairingKind; expiresAt: number; usedAt?: number; staff?: { username: string; role: Role } };
+export type Enrollment = { token: string; origin: string; kind: PairingKind; expiresAt: number; usedAt?: number; staff?: { username: string; role: Role; name: string } };
 export type StaffInvite = { name: string; role: Role };
 export type IdentityEvents = { deviceRevoked: (deviceId: string) => void };
 
@@ -52,17 +52,24 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
   const users = new Map<string, StaffUser>();
   const devices = new Map<string, PairedDevice>();
   const database = initial?.database;
-  const persistUser = (user: StaffUser) => database?.db.run("INSERT INTO staff_users(id, username, role, password_hash, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET username=excluded.username, role=excluded.role, password_hash=excluded.password_hash", [user.id, user.username, user.role, user.passwordHash, Date.now()]);
-  const persistDevice = (device: PairedDevice) => database?.db.run("INSERT INTO paired_devices(id, mode, kind, revoked_at, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET mode=excluded.mode, kind=excluded.kind, revoked_at=excluded.revoked_at", [device.id, device.mode, device.kind, device.revokedAt ?? null, device.createdAt]);
+  const persistUser = (user: StaffUser) => database?.db.run("INSERT INTO staff_users(id, username, role, password_hash, created_at, display_name) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET username=excluded.username, role=excluded.role, password_hash=excluded.password_hash, display_name=excluded.display_name", [user.id, user.username, user.role, user.passwordHash, Date.now(), user.displayName ?? null]);
+  const persistDevice = (device: PairedDevice) => database?.db.run("INSERT INTO paired_devices(id, mode, kind, revoked_at, created_at, employee_name) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET mode=excluded.mode, kind=excluded.kind, revoked_at=excluded.revoked_at, employee_name=excluded.employee_name", [device.id, device.mode, device.kind, device.revokedAt ?? null, device.createdAt, device.employeeName ?? null]);
   const enrollments = new Map<string, Enrollment>();
   const sessions = new Map<string, Session>();
-  const storedUsers = database?.db.query("SELECT id, username, role, password_hash AS passwordHash FROM staff_users").all() as Array<StaffUser> | undefined;
+  try { database?.db.run("ALTER TABLE staff_users ADD COLUMN display_name TEXT"); } catch {}
+  const storedUsers = database?.db.query("SELECT id, username, role, password_hash AS passwordHash, display_name AS displayName FROM staff_users").all() as Array<StaffUser> | undefined;
   storedUsers?.forEach((user) => users.set(user.id, user));
   const owner: StaffUser = [...users.values()].find((user) => user.username === "owner") ?? { id: id("user"), username: "owner", role: "Owner", passwordHash: hashPassword(initial?.ownerPassword ?? "change-me") };
   users.set(owner.id, owner);
   if (!storedUsers?.length) persistUser(owner);
-  const storedDevices = database?.db.query("SELECT id, mode, kind, revoked_at AS revokedAt, created_at AS createdAt FROM paired_devices").all() as PairedDevice[] | undefined;
-  storedDevices?.forEach((device) => devices.set(device.id, device));
+  // ponytail: ensure employee_name column exists for old DBs
+  try { database?.db.run("ALTER TABLE paired_devices ADD COLUMN employee_name TEXT"); } catch {}
+  const storedDevices = database?.db.query("SELECT id, mode, kind, revoked_at AS revokedAt, created_at AS createdAt, employee_name AS employeeName FROM paired_devices").all() as PairedDevice[] | undefined;
+  storedDevices?.forEach((device) => {
+    const m = device.mode as string;
+    if (m === "Entrance Scanner" || m === "Exit Scanner") (device as {mode: string}).mode = "Scanner";
+    devices.set(device.id, device);
+  });
 
   function isBootstrapped() { return [...devices.values()].some((device) => !device.revokedAt); }
   function ownerDevice() { return [...devices.values()].find((device) => device.mode === "Owner Dashboard" && !device.revokedAt); }
@@ -78,11 +85,27 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
   }
 
   function createEnrollment(origin: string, kind: PairingKind = "private", ttlMs = 60_000, staff?: StaffInvite) {
-    const invitation: Enrollment = { token: token(), origin, kind, expiresAt: Date.now() + ttlMs, staff: staff ? { username: `staff-${token().slice(0, 8)}`, role: staff.role } : undefined };
+    const invitation: Enrollment = { token: token(), origin, kind, expiresAt: Date.now() + ttlMs, staff: staff ? { username: `staff-${token().slice(0, 8)}`, role: staff.role, name: staff.name } : undefined };
     enrollments.set(invitation.token, invitation);
     return { ...invitation, qrPayload: JSON.stringify({ origin, token: invitation.token, kind, ...(staff ? { staff: { name: staff.name, role: staff.role } } : {}) }) };
   }
+  function normalizeMode(mode: string): DeviceMode { return (mode === "Entrance Scanner" || mode === "Exit Scanner" ? "Scanner" : mode) as DeviceMode; }
+  function allowedForMode(mode: string) {
+    if (mode === "Cashier") return "Cashier";
+    if (mode === "Scanner") return "Staff";
+    if (mode === "Inventory") return "Staff";
+    if (mode === "Owner Dashboard") return "Owner";
+    return "unknown";
+  }
+  function isCompatible(role: string, mode: string) {
+    if (mode === "Owner Dashboard") return true;
+    if (role === "Cashier") return mode === "Cashier";
+    if (role === "Staff") return mode === "Scanner" || mode === "Inventory";
+    if (role === "Owner") return mode === "Owner Dashboard" || mode === "Cashier" || mode === "Scanner" || mode === "Inventory" || mode === "Public Kiosk";
+    return false;
+  }
   function pair(enrollmentToken: string, mode: DeviceMode, origin?: string) {
+    mode = normalizeMode(mode as string);
     const invitation = enrollments.get(enrollmentToken);
     if (!invitation || invitation.usedAt || invitation.expiresAt <= Date.now()) throw new Error("Enrollment invitation is invalid or expired");
     // The QR payload may be scanned from a different origin than the one that
@@ -91,15 +114,21 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     // same hostname — scheme and port are not security boundaries here since
     // the token itself is a high-entropy one-time secret.
     if (origin !== undefined && !sameHost(origin, invitation.origin)) throw new Error("Enrollment invitation is invalid or expired");
+    if (invitation.kind === "public-kiosk" && mode !== "Public Kiosk") {
+      throw new Error(`Public kiosk invitation can only be used for Public Kiosk device`);
+    }
+    if (invitation.staff && !isCompatible(invitation.staff.role, mode)) {
+      throw new Error(`Role ${invitation.staff.role} cannot use ${mode} device — ${mode} requires ${allowedForMode(mode)} role`);
+    }
     invitation.usedAt = Date.now();
-    const device: PairedDevice = { id: id("device"), mode, kind: invitation.kind, createdAt: Date.now() };
+    const device: PairedDevice = { id: id("device"), mode, kind: invitation.kind, createdAt: Date.now(), employeeName: invitation.staff?.name };
     devices.set(device.id, device);
     persistDevice(device);
     // When the invite carries a staff account, create the user now and bind
     // the device session to them — the phone is logged in immediately on scan.
     let userId: string | undefined;
     if (invitation.staff) {
-      const user: StaffUser = { id: id("user"), username: invitation.staff.username, role: invitation.staff.role, passwordHash: hashPassword(invitation.token) };
+      const user: StaffUser = { id: id("user"), username: invitation.staff.username, role: invitation.staff.role, passwordHash: hashPassword(invitation.token), displayName: invitation.staff.name };
       users.set(user.id, user);
       persistUser(user);
       userId = user.id;
@@ -121,6 +150,10 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
   function login(deviceId: string, username: string, password: string) {
     const user = [...users.values()].find((candidate) => candidate.username === username);
     if (!user || !verifyPassword(password, user.passwordHash)) throw new Error("Invalid credentials");
+    const device = devices.get(deviceId);
+    if (device && !isCompatible(user.role, device.mode as string)) {
+      throw new Error(`Role ${user.role} cannot use ${device.mode} device — ${device.mode} requires ${allowedForMode(device.mode as string)} role`);
+    }
     return createSession(deviceId, user.id);
   }
   function authenticate(sessionToken: string | undefined) {
@@ -133,11 +166,10 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
   }
   const modeCapabilities: Record<DeviceMode, ReadonlySet<string>> = {
     Cashier: new Set(["read", "write"]),
-    "Entrance Scanner": new Set(["read", "ticket:admit"]),
-    "Exit Scanner": new Set(["read", "ticket:exit"]),
+    Scanner: new Set(["read", "ticket:admit", "ticket:exit"]),
     Inventory: new Set(["read", "inventory:write"]),
     "Public Kiosk": new Set(["public:read"]),
-    "Owner Dashboard": new Set(["read", "write", "admin"]),
+    "Owner Dashboard": new Set(["read", "write", "admin", "inventory:write"]),
   };
   function can(identity: NonNullable<ReturnType<typeof authenticate>>, capability: string) {
     const role = identity.user?.role ?? "Public";

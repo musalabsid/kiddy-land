@@ -8,10 +8,10 @@ export type NotificationAlert = { id: string; type: "notification"; kind: Notifi
 export type NotificationSettings = { soundEnabled: boolean };
 
 const defaultRoutes: Record<NotificationKind, readonly DeviceMode[]> = {
-  "five-minute-remaining": ["Cashier", "Entrance Scanner", "Exit Scanner"],
-  "ticket-expired": ["Cashier", "Entrance Scanner", "Exit Scanner"],
+  "five-minute-remaining": ["Cashier", "Scanner"],
+  "ticket-expired": ["Cashier", "Scanner"],
   "inventory-low": ["Owner Dashboard"],
-  "device-connected": ["Cashier", "Entrance Scanner", "Exit Scanner", "Inventory", "Owner Dashboard"],
+  "device-connected": ["Cashier", "Scanner", "Inventory", "Owner Dashboard"],
 };
 
 export function createNotificationService(identity: IdentityStore, registry: ConnectionRegistry, lifecycle: LifecycleStore, inventory: InventoryStore) {

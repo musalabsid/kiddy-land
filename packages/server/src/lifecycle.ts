@@ -47,12 +47,22 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
   function calculate(ticket: TicketRecord, session: PlaySession, at: number) {
     const included = ticket.package.includedMinutes;
     const elapsed = minutesBetween(session.enteredAt, at);
-    const overtimeMinutes = included === null ? 0 : Math.max(0, elapsed - included);
-    const charge = overtimeMinutes * ticket.package.overtimeRate;
+    const threshold = (ticket.package as unknown as { overtimeThreshold?: number }).overtimeThreshold ?? 5;
+    const overtimeMinutes = included === null ? 0 : Math.max(0, elapsed - included - threshold);
+    const basePrice = ticket.package.weekdayPrice;
+    const percent = (ticket.package as unknown as { overtimePercentage?: number }).overtimePercentage ?? 10;
+    const ratePerMin = Math.round((basePrice * percent) / 100);
+    const charge = overtimeMinutes * (ticket.package.depositPolicy === "unlimited-cap" ? ratePerMin : ticket.package.overtimeRate);
     const deposit = ticket.package.deposit;
-    if (ticket.package.depositPolicy === "return-remainder") return { overtimeMinutes, charge, applied: Math.min(charge, deposit), refund: Math.max(0, deposit - charge), outstanding: Math.max(0, charge - deposit) };
-    if (ticket.package.depositPolicy === "forfeit-overtime") return { overtimeMinutes, charge, applied: Math.min(charge, deposit), refund: 0, outstanding: Math.max(0, charge - deposit) };
-    return { overtimeMinutes, charge: Math.min(charge, deposit), applied: Math.min(charge, deposit), refund: Math.max(0, deposit - charge), outstanding: 0 };
+    if (ticket.package.depositPolicy === "forfeit-overtime") {
+      if (overtimeMinutes === 0) return { overtimeMinutes, charge: 0, applied: 0, refund: deposit, outstanding: 0 };
+      return { overtimeMinutes, charge, applied: deposit, refund: 0, outstanding: 0 };
+    }
+    if (ticket.package.depositPolicy === "unlimited-cap") {
+      const gradCharge = overtimeMinutes * ratePerMin;
+      return { overtimeMinutes, charge: gradCharge, applied: Math.min(gradCharge, deposit), refund: Math.max(0, deposit - Math.min(gradCharge, deposit)), outstanding: 0 };
+    }
+    return { overtimeMinutes, charge, applied: Math.min(charge, deposit), refund: Math.max(0, deposit - charge), outstanding: Math.max(0, charge - deposit) };
   }
   function settle(ticket: TicketRecord, session: PlaySession, at: number, status: PlaySession["status"], eventType: "exited" | "auto-closed") {
     const result = calculate(ticket, session, at);

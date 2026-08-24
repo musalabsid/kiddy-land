@@ -9,7 +9,9 @@ export class ApiClient {
   async request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const headers = new Headers(init.headers);
     headers.set("Accept", "application/json");
-    if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
+    if (init.body && !headers.has("Content-Type") && !isFormData) headers.set("Content-Type", "application/json");
+    if (isFormData) headers.delete("Content-Type");
     if (this.token) headers.set("Authorization", `Bearer ${this.token}`);
     const response = await fetch(`${this.origin}${path}`, { ...init, headers });
     const contentType = response.headers.get("content-type") ?? "";
@@ -18,7 +20,7 @@ export class ApiClient {
     return body as T;
   }
   get<T>(path: string, init?: RequestInit) { return this.request<T>(path, { ...init, method: "GET" }); }
-  post<T>(path: string, body: unknown, init?: RequestInit) { return this.request<T>(path, { ...init, method: "POST", body: JSON.stringify(body) }); }
+  post<T>(path: string, body: unknown, init?: RequestInit) { const isFormData = typeof FormData !== "undefined" && body instanceof FormData; return this.request<T>(path, { ...init, method: "POST", body: isFormData ? (body as BodyInit) : JSON.stringify(body) }); }
   patch<T>(path: string, body: unknown, init?: RequestInit) { return this.request<T>(path, { ...init, method: "PATCH", body: JSON.stringify(body) }); }
   put<T>(path: string, body: unknown, init?: RequestInit) { return this.request<T>(path, { ...init, method: "PUT", body: JSON.stringify(body) }); }
   delete<T>(path: string, init?: RequestInit) { return this.request<T>(path, { ...init, method: "DELETE" }); }

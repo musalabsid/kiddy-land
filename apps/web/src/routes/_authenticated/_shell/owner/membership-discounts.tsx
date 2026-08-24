@@ -11,7 +11,9 @@ export const Route = createFileRoute(
 function MembershipDiscountsPage() {
   return (
     <RouteAccessGate requireRole="Owner">
-      <MembershipDiscountSettings />
+      <div className="w-full max-w-6xl px-5 py-8 sm:px-8">
+        <MembershipDiscountSettings />
+      </div>
     </RouteAccessGate>
   );
 }

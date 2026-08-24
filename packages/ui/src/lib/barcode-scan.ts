@@ -42,15 +42,16 @@ function nativeBarcodeDetector(): BarcodeDetectorCtor | undefined {
 }
 
 /** True only when BarcodeDetector can actually decode qr_code (constructor + formats). */
+export const SCAN_FORMATS = ["qr_code", "ean_13", "ean_8", "code_128", "upc_a", "upc_e"] as const;
 export async function nativeQrSupported(): Promise<boolean> {
   const Ctor = nativeBarcodeDetector();
   if (!Ctor) return false;
   try {
-    const probe = new Ctor({ formats: ["qr_code"] });
+    const probe = new Ctor({ formats: [...SCAN_FORMATS] });
     if (!probe || typeof probe.detect !== "function") return false;
     if (typeof probe.getSupportedFormats === "function") {
       const formats = await probe.getSupportedFormats();
-      return Array.isArray(formats) && formats.includes("qr_code");
+      return Array.isArray(formats) && SCAN_FORMATS.some(f => formats.includes(f));
     }
     return true;
   } catch {

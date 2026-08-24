@@ -49,6 +49,7 @@ export const staffUsers = sqliteTable("staff_users", {
   role: text("role").notNull(),
   passwordHash: text("password_hash").notNull(),
   createdAt: integer("created_at", { mode: "number" }).notNull(),
+  displayName: text("display_name"),
 });
 
 export const pairedDevices = sqliteTable("paired_devices", {
@@ -57,4 +58,5 @@ export const pairedDevices = sqliteTable("paired_devices", {
   kind: text("kind").notNull(),
   revokedAt: integer("revoked_at", { mode: "number" }),
   createdAt: integer("created_at", { mode: "number" }).notNull(),
+  employeeName: text("employee_name"),
 });

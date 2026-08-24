@@ -7,8 +7,7 @@ import type { ReactNode } from "react";
 export const modeDefaultRoutes: Record<DeviceMode, string> = {
   Cashier: "/sales",
   Inventory: "/inventory",
-  "Entrance Scanner": "/scanner/entry",
-  "Exit Scanner": "/scanner/exit",
+  Scanner: "/scanner",
   "Owner Dashboard": "/",
   "Public Kiosk": "/kiosk",
 };
@@ -45,16 +44,18 @@ export function RouteAccessGate({
   requireMode,
   requireRole,
   allowCashier,
+  allowOwner,
   children,
 }: {
   requireMode?: DeviceMode;
   requireRole?: "Owner";
   allowCashier?: boolean;
+  allowOwner?: boolean;
   children: ReactNode;
 }) {
   const { session, hydrated, mode, isOwner } = useRouteAccess();
   if (!hydrated || !session) return null;
   if (requireRole === "Owner" && !isOwner && !(allowCashier && mode === "Cashier")) return <RouteAccessDenied />;
-  if (requireMode && mode !== requireMode) return <RouteAccessDenied />;
+  if (requireMode && mode !== requireMode && !(allowOwner && isOwner)) return <RouteAccessDenied />;
   return <>{children}</>;
 }

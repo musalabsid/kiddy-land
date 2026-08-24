@@ -3,6 +3,7 @@ import { Button } from "@workspace/ui/components/button";
 import { useLocale } from "@workspace/ui/lib/i18n";
 import { ScanLine, X } from "lucide-react";
 import {
+  SCAN_FORMATS,
   createJsqrDecoder,
   createNativeDecoder,
   createScanLoop,
@@ -14,6 +15,7 @@ import {
 } from "@workspace/ui/lib/barcode-scan";
 
 export type BarcodeScannerProps = {
+  autoStart?: boolean;
   /** Called exactly once per successful detection, with the raw scanned value. */
   onDetect: (raw: string) => void;
   /** Optional parse transform; only the returned value is submitted. Return undefined to ignore. */
@@ -40,6 +42,7 @@ export function BarcodeScanner({
   extract,
   startLabel,
   repeatable = false,
+  autoStart = false,
   className,
 }: BarcodeScannerProps) {
   const { t } = useLocale();
@@ -119,7 +122,7 @@ export function BarcodeScanner({
       try {
         const Ctor = (window as Window & { BarcodeDetector?: new (options?: { formats?: string[] }) => { detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>> } }).BarcodeDetector;
         if (!Ctor) { fail({ kind: "decode-unavailable" }); return; }
-        decode = createNativeDecoder(new Ctor({ formats: ["qr_code"] }));
+        decode = createNativeDecoder(new Ctor({ formats: [...SCAN_FORMATS] }));
       } catch { fail({ kind: "decode-unavailable" }); return; }
     } else {
       const canvas = canvasRef.current;
@@ -149,6 +152,12 @@ export function BarcodeScanner({
     setStatus("idle");
     setError(undefined);
   }, [stop]);
+
+  React.useEffect(() => {
+    if (autoStart && capability?.supported && (status === "idle" || status === "done")) {
+      void start();
+    }
+  }, [autoStart, capability, status, start]); // autoStart triggered by parent user gesture
 
   if (capability === undefined) return null; // capability probe in flight
   if (!capability.supported) {

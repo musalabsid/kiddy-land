@@ -36,6 +36,18 @@ fn stop_host(state: tauri::State<'_, HostState>) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn start_host(state: tauri::State<'_, HostState>) -> Result<(), String> {
+    let mut process = state.process.lock().map_err(|_| "Host state unavailable")?;
+    if let Some(child) = process.as_mut() {
+        if child.try_wait().map_err(|e| e.to_string())?.is_none() { return Ok(()); }
+    }
+    let child = spawn_host()?;
+    *process = Some(child);
+    *state.keep_running.lock().map_err(|_| "Host state unavailable")? = true;
+    Ok(())
+}
+
+#[tauri::command]
 fn host_running(state: tauri::State<'_, HostState>) -> Result<bool, String> {
     let mut process = state.process.lock().map_err(|_| "Host state unavailable")?;
     match process.as_mut() { Some(child) => Ok(child.try_wait().map_err(|e| e.to_string())?.is_none()), None => Ok(false) }
@@ -47,7 +59,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(HostState { process: Mutex::new(Some(process)), keep_running: Mutex::new(true) })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![stop_host, host_running])
+        .invoke_handler(tauri::generate_handler![stop_host, start_host, host_running])
         .setup(|app| { if let Some(window) = app.get_webview_window("main") { let _ = window.set_title("Kiddy Land — Local Operation Center"); } Ok(()) })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {

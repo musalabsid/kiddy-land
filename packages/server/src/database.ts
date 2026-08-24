@@ -53,7 +53,7 @@ export function openLocalDatabase(path: string): LocalDatabase {
   }
   if (version < 6) {
     db.run(`CREATE TABLE IF NOT EXISTS staff_users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, role TEXT NOT NULL, password_hash TEXT NOT NULL, created_at INTEGER NOT NULL)`);
-    db.run(`CREATE TABLE IF NOT EXISTS paired_devices (id TEXT PRIMARY KEY, mode TEXT NOT NULL, kind TEXT NOT NULL, revoked_at INTEGER, created_at INTEGER NOT NULL)`);
+    db.run(`CREATE TABLE IF NOT EXISTS paired_devices (id TEXT PRIMARY KEY, mode TEXT NOT NULL, kind TEXT NOT NULL, revoked_at INTEGER, created_at INTEGER NOT NULL, employee_name TEXT)`);
     db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (6, ?)", [Date.now()]);
   }
   const orm = drizzle(db, { schema });
