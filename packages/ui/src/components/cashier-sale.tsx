@@ -1,5 +1,5 @@
 import * as React from "react";
-import { AlertTriangle, CheckCircle2, Download, ExternalLink, Printer, RotateCcw, ShoppingCart, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, ExternalLink, Printer, RotateCcw, ShoppingCart, Trash2 } from "lucide-react";
 import { useCalendarConfig, useCompleteSale, usePrintAttempt, useSession, saleArtifactUrl, saleQrUrl, type TicketLineInput, type ProductLineInput, type PaymentMethod, useCashierDraftStore, useClient, useProducts, useMembershipDiscounts, useSchedule } from "@kiddy-land/client/react";
 import { formatIdr } from "@kiddy-land/localization";
 import { useLocale } from "@workspace/ui/lib/i18n";

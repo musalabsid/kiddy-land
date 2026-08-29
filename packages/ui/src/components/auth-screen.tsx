@@ -30,7 +30,6 @@ export function PairingScreen({ origin, enableScanner = false }: { origin: strin
   const submitToken = (value: string) => mutation.mutate({ token: value.trim(), mode, origin });
   return <Card><CardHeader><CardTitle>{t("auth.pairTitle")}</CardTitle><CardDescription>{t("auth.pairDescription")}</CardDescription></CardHeader><CardContent><form className="grid gap-3" onSubmit={submit} noValidate>{enableScanner && <><QrPairingScanner onToken={(value) => setValue("token", value, { shouldValidate: true })} onSubmit={submitToken} /><p role="note" className="text-xs text-muted-foreground">{t("auth.pairCameraNote")} {t("auth.pairMobileLimit")}</p></>}<FormField label={t("auth.pairToken")} required htmlFor="pair-token" error={errors.token?.message}><input id="pair-token" className={inputCls} aria-invalid={errors.token ? true : undefined} {...register("token")} /></FormField><FormField label={t("auth.deviceMode")} required htmlFor="pair-mode"><Select id="pair-mode" className="h-9" value={mode} onChange={(event) => setMode(event.target.value as DeviceMode)}>{modes.map((item) => <option key={item.value} value={item.value}>{t(item.key)}</option>)}</Select></FormField><Button type="submit" disabled={mutation.isPending}>{t("auth.pair")}</Button>{mutation.isError && <p role="alert" className="text-xs text-destructive">{(() => { const msg=(mutation.error as Error).message; if(msg.startsWith("Role ")) return msg.replace("Role ", "").replace(" cannot use ", " → ").replace(" device — ", " ").replace(" requires ", " need "); if(msg.includes("Public kiosk invitation")) return t("auth.publicKioskOnly"); if(msg.includes("invalid or expired")) return t("auth.invitationExpired"); if(msg.includes("revoked or unknown")) return t("auth.deviceRevoked"); return t("auth.invalidInvitation"); })()}</p>}</form></CardContent></Card>;
 }
-const passwordSchema = z.string().min(1, "Password is required");
 export function OwnerLoginScreen({ onSuccess }: { onSuccess?: () => void } = {}) {
   const { t } = useLocale();
   const mutation = useOwnerLoginMutation();
@@ -47,7 +46,6 @@ function PasswordToggle() {
   const [visible, setVisible] = React.useState(false);
   return <button type="button" className="absolute inset-y-0 right-0 grid w-9 place-items-center text-muted-foreground hover:text-foreground" aria-label={visible ? "Hide password" : "Show password"} onClick={() => setVisible((current) => !current)}>{visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button>;
 }
-const bootstrapSchema = z.object({ password: z.string().min(8, "Password must be at least 8 characters"), confirmation: z.string() }).refine((data) => data.password === data.confirmation, { message: "Passwords do not match", path: ["confirmation"] });
 function BootstrapScreen() {
   const { t } = useLocale();
   const mutation = useBootstrapMutation();

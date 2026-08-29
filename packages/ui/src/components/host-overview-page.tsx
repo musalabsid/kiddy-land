@@ -10,8 +10,7 @@ import { useHostStatus, type HostState, type HostStatusSource } from "@workspace
 import { useLiveReport } from "@kiddy-land/client/react";
 import { useLocale, type MessageKey } from "@workspace/ui/lib/i18n";
 import { cn } from "@workspace/ui/lib/utils";
-import { AlertTriangle, CheckCircle2, CircleDot, LoaderCircle, PlugZap, RefreshCw, Server, ShieldCheck, Users, Wallet, WifiOff } from "lucide-react";
-import type { ReactNode } from "react";
+import { AlertTriangle, CheckCircle2, LoaderCircle, PlugZap, RefreshCw, Server, Users, Wallet, WifiOff } from "lucide-react";
 
 export function HostOverviewPage({
   source,
@@ -129,16 +128,3 @@ function StatusIcon({ state, size }: { state: HostState; size?: "sm" | "md" }) {
   return <LoaderCircle className={cn("mt-0.5 animate-spin", cls, "text-primary")} />;
 }
 function LiveCard({icon:Icon,label,value,loading,sub,tone}:{icon:any,label:string,value:number,loading:boolean,sub:string,tone?:"default"|"destructive"}){ return <Card className={tone==="destructive"?"border-destructive/30":""}><CardContent className="flex items-center gap-4 p-4"><div className={tone==="destructive"?"flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive":"flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary"}><Icon className="size-5" /></div><div className="min-w-0"><p className="text-xs text-muted-foreground">{label}</p>{loading ? <Skeleton className="mt-1 h-7 w-12" /> : <p className="text-3xl font-bold tracking-tight">{value}</p>}<p className="text-xs text-muted-foreground">{sub}</p></div></CardContent></Card>; }
-function InfoCard({ icon, title, text }: { icon: ReactNode; title: string; text: string }) {
-  return (
-    <Card className="rounded-none">
-      <CardContent className="flex gap-3 p-4">
-        <span className="mt-0.5 grid size-8 place-items-center rounded-full border border-border bg-muted text-primary shrink-0">{icon}</span>
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold leading-none overflow-wrap-anywhere">{title}</h2>
-          <p className="mt-1.5 text-sm leading-6 text-muted-foreground overflow-wrap-anywhere">{text}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

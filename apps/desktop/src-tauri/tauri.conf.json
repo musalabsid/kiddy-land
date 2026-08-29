@@ -23,7 +23,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["deb"],
     "externalBin": ["binaries/kiddy-land-server"],
     "resources": ["../../../apps/web/dist"],
     "icon": [

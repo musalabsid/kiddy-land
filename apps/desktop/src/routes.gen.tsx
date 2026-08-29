@@ -152,7 +152,7 @@ const scannerEntryRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/scanner/entry",
   component: () => (
-    <RouteAccessGate requireMode="Entrance Scanner">
+    <RouteAccessGate requireMode="Scanner">
       <TicketScanner kind="entry" />
     </RouteAccessGate>
   ),
@@ -162,7 +162,7 @@ const scannerExitRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/scanner/exit",
   component: () => (
-    <RouteAccessGate requireMode="Exit Scanner">
+    <RouteAccessGate requireMode="Scanner">
       <TicketScanner kind="exit" />
     </RouteAccessGate>
   ),

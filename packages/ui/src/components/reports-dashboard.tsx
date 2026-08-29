@@ -16,9 +16,6 @@ const reportFilterSchema = z.object({ from: z.string().min(1, "Start date is req
 type ReportFilterValues = z.infer<typeof reportFilterSchema>;
 
 type FinancialData = { totals: { ticketRevenue: number; productRevenue: number; overtimeRevenue: number; grossRevenue: number; netRevenue: number; deposits: { received: number; applied: number; refunded: number; forfeited: number; held: number }; refunds: number; voids: number; correctionNet: number; priceOverrides: unknown[]; paymentMethods: Record<string,number>; cashiers: Record<string,number> } };
-type PlaygroundData = { occupancy: number; entries: number; exits: number; autoClosed: number; overtimeMinutes: number };
-type InventoryData = { products: Array<{id:string; name:string; stock:number; lowStockThreshold:number}>; lowStock: Array<{id:string; name:string; stock:number}>; movements: unknown[]; approvedCounts: unknown[]; pendingCounts: unknown[] };
-type MembershipData = { members: unknown[]; events: unknown[]; visits: unknown[] };
 const KINDS = [
   { id: "financial" as const, labelKey: "reports.financial" as const },
   { id: "playground" as const, labelKey: "reports.playground" as const },
@@ -71,8 +68,6 @@ export function ReportsDashboard() {
     {report.data && <p className="text-xs text-muted-foreground">{t("reports.generated")} {(report.data as any)?.generatedAt ? new Date((report.data as any).generatedAt).toLocaleString(locale) : ""} · {(report.data as any)?.timezone ?? ""} · {(report.data as any)?.filters?.from} → {(report.data as any)?.filters?.to}</p>}
   </section></div>;
 }
-
-function LiveCard({icon:Icon,label,value,loading,sub,tone}:{icon:any,label:string,value:number,loading:boolean,sub:string,tone?:"default"|"destructive"}){ return <Card className={tone==="destructive"?"border-destructive/30":""}><CardContent className="flex items-center gap-4 p-4"><div className={tone==="destructive"?"flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive":"flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary"}><Icon className="size-5" /></div><div className="min-w-0"><p className="text-xs text-muted-foreground">{label}</p>{loading ? <Skeleton className="mt-1 h-7 w-12" /> : <p className="text-3xl font-bold tracking-tight">{value}</p>}<p className="text-xs text-muted-foreground">{sub}</p></div></CardContent></Card>; }
 
 function FinancialView({data, locale}:{data:any, locale:string}){
   const { t } = useLocale();

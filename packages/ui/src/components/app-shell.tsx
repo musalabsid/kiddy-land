@@ -134,7 +134,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
                   {mode === "Scanner" && (
                     <SidebarMenuItem>
-                      <SidebarMenuButton render={<Link to="/scanner" />} isActive={active("/scanner")}>
+                      <SidebarMenuButton render={<Link to="/scanner/entry" />} isActive={active("/scanner/entry")}>
                         <ScanLine />
                         {t("app.scanner")}
                       </SidebarMenuButton>
