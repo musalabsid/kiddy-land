@@ -17,7 +17,10 @@
     "quality": "turbo run //#quality",
     "quality:fix": "turbo run //#quality:fix",
     "build:standalone": "bun run scripts/build-standalone.mjs",
-    "build:desktop": "bun run scripts/build-standalone.mjs --tauri"
+    "build:desktop": "bun run scripts/build-standalone.mjs --tauri",
+    "docs:dev": "bun --cwd apps/docs dev",
+    "docs:build": "bun --cwd apps/docs build",
+    "docs:preview": "bun --cwd apps/docs preview"
   },
   "devDependencies": {
     "oxfmt": "^0.~57.0",
