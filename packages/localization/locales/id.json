@@ -495,5 +495,7 @@
   "common.dismiss": "Tutup",
   "common.refresh": "Muat ulang",
   "host.ipChangedTitle": "IP Host berubah",
-  "host.ipChangedDesc": "Pindai ulang QR pairing di layar ini untuk HP/tablet."
+  "host.ipChangedDesc": "Pindai ulang QR pairing di layar ini untuk HP/tablet.",
+  "scanner.tapToFocus": "Ketuk untuk fokus",
+  "scanner.holdDistance": "jarak 15–20cm"
 }

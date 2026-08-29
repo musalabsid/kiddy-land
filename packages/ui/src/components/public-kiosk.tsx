@@ -15,6 +15,7 @@ export function PublicKiosk() {
   const [ticketData, setTicketData] = React.useState<PublicTicketResult | null>(null);
   const [productData, setProductData] = React.useState<PublicProduct | null>(null);
   const [code, setCode] = React.useState("");
+  const [scannedValue, setScannedValue] = React.useState<string | null>(null);
   const productsQuery = usePublicProducts();
   const ticketQuery = usePublicTicket(code);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -24,6 +25,7 @@ export function PublicKiosk() {
     setTicketData(null);
     setProductData(null);
     setCode("");
+    setScannedValue(null);
   }, []);
 
   const startScan = React.useCallback(() => {
@@ -55,6 +57,7 @@ export function PublicKiosk() {
       setTicketData(null);
       setProductData(null);
       setCode("");
+      setScannedValue(null);
     }, 15000);
     return () => clearTimeout(id);
   }, [ticketData, productData]);
@@ -62,6 +65,7 @@ export function PublicKiosk() {
   const handleDetect = React.useCallback((raw: string) => {
     const value = raw.trim();
     if (!value) return;
+    setScannedValue(value);
     // try product first
     const product = products.find((p) => p.barcode === value || p.sku === value || p.id === value);
     if (product) {
@@ -80,9 +84,12 @@ export function PublicKiosk() {
       if (res.data) {
         setTicketData(res.data);
         setProductData(null);
+      } else {
+        setTicketData({ ok: false, state: "invalid", message: "Ticket not found", remainingMinutes: 0 } as unknown as PublicTicketResult);
       }
       stopScan();
     }).catch(() => {
+      setTicketData({ ok: false, state: "invalid", message: "Ticket not found", remainingMinutes: 0 } as unknown as PublicTicketResult);
       stopScan();
     });
   }, [code]);
@@ -131,6 +138,7 @@ export function PublicKiosk() {
                     <div className="size-24 shrink-0 border bg-muted" />
                   )}
                   <div className="grid gap-1 text-sm">
+                    <p className="font-mono text-xs text-muted-foreground break-all">{t("kiosk.code")}: {scannedValue}</p>
                     <p className="font-medium">{productData.name}</p>
                     <p className="text-xs text-muted-foreground">{productData.sku} {productData.barcode ? `· ${productData.barcode}` : ""}</p>
                     <p className="font-mono font-semibold">{formatIdr(productData.price, locale)}</p>
@@ -142,6 +150,7 @@ export function PublicKiosk() {
               <Card className={ticketData.ok ? "border-l-[3px] border-[var(--state-success)] bg-[var(--state-success-bg)]/40" : "border-l-[3px] border-[var(--state-danger)] bg-[var(--state-danger-bg)]/40"}>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">{ticketData.ok ? t("kiosk.ticketValid") : t("kiosk.ticketInvalid")}</CardTitle>
+                  {scannedValue ? <p className="font-mono text-xs text-muted-foreground break-all">{t("kiosk.code")}: {scannedValue}</p> : null}
                 </CardHeader>
                 <CardContent className="grid gap-2 text-sm">
                   <p className={ticketData.ok ? "text-[var(--state-success)]" : "text-[var(--state-danger)]"}>{ticketData.message}</p>
@@ -160,7 +169,14 @@ export function PublicKiosk() {
               </Card>
             ) : null}
             {!productData && !ticketData ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">{t("kiosk.scanEmpty")}</p>
+              scannedValue ? (
+                <Card className="border-l-[3px] border-[var(--state-danger)] bg-[var(--state-danger-bg)]/40">
+                  <CardHeader className="pb-3"><CardTitle className="text-base">{t("kiosk.ticketInvalid")}</CardTitle><p className="font-mono text-xs text-muted-foreground break-all">{t("kiosk.code")}: {scannedValue}</p></CardHeader>
+                  <CardContent><p className="text-sm text-[var(--state-danger)]">Ticket not found</p></CardContent>
+                </Card>
+              ) : (
+                <p className="py-6 text-center text-sm text-muted-foreground">{t("kiosk.scanEmpty")}</p>
+              )
             ) : null}
           </div>
         </div>

@@ -495,5 +495,7 @@
   "common.dismiss": "Dismiss",
   "common.refresh": "Refresh",
   "host.ipChangedTitle": "Host IP changed",
-  "host.ipChangedDesc": "Re-scan the pairing QR on this screen for phones/tablets."
+  "host.ipChangedDesc": "Re-scan the pairing QR on this screen for phones/tablets.",
+  "scanner.tapToFocus": "Tap to focus",
+  "scanner.holdDistance": "hold 15–20cm"
 }
