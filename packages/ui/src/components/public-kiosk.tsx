@@ -139,18 +139,18 @@ export function PublicKiosk() {
               </Card>
             ) : null}
             {ticketData ? (
-              <Card className={ticketData.ok ? "border-green-200" : "border-destructive/50"}>
+              <Card className={ticketData.ok ? "border-l-[3px] border-[var(--state-success)] bg-[var(--state-success-bg)]/40" : "border-l-[3px] border-[var(--state-danger)] bg-[var(--state-danger-bg)]/40"}>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">{ticketData.ok ? t("kiosk.ticketValid") : t("kiosk.ticketInvalid")}</CardTitle>
                 </CardHeader>
                 <CardContent className="grid gap-2 text-sm">
-                  <p className={ticketData.ok ? "text-green-600" : "text-destructive"}>{ticketData.message}</p>
+                  <p className={ticketData.ok ? "text-[var(--state-success)]" : "text-[var(--state-danger)]"}>{ticketData.message}</p>
                   {ticketData.ticket ? (
                     <>
                       <div className="flex justify-between gap-4 text-xs"><span className="text-muted-foreground">{t("kiosk.package")}</span><span className="font-medium">{ticketData.ticket.package.name}</span></div>
                       <div className="flex justify-between gap-4 text-xs"><span className="text-muted-foreground">{t("kiosk.status")}</span><span className="font-mono capitalize">{ticketData.state}</span></div>
                       <div className="flex justify-between gap-4 text-xs"><span className="text-muted-foreground">{t("kiosk.timeLeft")}</span><span className="font-mono">{ticketData.remainingMinutes} min</span></div>
-                      {ticketData.overtimeMinutes != null && ticketData.overtimeMinutes > 0 ? <div className="flex justify-between gap-4 text-xs"><span className="text-muted-foreground">{t("kiosk.overtime")}</span><span className="font-mono text-amber-600">{ticketData.overtimeMinutes} min</span></div> : null}
+                      {ticketData.overtimeMinutes != null && ticketData.overtimeMinutes > 0 ? <div className="flex justify-between gap-4 text-xs"><span className="text-muted-foreground">{t("kiosk.overtime")}</span><span className="font-mono text-[var(--state-warning)]">{ticketData.overtimeMinutes} min</span></div> : null}
                       <div className="flex justify-between gap-4 text-xs"><span className="text-muted-foreground">{t("kiosk.child")}</span><span className="font-mono">{ticketData.ticket.childName ?? ticketData.ticket.childId.slice(0, 8)}</span></div>
                       <div className="flex justify-between gap-4 text-xs"><span className="text-muted-foreground">{t("kiosk.code")}</span><span className="font-mono text-xs">{ticketData.ticket.code}</span></div>
                     </>
