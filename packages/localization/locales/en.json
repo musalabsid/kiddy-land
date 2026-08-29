@@ -491,5 +491,9 @@
   "membership.pageDescription": "Register members, view history and reissue codes.",
   "membershipDiscount.pageEyebrow": "Pricing rules",
   "membershipDiscount.pageTitle": "Membership discounts",
-  "membershipDiscount.pageDescription": "Configure ticket and product discounts for members."
+  "membershipDiscount.pageDescription": "Configure ticket and product discounts for members.",
+  "common.dismiss": "Dismiss",
+  "common.refresh": "Refresh",
+  "host.ipChangedTitle": "Host IP changed",
+  "host.ipChangedDesc": "Re-scan the pairing QR on this screen for phones/tablets."
 }

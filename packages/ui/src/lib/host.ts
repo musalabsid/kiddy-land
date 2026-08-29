@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 export type HostState = "starting" | "ready" | "unhealthy" | "fatal";
-export type HostStatus = { state: HostState; message?: string; origin?: string; database?: "ready" | "unhealthy"; uptimeMs?: number };
+export type HostStatus = { state: HostState; message?: string; origin?: string; database?: "ready" | "unhealthy"; uptimeMs?: number; lanIp?: string; httpsUrl?: string };
 export type HostStatusSource = { read: () => Promise<HostStatus> };
 
 export function useHostStatus(source: HostStatusSource, intervalMs = 5_000) {

@@ -491,5 +491,9 @@
   "membership.pageDescription": "Daftarkan anggota, lihat riwayat dan terbitkan ulang kode.",
   "membershipDiscount.pageEyebrow": "Aturan harga",
   "membershipDiscount.pageTitle": "Diskon keanggotaan",
-  "membershipDiscount.pageDescription": "Konfigurasi diskon tiket dan produk untuk anggota."
+  "membershipDiscount.pageDescription": "Konfigurasi diskon tiket dan produk untuk anggota.",
+  "common.dismiss": "Tutup",
+  "common.refresh": "Muat ulang",
+  "host.ipChangedTitle": "IP Host berubah",
+  "host.ipChangedDesc": "Pindai ulang QR pairing di layar ini untuk HP/tablet."
 }

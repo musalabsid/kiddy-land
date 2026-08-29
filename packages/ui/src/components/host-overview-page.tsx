@@ -29,6 +29,14 @@ export function HostOverviewPage({
   const ready = status.state === "ready";
   const [stopOpen, setStopOpen] = React.useState(false);
   const [startOpen, setStartOpen] = React.useState(false);
+  const prevLanIp = React.useRef<string | undefined>(undefined);
+  const [lanIpChanged, setLanIpChanged] = React.useState<{old?:string, cur?:string}| null>(null);
+  React.useEffect(()=>{
+    const cur = (status as any).lanIp as string | undefined;
+    if (prevLanIp.current && cur && prevLanIp.current !== cur) setLanIpChanged({old: prevLanIp.current, cur});
+    if (cur) prevLanIp.current = cur;
+    else if (status.state==="ready" && !cur) prevLanIp.current = undefined;
+  }, [status]);
   const live = useLiveReport<{data: { occupancy: number; activeMembers: number; lowStock: number }}>();
   const titleKey: MessageKey =
     status.state === "ready"
@@ -41,6 +49,7 @@ export function HostOverviewPage({
   return (
     <main className="min-h-dvh bg-background text-foreground overflow-x-clip">
       <div className="w-full max-w-6xl px-5 py-8 sm:px-8">
+        {lanIpChanged && <Alert variant="destructive" className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-100"><AlertTriangle className="size-4" /><AlertTitle>{t("host.ipChangedTitle") ?? "Host IP changed"}</AlertTitle><AlertDescription className="flex flex-wrap items-center gap-2">{`Was ${lanIpChanged.old} → now ${lanIpChanged.cur}. ${t("host.ipChangedDesc")}`} <Button size="sm" variant="outline" onClick={()=>setLanIpChanged(null)}>{t("common.dismiss") ?? "Dismiss"}</Button> <Button size="sm" variant="outline" onClick={()=>check()}><RefreshCw className="size-3" /> {t("common.refresh") ?? "Refresh"}</Button></AlertDescription></Alert>}
         <div className="grid gap-6">
           <div className="grid content-start gap-4">
             <div className="border border-border bg-card">

@@ -55,6 +55,26 @@ export async function loadOrCreateTls(config: TlsConfig): Promise<TlsMaterial> {
   return { key: pems.private, cert: pems.cert, fingerprint: fingerprintOf(pems.cert), hosts };
 }
 
+export async function ensureTlsCoversHosts(config: TlsConfig, material: TlsMaterial): Promise<TlsMaterial> {
+  const needed = Array.from(new Set(["localhost","127.0.0.1",...(config.hosts??[])]));
+  const hasAll = needed.every(h => material.hosts.includes(h));
+  if (hasAll) return material;
+  // regenerate with merged hosts (keep old + new for grace)
+  const merged = Array.from(new Set([...material.hosts, ...needed]));
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+  const selfsigned = (await import("selfsigned")).default;
+  const keyPath = join(config.dir, "key.pem");
+  const certPath = join(config.dir, "cert.pem");
+  const pems = await selfsigned.generate([{ name: "commonName", value: merged[0] }], {
+    algorithm: "sha256", keySize: 2048, notAfterDate: new Date(Date.now() + 825*24*60*60*1000),
+    extensions: [{ name: "basicConstraints", cA: false }, { name: "keyUsage", digitalSignature:true, keyEncipherment:true }, { name: "extKeyUsage", serverAuth:true, clientAuth:true }, { name: "subjectAltName", altNames: merged.map(h => /^\d+\.\d+\.\d+\.\d+$/.test(h)||h.includes(":") ? {type:7, ip:h} : {type:2, value:h}) }]
+  });
+  await mkdir(config.dir, {recursive:true});
+  await Promise.all([writeFile(keyPath, pems.private, {mode:0o600}), writeFile(certPath, pems.cert)]);
+  return { key: pems.private, cert: pems.cert, fingerprint: fingerprintOf(pems.cert), hosts: merged };
+}
+
 function fingerprintOf(certPem: string): string {
   const body = certPem.replace(/-----BEGIN CERTIFICATE-----/, "").replace(/-----END CERTIFICATE-----/, "").replace(/\s+/g, "");
   const { createHash } = require("node:crypto") as typeof import("node:crypto");

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { serve, type ServerType } from "@hono/node-server";
 import { createServer as createHttpsServer } from "node:https";
 import { WebSocketServer } from "ws";
-import { loadOrCreateTls, type TlsConfig } from "./tls.ts";
+import { ensureTlsCoversHosts, loadOrCreateTls, type TlsConfig } from "./tls.ts";
 import { detectLanIpv4 } from "./lan.ts";
 import { createConnectionRegistry } from "./connection.ts";
 import { createCalendarStore, type CalendarStore } from "./calendar.ts";
