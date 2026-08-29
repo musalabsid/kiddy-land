@@ -8,16 +8,50 @@ struct HostState {
     keep_running: Mutex<bool>,
 }
 
-#[cfg(target_os = "windows")]
-fn spawn_host() -> Result<Child, String> {
-    Command::new("kiddy-land-server.exe").stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| e.to_string())
+fn resolve_sidecar_path() -> Option<std::path::PathBuf> {
+    // Tauri bundles externalBin as sidecar next to exe (Windows) or in ../lib (Linux)
+    // Try: exe_dir/kiddy-land-server(.exe), exe_dir/../lib/desktop/kiddy-land-server, resources
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let candidates = [
+                dir.join(if cfg!(windows) { "kiddy-land-server.exe" } else { "kiddy-land-server" }),
+                dir.join("binaries").join(if cfg!(windows) { "kiddy-land-server.exe" } else { "kiddy-land-server" }),
+                dir.join("../lib/desktop/kiddy-land-server"),
+                dir.join("../../binaries/kiddy-land-server"),
+            ];
+            for c in candidates { if c.exists() { return Some(c); } }
+        }
+    }
+    // dev fallback: binaries folder with triple suffix (Tauri dev)
+    let dev = std::path::Path::new("binaries/kiddy-land-server").to_path_buf();
+    if dev.exists() { return Some(dev); }
+    let dev_exe = std::path::Path::new("binaries/kiddy-land-server.exe").to_path_buf();
+    if dev_exe.exists() { return Some(dev_exe); }
+    None
 }
 
-#[cfg(not(target_os = "windows"))]
+fn web_dist_from_resources() -> Option<String> {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let cands = [dir.join("resources/web/dist"), dir.join("../resources/web/dist"), dir.join("web/dist"), std::path::Path::new("../../../apps/web/dist").to_path_buf(), std::path::Path::new("../../apps/web/dist").to_path_buf()];
+            for c in cands { if c.exists() { return Some(c.to_string_lossy().to_string()); } }
+        }
+    }
+    None
+}
+
 fn spawn_host() -> Result<Child, String> {
-    // Enable the HTTPS listener so phones on the same LAN can reach this host
-    // (app + API + WebSocket on one origin via the auto-detected webDist).
-    // Desktop itself keeps talking to the plain HTTP origin below.
+    // In release/sidecar mode, prefer bundled binary; fallback to `bun run` for dev
+    if !cfg!(debug_assertions) {
+        if let Some(bin) = resolve_sidecar_path() {
+            let web_dist = web_dist_from_resources();
+            let mut cmd = Command::new(bin);
+            cmd.stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).env("KIDDY_LAND_HTTPS", "1");
+            if let Some(wd) = web_dist { cmd.env("KIDDY_LAND_WEB_DIST", wd); }
+            if let Ok(c) = cmd.spawn() { return Ok(c); }
+        }
+    }
+    // Dev fallback: requires bun + source tree (cargo tauri dev)
     Command::new("bun").args(["run", "--cwd", "../../packages/server", "start"]).env("KIDDY_LAND_HTTPS", "1").stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| e.to_string())
 }
 

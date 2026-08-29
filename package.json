@@ -15,7 +15,9 @@
     "lint:fix": "oxlint --fix .",
     "format:fix": "oxfmt .",
     "quality": "turbo run //#quality",
-    "quality:fix": "turbo run //#quality:fix"
+    "quality:fix": "turbo run //#quality:fix",
+    "build:standalone": "bun run scripts/build-standalone.mjs",
+    "build:desktop": "bun run scripts/build-standalone.mjs --tauri"
   },
   "devDependencies": {
     "oxfmt": "^0.~57.0",
