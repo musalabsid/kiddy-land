@@ -33,3 +33,9 @@ dist-ssr
 *.tsbuildinfo
 
 packages/server/KiddyLand
+
+# Tauri sidecar binaries (built by bun run build:standalone --tauri, 90MB)
+apps/desktop/src-tauri/binaries/
+# VitePress build
+apps/docs/.vitepress/dist
+apps/docs/.vitepress/cache
