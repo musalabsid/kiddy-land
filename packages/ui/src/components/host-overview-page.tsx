@@ -171,9 +171,9 @@ export function HostOverviewPage({
             />
           </div>
 
-          {live && (live.products !== undefined || live.sales !== undefined) ? (
+          {live && (live.salesTodayTotal !== undefined || live.sales !== undefined) ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <LiveCard icon={Package} label={t("overview.products")} value={live.products} loading={overview.isLoading} sub={t("reports.products")} />
+              <LiveCard icon={Package} label={t("overview.salesTodayTotal") ?? "Sales today (Rp)"} value={live?.salesTodayTotal ?? 0} loading={overview.isLoading} sub={live?.ticketTodayTotal != null ? `${locale === "id" ? "Tiket" : "Ticket"} ${new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(live.ticketTodayTotal)} · ${locale === "id" ? "Produk" : "Product"} ${new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(live.productTodayTotal ?? 0)}` : operatingDate || "—"} />
               <LiveCard icon={ShoppingBag} label={t("overview.sales")} value={live.sales} loading={overview.isLoading} sub={operatingDate || "—"} />
             </div>
           ) : null}
@@ -263,13 +263,14 @@ export function HostOverviewPage({
                           </th>
                           <th className="text-right">{t("overview.remaining")}</th>
                           <th className="text-right">{t("overview.overtime")}</th>
+                          <th className="text-right">{t("overview.grace")}</th>
                           <th className="text-right">{t("overview.deposit")}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
                         {filtered.length === 0 ? (
                           <tr>
-                            <td colSpan={8} className="px-3 py-8 text-center text-sm text-muted-foreground">
+                            <td colSpan={9} className="px-3 py-8 text-center text-sm text-muted-foreground">
                               {t("overview.noTickets")} · {statusFilter}
                             </td>
                           </tr>
@@ -413,7 +414,7 @@ function TicketRow({ ticket, locale, t }: { ticket: OverviewTicket; locale: "id"
   return (
     <tr className="hover:bg-muted/20">
       <td className="px-3 py-2.5">
-        <div className="font-mono text-xs font-medium leading-tight">{ticket.dailyNumber || ticket.code}</div>
+        <div className="font-mono text-xs font-bold leading-tight">{ticket.dailyNumber}</div>
         <div className="font-mono text-[11px] leading-tight text-muted-foreground">{ticket.code}</div>
       </td>
       <td className="px-3 py-2.5">
@@ -441,6 +442,7 @@ function TicketRow({ ticket, locale, t }: { ticket: OverviewTicket; locale: "id"
       <td className="px-3 py-2.5 text-right tabular-nums">{fmtMinutes(ticket.playingMinutes, t("calendar.unlimited") as string)}</td>
       <td className={cn("px-3 py-2.5 text-right", remainingTone)}>{fmtMinutes(ticket.remainingMinutes, t("calendar.unlimited") as string)}</td>
       <td className={cn("px-3 py-2.5 text-right", overtimeTone)}>{ticket.overtimeMinutes > 0 ? `+${fmtMinutes(ticket.overtimeMinutes, "-")}` : "—"}</td>
+      <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{`${ticket.graceMinutes ?? 5} ${locale === "id" ? "menit" : "m"}`}</td>
       <td className="px-3 py-2.5 text-right">
         <div className="text-xs leading-tight">
           <span

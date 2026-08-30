@@ -1,12 +1,15 @@
 # Pairing Perangkat
 
-Host Overview → **Pair Device** → pilih:
+**Di perangkat (layar login)** pilih salah satu dari 3 mode:
 
-- **Kasir** (jual, member)
-- **Scanner** (masuk/keluar)
-- **Inventory** (stok)
-- **Kiosk** (publik)
+- **Kasir** — jual, anggota
+- **Pemindai** — masuk/keluar
+- **Kiosk Publik** — status tiket publik
 
-Klik **Show QR** → di HP/tablet, buka Kamera → scan *atau* di layar Login tap **Scan QR** → arahkan ke QR → ter-pairing.
+Lalu tap **Scan QR** → arahkan ke QR dari Host, atau tempel token manual → konfirmasi.
 
-Perangkat ter-pairing muncul di **Owner → Devices**. Jika banner **IP Host berubah** muncul, tampilkan QR lagi dan scan ulang di tiap HP.
+Perangkat **Inventaris** tidak ada di pilihan login — dapatkan undangan dari **Pemilik → Perangkat** (nama karyawan + peran **Staf**) lalu scan.
+
+Perangkat ter-pairing muncul di **Owner → Perangkat** dengan nama karyawan. Cabut vs Hapus sama-sama mematikan sesi; Dasbor Pemilik dilindungi (tidak bisa dihapus).
+
+Jika banner **IP Host berubah** muncul, tampilkan QR lagi dan scan ulang di tiap HP (sekali).

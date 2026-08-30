@@ -26,9 +26,15 @@ export default defineConfig({
           ]},
           { text: 'Using the App', items: [
             { text: 'Pairing Devices', link: '/guide/pairing' },
+            { text: 'Roles & Permissions', link: '/guide/roles' },
             { text: 'Selling Tickets', link: '/guide/selling' },
             { text: 'Scanning Entry/Exit', link: '/guide/scanning' },
             { text: 'Members & Cards', link: '/guide/members' },
+          ]},
+          { text: 'Owner Tools', items: [
+            { text: 'Calendar & Hours', link: '/guide/calendar' },
+            { text: 'Reports', link: '/guide/reports' },
+            { text: 'Customization', link: '/guide/customization' },
           ]},
           { text: 'Maintenance', items: [
             { text: 'Backups & Restore', link: '/guide/backups' },
@@ -62,9 +68,15 @@ export default defineConfig({
           ]},
           { text: 'Menggunakan Aplikasi', items: [
             { text: 'Pairing Perangkat', link: '/id/guide/pairing' },
+            { text: 'Peran & Hak Akses', link: '/id/guide/roles' },
             { text: 'Menjual Tiket', link: '/id/guide/selling' },
             { text: 'Scan Masuk/Keluar', link: '/id/guide/scanning' },
             { text: 'Member & Kartu', link: '/id/guide/members' },
+          ]},
+          { text: 'Alat Pemilik', items: [
+            { text: 'Kalender & Jam', link: '/id/guide/calendar' },
+            { text: 'Laporan', link: '/id/guide/reports' },
+            { text: 'Kustomisasi', link: '/id/guide/customization' },
           ]},
           { text: 'Perawatan', items: [
             { text: 'Backup & Restore', link: '/id/guide/backups' },

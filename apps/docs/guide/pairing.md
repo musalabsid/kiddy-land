@@ -1,14 +1,15 @@
 # Pairing Devices
 
-Host Overview → **Pair Device** → choose:
+**On the device (login screen)** pick one of 3 modes:
 
-- **Cashier** (sell, members)
-- **Scanner** (entry/exit)
-- **Inventory** (stock)
-- **Kiosk** (public)
+- **Cashier** — sell, members
+- **Scanner** — entry/exit
+- **Public Kiosk** — public ticket status
 
-Click **Show QR** → on phone/tablet, open Camera → scan *or* on login screen tap **Scan QR** → point at QR → **Token auto-filled** → confirm.
+Then tap **Scan QR** → point at the QR from the Host, or paste the token manually → confirm.
 
-Paired devices appear in **Owner → Devices** with employee name. Revoke vs Delete both kill session; Owner protected.
+**Inventory** devices aren't on the login picker — get an invitation from **Owner → Devices** (employee name + **Staff** role) and scan it.
+
+Paired devices appear in **Owner → Devices** with employee name. Revoke vs Delete both kill the session; Owner Dashboard is protected (cannot be removed).
 
 If Host Overview shows **Host IP changed** banner, re-show QR and re-scan on each phone (once).

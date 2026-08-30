@@ -24,6 +24,9 @@ export type OverviewLive = {
     lowStock: number;
     products: number;
     sales: number;
+    salesTodayTotal: number;
+    ticketTodayTotal: number;
+    productTodayTotal: number;
   };
 };
 
@@ -47,6 +50,7 @@ export type OverviewTicket = {
   playingMinutes: number;
   remainingMinutes: number | null;
   overtimeMinutes: number;
+  graceMinutes: number;
   outstandingCharge: number;
   depositStatus: string;
 };

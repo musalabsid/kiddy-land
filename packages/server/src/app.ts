@@ -150,6 +150,7 @@ export function createApp(
       playingMinutes: number;
       remainingMinutes: number | null;
       overtimeMinutes: number;
+      graceMinutes: number;
       outstandingCharge: number;
       depositStatus: string;
     }> = [];
@@ -200,6 +201,7 @@ export function createApp(
           playingMinutes,
           remainingMinutes,
           overtimeMinutes,
+          graceMinutes: threshold,
           outstandingCharge: session?.outstandingCharge ?? 0,
           depositStatus: deposit?.status ?? "held",
         });
@@ -242,6 +244,7 @@ export function createApp(
             } else if (status === "waiting" && included !== null) {
               remaining = included;
             }
+            const graceMinutes = (ticket.package as any).overtimeThreshold ?? 5;
             list.push({
               dailyNumber: (ticket as any).dailyNumber ?? ticket.code,
               code: ticket.code,
@@ -256,6 +259,7 @@ export function createApp(
               remainingMinutes: remaining,
               overtimeMinutes: overtime,
               totalPlayingTime: elapsed,
+              graceMinutes,
               childName: ticket.childName,
             });
           }

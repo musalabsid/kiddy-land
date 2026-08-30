@@ -566,5 +566,8 @@
   "overview.outstanding": "Due",
   "overview.showing": "Showing {shown} of {total}",
   "overview.products": "Products",
-  "overview.sales": "Sales today"
+  "overview.sales": "Sales today",
+  "overview.grace": "Grace",
+  "overview.salesTodayTotal": "Sales today (Rp)",
+  "overview.salesTodayTotalSub": "Today's revenue"
 }

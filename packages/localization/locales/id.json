@@ -566,5 +566,8 @@
   "overview.outstanding": "Tagihan",
   "overview.showing": "Menampilkan {shown} dari {total}",
   "overview.products": "Produk",
-  "overview.sales": "Penjualan hari ini"
+  "overview.sales": "Penjualan hari ini",
+  "overview.grace": "Tenggang",
+  "overview.salesTodayTotal": "Penjualan hari ini (Rp)",
+  "overview.salesTodayTotalSub": "Pendapatan hari ini"
 }
