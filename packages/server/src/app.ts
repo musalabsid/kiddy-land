@@ -14,6 +14,7 @@ import { publishReportEvent } from "./realtime.ts";
 import { authorizeWebSocket, type WebSocketRegistry } from "./realtime.ts";
 import type { NotificationService } from "./notifications.ts";
 import type { BackupService } from "./backup.ts";
+import type { VenueSettingsStore } from "./venue-settings.ts";
 
 export type HealthStatus = "starting" | "ready" | "unhealthy" | "fatal";
 
@@ -42,6 +43,8 @@ export function createApp(
   restorePrepared?: (id: string) => Promise<unknown>,
   setRecoveryBlocked?: (blocked: boolean, diagnostic?: string) => void,
   dataDir?: string,
+  venueSettings?: VenueSettingsStore,
+  resetBackupTimer?: () => void,
 ) {
   const app = new Hono();
 
@@ -81,6 +84,26 @@ export function createApp(
     if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
     try { return c.json(await backups?.deleteBackup(c.req.param("id"))); } catch (error) { return c.json({ error: error instanceof Error ? error.message : "Delete failed" }, 404); }
   });
+  app.get("/venue/settings", (c) => {
+    const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+    if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+    return c.json(venueSettings?.get() ?? { venueName: "Kiddy Land", logoUrl: null, backupInterval: "daily", theme: "monochrome" });
+  });
+  app.put("/venue/settings", async (c) => {
+    const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+    if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);
+    try {
+      const body = await c.req.json();
+      const next = venueSettings?.update(body ?? {});
+      resetBackupTimer?.();
+      return c.json(next);
+    } catch (e) { return c.json({ error: e instanceof Error ? e.message : "Invalid settings" }, 400); }
+  });
+  app.get("/public/venue", (c) => {
+    const current = venueSettings?.get();
+    return c.json(current ? { venueName: current.venueName, logoUrl: current.logoUrl, theme: current.theme } : { venueName: "Kiddy Land", logoUrl: null, theme: "monochrome" });
+  });
+
   app.post("/backups/:id/restore/stage", async (c) => {
     const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
     if (!current || current.user?.role !== "Owner" || !identity?.can(current, "admin")) return c.json({ error: "Forbidden" }, 403);

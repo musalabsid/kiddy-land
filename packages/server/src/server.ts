@@ -19,6 +19,7 @@ import { publishReportEvent } from "./realtime.ts";
 import { createMembershipStore, type MembershipStore } from "./membership.ts";
 import { createNotificationService, type NotificationService } from "./notifications.ts";
 import { createBackupService, type BackupService } from "./backup.ts";
+import { createVenueSettingsStore, type VenueSettingsStore } from "./venue-settings.ts";
 
 export type LocalServerOptions = {
   dataDir: string;
@@ -40,6 +41,7 @@ export type LocalServerOptions = {
   reports?: ReportService;
   notifications?: NotificationService;
   backups?: BackupService;
+  venueSettings?: VenueSettingsStore;
   database?: LocalDatabase;
   restorePrepared?: (id: string) => Promise<unknown>;
 };
@@ -98,7 +100,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const host = options.host ?? "127.0.0.1";
   const port = options.port ?? 43117;
   const httpsPort = options.httpsPort;
-  const schemaVersion = options.schemaVersion ?? 6;
+  const schemaVersion = options.schemaVersion ?? 8;
   const startedAt = now();
   let status: HealthReport["status"] = "starting";
   let databaseStatus: HealthReport["database"] = "unhealthy";
@@ -120,8 +122,12 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const reports = options.reports ?? createReportService(calendar, sales, lifecycle, inventory, membership, identity);
   const notifications = options.notifications ?? createNotificationService(identity, registry, lifecycle, inventory);
   const backups = options.backups ?? createBackupService(database, `${options.dataDir}/backups`, schemaVersion);
+  const venueSettings = options.venueSettings ?? createVenueSettingsStore(database);
   const notificationTimer = setInterval(() => notifications.check(), 30_000);
-  const backupTimer = setInterval(() => { void backups.backup("auto-daily").catch(() => {}); }, 24 * 60 * 60 * 1000);
+  const intervalMs = (v: string) => v === "6h" ? 6*60*60*1000 : v === "12h" ? 12*60*60*1000 : v === "daily" ? 24*60*60*1000 : v === "weekly" ? 7*24*60*60*1000 : 0;
+  let backupTimer: ReturnType<typeof setInterval> | undefined;
+  const startBackupTimer = () => { if (backupTimer) clearInterval(backupTimer); const ms = intervalMs(venueSettings.get().backupInterval); if (ms) backupTimer = setInterval(() => { void backups.backup("auto-daily").catch(() => {}); }, ms); };
+  startBackupTimer();
   const autoCloseTimer = setInterval(() => {
     try {
       const now = new Date();
@@ -150,7 +156,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const restorePrepared = options.restorePrepared ?? (async () => { throw new Error("Restore requires the Host Runtime restart coordinator"); });
   const setRecoveryBlocked = (blocked: boolean, reason?: string) => { writeBlocked = blocked; diagnostic = reason; if (blocked) status = "unhealthy"; else if (databaseStatus === "ready") status = "ready"; };
   const getLanIp = () => detectLanIpv4();
-  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry, httpsUrl: () => httpsPort && tlsMaterial ? `https://${host}:${httpsPort}` : undefined, lanIp: getLanIp }, calendar, sales, lifecycle, inventory, membership, reports, notifications, backups, restorePrepared, setRecoveryBlocked, options.dataDir);
+  const app = createApp(health, identity, { origin: `http://${host}:${port}`, registry, httpsUrl: () => httpsPort && tlsMaterial ? `https://${host}:${httpsPort}` : undefined, lanIp: getLanIp }, calendar, sales, lifecycle, inventory, membership, reports, notifications, backups, restorePrepared, setRecoveryBlocked, options.dataDir, venueSettings, () => startBackupTimer());
   publishReportEvent(registry, { type: "report-changed", source: "server-ready" });
   const websocketServer = new WebSocketServer({ noServer: true });
 
@@ -163,7 +169,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
         // Vite's SPA routes (/sales, /inventory, …) are client-side routes.
         // Serve index.html on an otherwise-unmatched GET so browser refreshes
         // do not become server 404s. Real API responses keep their status.
-        const isKnownGetApiPath = /^(\/ready|\/health|\/auth\/(bootstrap-status|session|capability\/[^/]+)|\/pairing\/devices|\/products(?:\/[^/]+(?:\/image)?)?|\/inventory\/(movements|low-stock|exceptions|counts)|\/members(?:\/[^/]+)?|\/membership\/(events|discounts)|\/calendar\/(config|schedule|packages\/[^/]+\/snapshot)|\/notifications\/(settings|routes)|\/reports\/(financial|playground|inventory|membership|live)|\/backups)$/.test(url.pathname);
+        const isKnownGetApiPath = /^(\/ready|\/health|\/auth\/(bootstrap-status|session|capability\/[^/]+)|\/pairing\/devices|\/products(?:\/[^/]+(?:\/image)?)?|\/inventory\/(movements|low-stock|exceptions|counts)|\/members(?:\/[^/]+)?|\/membership\/(events|discounts)|\/calendar\/(config|schedule|packages\/[^/]+\/snapshot)|\/notifications\/(settings|routes)|\/reports\/(financial|playground|inventory|membership|live)|\/backups|\/venue\/settings|\/public\/venue)$/.test(url.pathname);
         if (request.method === "GET" && apiResponse.status === 404 && !isKnownGetApiPath && !url.pathname.includes(".")) {
           return (await serveStaticFromDist("/", options.webDist!)) ?? apiResponse;
         }
@@ -223,6 +229,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
     },
     async stop(timeoutMs = 5_000) {
       clearInterval(notificationTimer);
+      if (backupTimer) clearInterval(backupTimer);
       if (!httpServer) { if (ownsDatabase) database.close(); return; }
       status = "starting";
       const server = httpServer; httpServer = undefined;

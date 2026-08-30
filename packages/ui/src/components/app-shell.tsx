@@ -1,4 +1,5 @@
 import { useLogout, useSession } from "@kiddy-land/client/react";
+import { usePublicVenue } from "@kiddy-land/client";
 import { Link, useLocation } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { NotificationAlerts, SoundPreference, useNotificationSound } from "@workspace/ui/components/notification-alerts";
@@ -37,6 +38,7 @@ import {
   Tags,
   Users,
   Monitor,
+  Palette,
   Moon,
   Sun
 } from "lucide-react";
@@ -64,8 +66,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const logout = useLogout();
   const { soundEnabled, setSoundEnabled } = useNotificationSound();
+  const venue = usePublicVenue();
   const active = (path: string) => pathname === path;
-  const pageTitleKey: MessageKey = pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/sales-history" ? "app.salesHistory" : pathname === "/members" ? "app.members" : pathname === "/inventory" || pathname === "/owner/inventory" ? "app.inventory" : pathname === "/scanner/entry" ? "app.entryScanner" : pathname === "/scanner/exit" ? "app.exitScanner" : pathname === "/kiosk" ? "app.kiosk" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : "host.title";
+  const pageTitleKey = (pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/sales-history" ? "app.salesHistory" : pathname === "/members" ? "app.members" : pathname === "/inventory" || pathname === "/owner/inventory" ? "app.inventory" : pathname === "/scanner" ? "app.scanner" : pathname === "/kiosk" ? "app.kiosk" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : pathname === "/owner/customization" ? "app.customization" : "host.title") as MessageKey;
   if (!session) return null;
   const mode = session.device.mode;
   const isOwner = session.user?.role === "Owner";
@@ -80,9 +83,9 @@ export function AppShell({ children }: { children: ReactNode }) {
     <SidebarProvider>
       <Sidebar collapsible="icon">
         <SidebarHeader className="flex flex-row items-center gap-2 px-4 py-3">
-          <LayoutDashboard className="size-5 text-primary" />
+          {venue.data?.logoUrl ? <img src={venue.data.logoUrl} alt={venue.data.venueName} className="size-7 shrink-0 rounded border object-cover group-data-[collapsible=icon]:size-5" /> : <LayoutDashboard className="size-5 text-primary" />}
           <span className="text-sm font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
-            {t("host.eyebrow")}
+            {venue.data?.venueName ?? t("host.eyebrow")}
           </span>
         </SidebarHeader>
         <SidebarContent>
@@ -134,7 +137,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
                   {mode === "Scanner" && (
                     <SidebarMenuItem>
-                      <SidebarMenuButton render={<Link to="/scanner/entry" />} isActive={active("/scanner/entry")}>
+                      <SidebarMenuButton render={<Link to="/scanner" />} isActive={active("/scanner")}>
                         <ScanLine />
                         {t("app.scanner")}
                       </SidebarMenuButton>
@@ -165,7 +168,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton render={<Link to="/owner/calendar" />} isActive={active("/owner/calendar")}>
-                      <CalendarDays className="size-5 text-primary" />
+                      <CalendarDays className="size-5" />
                       {t("app.calendar")}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -215,6 +218,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <SidebarMenuButton render={<Link to="/owner/backups" />} isActive={active("/owner/backups")}>
                       <HardDrive />
                       {t("app.backups")}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton render={<Link to="/owner/customization" />} isActive={active("/owner/customization")}>
+                      <Palette />
+                      {t("app.customization" as MessageKey)}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>

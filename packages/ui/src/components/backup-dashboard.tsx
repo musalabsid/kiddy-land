@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useBackups, useBackupNow, useRestoreBackup, useStageRestoreBackup, useDeleteBackup } from "@kiddy-land/client";
+import { useBackups, useBackupNow, useRestoreBackup, useStageRestoreBackup, useDeleteBackup, useVenueSettings } from "@kiddy-land/client";
 import type { BackupRecord } from "@kiddy-land/client";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
@@ -28,6 +28,7 @@ export function BackupDashboard() {
   const restore = useRestoreBackup();
   const del = useDeleteBackup();
   const busy = create.isPending || stage.isPending || restore.isPending || del.isPending;
+  const venue = useVenueSettings();
   const health = backups.data?.health as { destination?: string; ageMs?: number; latest?: { createdAt: number; sizeBytes: number; appVersion: string; schemaVersion: number } } | undefined;
   const latest = health?.latest;
   const [restoreTarget, setRestoreTarget] = React.useState<BackupRecord | null>(null);
@@ -50,7 +51,7 @@ export function BackupDashboard() {
               <li>{t("backup.step3")}</li>
               <li>{t("backup.step4")}</li>
             </ol>
-            <p className="mt-2 text-xs text-muted-foreground">Destination: <span className="font-mono break-all">{health?.destination ?? "Unavailable"}</span> · Auto backup: daily, keep 10 (configurable later)</p>
+            <p className="mt-2 text-xs text-muted-foreground">Destination: <span className="font-mono break-all">{health?.destination ?? "Unavailable"}</span> · Auto backup: {venue.data?.backupInterval ?? "daily"}, keep 10</p>
           </div>
           <div className="grid gap-2 rounded border p-3 text-sm">
             <div className="flex items-center gap-2 font-medium"><Clock className="size-4 text-foreground dark:!text-white" />{t("backup.latestTitle")}</div>

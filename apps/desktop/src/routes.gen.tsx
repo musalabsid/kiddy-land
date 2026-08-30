@@ -13,6 +13,7 @@ import {
   OwnerLoginScreen,
 } from "@workspace/ui/components/auth-screen";
 import { BackupDashboard } from "@workspace/ui/components/backup-dashboard";
+import { VenueCustomization } from "@workspace/ui/components/venue-customization";
 import { CalendarSettings } from "@workspace/ui/components/calendar-settings";
 import { CashierSale } from "@workspace/ui/components/cashier-sale";
 import { CashierTodaySales } from "@workspace/ui/components/cashier-today-sales";
@@ -260,6 +261,16 @@ const ownerBackupsRoute = createRoute({
   ),
 });
 
+const ownerCustomizationRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/owner/customization",
+  component: () => (
+    <RouteAccessGate requireRole="Owner">
+      <VenueCustomization />
+    </RouteAccessGate>
+  ),
+});
+
 function SessionRefresh() {
   useSession();
   return null;
@@ -322,6 +333,7 @@ export const routeTree = rootRoute.addChildren([
       ownerMembershipDiscountsRoute,
       ownerReportsRoute,
       ownerBackupsRoute,
+      ownerCustomizationRoute,
     ]),
   ]),
 ]);

@@ -1,5 +1,6 @@
 import * as React from "react";
 import { usePublicProducts, usePublicTicket, type PublicProduct, type PublicTicketResult } from "@kiddy-land/client/react";
+import { usePublicVenue } from "@kiddy-land/client";
 import { useClient } from "@kiddy-land/client/react";
 import { formatIdr } from "@kiddy-land/localization";
 import { useLocale } from "@workspace/ui/lib/i18n";
@@ -16,6 +17,7 @@ export function PublicKiosk() {
   const [productData, setProductData] = React.useState<PublicProduct | null>(null);
   const [code, setCode] = React.useState("");
   const [scannedValue, setScannedValue] = React.useState<string | null>(null);
+  const venueQuery = usePublicVenue();
   const productsQuery = usePublicProducts();
   const ticketQuery = usePublicTicket(code);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,7 +102,7 @@ export function PublicKiosk() {
         {/* Left - Scanner */}
         <div className="flex flex-1 flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold tracking-tight">Kiddy Land</h1>
+            <div className="flex items-center gap-2"><h1 className="text-lg font-semibold tracking-tight">{venueQuery.data?.venueName ?? "Kiddy Land"}</h1>{venueQuery.data?.logoUrl ? <img src={venueQuery.data.logoUrl} alt={venueQuery.data.venueName} className="size-7 rounded border object-cover" /> : null}</div>
             <span className="text-xs text-muted-foreground">{t("kiosk.publicKiosk")}</span>
           </div>
 

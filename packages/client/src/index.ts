@@ -12,6 +12,7 @@ export * from "./members/hooks";
 export * from "./notifications";
 export * from "./backups";
 export * from "./reports/hooks";
+export * from "./venue";
 export type { SaleRecord } from "./api/types";
 export * from "./lifecycle/hooks";
 export { formatDate, formatIdr } from "@kiddy-land/localization";

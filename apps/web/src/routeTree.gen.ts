@@ -23,6 +23,7 @@ import { Route as AuthenticatedMemberCardPrintRouteImport } from './routes/_auth
 import { Route as AuthenticatedShellOwnerBackupsRouteImport } from './routes/_authenticated/_shell/owner/backups'
 import { Route as AuthenticatedShellOwnerCalendarRouteImport } from './routes/_authenticated/_shell/owner/calendar'
 import { Route as AuthenticatedShellOwnerCatalogRouteImport } from './routes/_authenticated/_shell/owner/catalog'
+import { Route as AuthenticatedShellOwnerCustomizationRouteImport } from './routes/_authenticated/_shell/owner/customization'
 import { Route as AuthenticatedShellOwnerDevicesRouteImport } from './routes/_authenticated/_shell/owner/devices'
 import { Route as AuthenticatedShellOwnerInventoryRouteImport } from './routes/_authenticated/_shell/owner/inventory'
 import { Route as AuthenticatedShellOwnerMembershipDiscountsRouteImport } from './routes/_authenticated/_shell/owner/membership-discounts'
@@ -106,6 +107,12 @@ const AuthenticatedShellOwnerCatalogRoute =
     path: '/owner/catalog',
     getParentRoute: () => AuthenticatedShellRoute,
   } as any)
+const AuthenticatedShellOwnerCustomizationRoute =
+  AuthenticatedShellOwnerCustomizationRouteImport.update({
+    id: '/owner/customization',
+    path: '/owner/customization',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
 const AuthenticatedShellOwnerDevicesRoute =
   AuthenticatedShellOwnerDevicesRouteImport.update({
     id: '/owner/devices',
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
   '/owner/calendar': typeof AuthenticatedShellOwnerCalendarRoute
   '/owner/catalog': typeof AuthenticatedShellOwnerCatalogRoute
+  '/owner/customization': typeof AuthenticatedShellOwnerCustomizationRoute
   '/owner/devices': typeof AuthenticatedShellOwnerDevicesRoute
   '/owner/inventory': typeof AuthenticatedShellOwnerInventoryRoute
   '/owner/membership-discounts': typeof AuthenticatedShellOwnerMembershipDiscountsRoute
@@ -176,6 +184,7 @@ export interface FileRoutesByTo {
   '/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
   '/owner/calendar': typeof AuthenticatedShellOwnerCalendarRoute
   '/owner/catalog': typeof AuthenticatedShellOwnerCatalogRoute
+  '/owner/customization': typeof AuthenticatedShellOwnerCustomizationRoute
   '/owner/devices': typeof AuthenticatedShellOwnerDevicesRoute
   '/owner/inventory': typeof AuthenticatedShellOwnerInventoryRoute
   '/owner/membership-discounts': typeof AuthenticatedShellOwnerMembershipDiscountsRoute
@@ -199,6 +208,7 @@ export interface FileRoutesById {
   '/_authenticated/_shell/owner/backups': typeof AuthenticatedShellOwnerBackupsRoute
   '/_authenticated/_shell/owner/calendar': typeof AuthenticatedShellOwnerCalendarRoute
   '/_authenticated/_shell/owner/catalog': typeof AuthenticatedShellOwnerCatalogRoute
+  '/_authenticated/_shell/owner/customization': typeof AuthenticatedShellOwnerCustomizationRoute
   '/_authenticated/_shell/owner/devices': typeof AuthenticatedShellOwnerDevicesRoute
   '/_authenticated/_shell/owner/inventory': typeof AuthenticatedShellOwnerInventoryRoute
   '/_authenticated/_shell/owner/membership-discounts': typeof AuthenticatedShellOwnerMembershipDiscountsRoute
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
     | '/owner/backups'
     | '/owner/calendar'
     | '/owner/catalog'
+    | '/owner/customization'
     | '/owner/devices'
     | '/owner/inventory'
     | '/owner/membership-discounts'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/owner/backups'
     | '/owner/calendar'
     | '/owner/catalog'
+    | '/owner/customization'
     | '/owner/devices'
     | '/owner/inventory'
     | '/owner/membership-discounts'
@@ -263,6 +275,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/owner/backups'
     | '/_authenticated/_shell/owner/calendar'
     | '/_authenticated/_shell/owner/catalog'
+    | '/_authenticated/_shell/owner/customization'
     | '/_authenticated/_shell/owner/devices'
     | '/_authenticated/_shell/owner/inventory'
     | '/_authenticated/_shell/owner/membership-discounts'
@@ -376,6 +389,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellOwnerCatalogRouteImport
       parentRoute: typeof AuthenticatedShellRoute
     }
+    '/_authenticated/_shell/owner/customization': {
+      id: '/_authenticated/_shell/owner/customization'
+      path: '/owner/customization'
+      fullPath: '/owner/customization'
+      preLoaderRoute: typeof AuthenticatedShellOwnerCustomizationRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
     '/_authenticated/_shell/owner/devices': {
       id: '/_authenticated/_shell/owner/devices'
       path: '/owner/devices'
@@ -431,6 +451,7 @@ interface AuthenticatedShellRouteChildren {
   AuthenticatedShellOwnerBackupsRoute: typeof AuthenticatedShellOwnerBackupsRoute
   AuthenticatedShellOwnerCalendarRoute: typeof AuthenticatedShellOwnerCalendarRoute
   AuthenticatedShellOwnerCatalogRoute: typeof AuthenticatedShellOwnerCatalogRoute
+  AuthenticatedShellOwnerCustomizationRoute: typeof AuthenticatedShellOwnerCustomizationRoute
   AuthenticatedShellOwnerDevicesRoute: typeof AuthenticatedShellOwnerDevicesRoute
   AuthenticatedShellOwnerInventoryRoute: typeof AuthenticatedShellOwnerInventoryRoute
   AuthenticatedShellOwnerMembershipDiscountsRoute: typeof AuthenticatedShellOwnerMembershipDiscountsRoute
@@ -449,6 +470,8 @@ const AuthenticatedShellRouteChildren: AuthenticatedShellRouteChildren = {
   AuthenticatedShellOwnerBackupsRoute: AuthenticatedShellOwnerBackupsRoute,
   AuthenticatedShellOwnerCalendarRoute: AuthenticatedShellOwnerCalendarRoute,
   AuthenticatedShellOwnerCatalogRoute: AuthenticatedShellOwnerCatalogRoute,
+  AuthenticatedShellOwnerCustomizationRoute:
+    AuthenticatedShellOwnerCustomizationRoute,
   AuthenticatedShellOwnerDevicesRoute: AuthenticatedShellOwnerDevicesRoute,
   AuthenticatedShellOwnerInventoryRoute: AuthenticatedShellOwnerInventoryRoute,
   AuthenticatedShellOwnerMembershipDiscountsRoute:
