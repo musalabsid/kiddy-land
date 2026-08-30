@@ -26,7 +26,7 @@ export function createVenueSettingsStore(database: LocalDatabase) {
     if (!raw) return { ...DEFAULTS };
     return {
       venueName: typeof raw.venueName === "string" && raw.venueName.trim() ? raw.venueName.trim().slice(0, 32) : DEFAULTS.venueName,
-      logoUrl: typeof raw.logoUrl === "string" && raw.logoUrl.startsWith("data:image/") ? raw.logoUrl.slice(0, 500_000) : null,
+      logoUrl: typeof raw.logoUrl === "string" && raw.logoUrl.startsWith("data:image/") ? raw.logoUrl : null,
       backupInterval: VALID_INTERVALS.includes(raw.backupInterval as BackupInterval) ? (raw.backupInterval as BackupInterval) : DEFAULTS.backupInterval,
       theme: VALID_THEMES.includes(raw.theme as VenueTheme) ? (raw.theme as VenueTheme) : DEFAULTS.theme,
     };
@@ -35,7 +35,7 @@ export function createVenueSettingsStore(database: LocalDatabase) {
     const current = get();
     const next: VenueSettings = {
       venueName: patch.venueName !== undefined ? String(patch.venueName).trim().slice(0, 32) || current.venueName : current.venueName,
-      logoUrl: patch.logoUrl !== undefined ? (patch.logoUrl && String(patch.logoUrl).startsWith("data:image/") ? String(patch.logoUrl).slice(0, 500_000) : null) : current.logoUrl,
+      logoUrl: patch.logoUrl !== undefined ? (patch.logoUrl && String(patch.logoUrl).startsWith("data:image/") ? (() => { const v = String(patch.logoUrl); if (v.length > 550_000) throw new Error("Logo too large — max ~400KB"); return v; })() : null) : current.logoUrl,
       backupInterval: patch.backupInterval !== undefined && VALID_INTERVALS.includes(patch.backupInterval as BackupInterval) ? (patch.backupInterval as BackupInterval) : current.backupInterval,
       theme: patch.theme !== undefined && VALID_THEMES.includes(patch.theme as VenueTheme) ? (patch.theme as VenueTheme) : current.theme,
     };

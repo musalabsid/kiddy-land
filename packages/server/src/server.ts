@@ -169,7 +169,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
         // Vite's SPA routes (/sales, /inventory, …) are client-side routes.
         // Serve index.html on an otherwise-unmatched GET so browser refreshes
         // do not become server 404s. Real API responses keep their status.
-        const isKnownGetApiPath = /^(\/ready|\/health|\/auth\/(bootstrap-status|session|capability\/[^/]+)|\/pairing\/devices|\/products(?:\/[^/]+(?:\/image)?)?|\/inventory\/(movements|low-stock|exceptions|counts)|\/members(?:\/[^/]+)?|\/membership\/(events|discounts)|\/calendar\/(config|schedule|packages\/[^/]+\/snapshot)|\/notifications\/(settings|routes)|\/reports\/(financial|playground|inventory|membership|live)|\/backups|\/venue\/settings|\/public\/venue)$/.test(url.pathname);
+        const isKnownGetApiPath = /^(\/ready|\/health|\/overview|\/auth\/(bootstrap-status|session|capability\/[^/]+)|\/pairing\/devices|\/products(?:\/[^/]+(?:\/image)?)?|\/inventory\/(movements|low-stock|exceptions|counts)|\/members(?:\/[^/]+)?|\/membership\/(events|discounts)|\/calendar\/(config|schedule|packages\/[^/]+\/snapshot)|\/notifications\/(settings|routes)|\/reports\/(financial|playground|inventory|membership|live)|\/backups|\/venue\/settings|\/public\/venue)$/.test(url.pathname);
         if (request.method === "GET" && apiResponse.status === 404 && !isKnownGetApiPath && !url.pathname.includes(".")) {
           return (await serveStaticFromDist("/", options.webDist!)) ?? apiResponse;
         }

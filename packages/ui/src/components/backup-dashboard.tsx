@@ -6,8 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@work
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@workspace/ui/components/alert-dialog";
 import { Input } from "@workspace/ui/components/input";
-import { useLocale } from "@workspace/ui/lib/i18n";
+import { useLocale, type MessageKey } from "@workspace/ui/lib/i18n";
 import { Trash2, ShieldCheck, Database, Clock } from "lucide-react";
+const INTERVAL_LABELS: Record<string, MessageKey> = {
+  off: "customization.intervalOff",
+  "6h": "customization.interval6h",
+  "12h": "customization.interval12h",
+  daily: "customization.intervalDaily",
+  weekly: "customization.intervalWeekly",
+};
+
 function formatAge(ms?: number) {
   if (ms == null) return "—";
   if (ms < 60_000) return "just now";
@@ -51,10 +59,10 @@ export function BackupDashboard() {
               <li>{t("backup.step3")}</li>
               <li>{t("backup.step4")}</li>
             </ol>
-            <p className="mt-2 text-xs text-muted-foreground">Destination: <span className="font-mono break-all">{health?.destination ?? "Unavailable"}</span> · Auto backup: {venue.data?.backupInterval ?? "daily"}, keep 10</p>
+            <p className="mt-2 text-xs text-muted-foreground">Destination: <span className="font-mono break-all">{health?.destination ?? "Unavailable"}</span> · {t("customization.autoBackup").replace("{interval}", t(INTERVAL_LABELS[venue.data?.backupInterval ?? "daily"]))}</p>
           </div>
           <div className="grid gap-2 rounded border p-3 text-sm">
-            <div className="flex items-center gap-2 font-medium"><Clock className="size-4 text-foreground dark:!text-white" />{t("backup.latestTitle")}</div>
+            <div className="flex items-center gap-2 font-medium"><Clock className="size-4 text-foreground" />{t("backup.latestTitle")}</div>
             {latest ? (
               <div className="grid gap-1 text-muted-foreground">
                 <span>{new Date(latest.createdAt).toLocaleString(locale)} · {formatAge(health?.ageMs)} · {formatBytes(latest.sizeBytes)} · app {latest.appVersion} · schema {latest.schemaVersion}</span>
@@ -76,7 +84,7 @@ export function BackupDashboard() {
           {backups.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : backups.data?.backups.length === 0 ? <p className="text-sm text-muted-foreground">{t("backup.noBackup")}</p> : backups.data?.backups.map((backup) => (
             <div className="grid gap-2 border p-3 text-sm" key={backup.id}>
               <div className="flex items-center justify-between gap-3">
-                <span className="flex items-center gap-2"><Database className="size-4" />{new Date(backup.createdAt).toLocaleString(locale)} · <span className={backup.status === "verified" ? "text-green-600" : "text-destructive"}>{backup.status}</span> · {formatBytes(backup.sizeBytes)}</span>
+                <span className="flex items-center gap-2"><Database className="size-4" />{new Date(backup.createdAt).toLocaleString(locale)} · <span className={backup.status === "verified" ? "text-[var(--state-success)]" : "text-destructive"}>{backup.status}</span> · {formatBytes(backup.sizeBytes)}</span>
                 <span className="flex gap-2">
                   {backup.status === "verified" && (
                     <Button variant="destructive" size="sm" disabled={busy} onClick={() => { setRestoreTarget(backup); setRestoreInput(""); }}><ShieldCheck className="size-4" />{t("backup.restore")}</Button>

@@ -123,6 +123,92 @@ export function createApp(
     return c.json({ ...health, httpsUrl: realtime?.httpsUrl?.() ?? undefined, lanIp: realtime?.lanIp?.() ?? undefined }, health.status === "ready" ? 200 : 503);
   });
 
+  app.get("/overview", (c) => {
+    const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+    if (!current || current.user?.role !== "Owner" || !identity?.can(current, "read")) return c.json({ error: "Forbidden" }, 403);
+    if (!reports || !sales || !lifecycle || !calendar) return c.json({ error: "Overview unavailable" }, 503);
+    const now = Date.now();
+    const health = { ...getHealth(), httpsUrl: realtime?.httpsUrl?.() ?? undefined, lanIp: realtime?.lanIp?.() ?? undefined };
+    const live = reports.live();
+    const today = calendar.operatingDate(new Date(now));
+    const minutesBetween = (a: number, b: number) => Math.max(0, Math.floor((b - a) / 60_000));
+    const tickets: Array<{
+      ticketId: string;
+      code: string;
+      dailyNumber: string;
+      childId: string;
+      childName?: string;
+      saleId: string;
+      operatingDate: string;
+      createdAt: number;
+      packageId: string;
+      packageName: string;
+      includedMinutes: number | null;
+      status: string;
+      enteredAt?: number;
+      exitedAt?: number;
+      playingMinutes: number;
+      remainingMinutes: number | null;
+      overtimeMinutes: number;
+      outstandingCharge: number;
+      depositStatus: string;
+    }> = [];
+    for (const sale of sales.sales.values()) {
+      if (sale.operatingDate !== today) continue;
+      for (const ticket of sale.tickets) {
+        const session = lifecycle.sessions.get(ticket.id) as { enteredAt: number; exitedAt?: number; status: string; overtimeMinutes: number; outstandingCharge: number } | undefined;
+        const deposit = sale.deposits.find((d) => d.ticketId === ticket.id);
+        const included = ticket.package.includedMinutes ?? null;
+        const threshold = (ticket.package as unknown as { overtimeThreshold?: number }).overtimeThreshold ?? 5;
+        let playingMinutes = 0;
+        let remainingMinutes: number | null = included;
+        let overtimeMinutes = 0;
+        let enteredAt: number | undefined;
+        let exitedAt: number | undefined;
+        const status = (session?.status as string) ?? (ticket.status as string);
+        if (!session) {
+          playingMinutes = 0;
+          remainingMinutes = included;
+          overtimeMinutes = 0;
+        } else if (session.status === "active") {
+          enteredAt = session.enteredAt;
+          playingMinutes = minutesBetween(session.enteredAt, now);
+          remainingMinutes = included === null ? null : Math.max(0, included - playingMinutes);
+          overtimeMinutes = included === null ? 0 : Math.max(0, playingMinutes - included - threshold);
+        } else {
+          enteredAt = session.enteredAt;
+          exitedAt = session.exitedAt;
+          playingMinutes = exitedAt ? minutesBetween(session.enteredAt, exitedAt) : minutesBetween(session.enteredAt, now);
+          remainingMinutes = 0;
+          overtimeMinutes = session.overtimeMinutes ?? 0;
+        }
+        tickets.push({
+          ticketId: ticket.id,
+          code: ticket.code,
+          dailyNumber: (ticket as unknown as { dailyNumber?: string }).dailyNumber ?? ticket.code,
+          childId: ticket.childId,
+          childName: ticket.childName,
+          saleId: sale.id,
+          operatingDate: sale.operatingDate,
+          createdAt: sale.createdAt,
+          packageId: ticket.package.id,
+          packageName: ticket.package.name,
+          includedMinutes: included,
+          status,
+          enteredAt,
+          exitedAt,
+          playingMinutes,
+          remainingMinutes,
+          overtimeMinutes,
+          outstandingCharge: session?.outstandingCharge ?? 0,
+          depositStatus: deposit?.status ?? "held",
+        });
+      }
+    }
+    tickets.sort((a, b) => b.playingMinutes - a.playingMinutes);
+    return c.json({ health, live, tickets, generatedAt: new Date(now).toISOString(), timezone: calendar.timezone });
+  });
+
   if (reports) {
     const owner = (c: any) => { const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, "")); return current && current.user?.role === "Owner" && identity?.can(current, "read") ? current : undefined; };
     const query = (c: any) => ({ from: c.req.query("from"), to: c.req.query("to"), cashierId: c.req.query("cashierId"), paymentMethod: c.req.query("paymentMethod"), packageId: c.req.query("packageId"), productId: c.req.query("productId"), memberId: c.req.query("memberId") });

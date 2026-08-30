@@ -26,4 +26,5 @@ export const clientQueryKeys = {
   membershipDiscounts: ["membership", "discounts"] as const,
   reports: ["reports"] as const,
   liveReport: ["reports", "live"] as const,
+  overview: ["overview"] as const,
 };

@@ -26,7 +26,7 @@ function RealtimeSync() {
   React.useEffect(() => {
     if (!session) return undefined;
     const realtime = new RealtimeClient(`${client.origin.replace(/^http/, "ws")}/ws`, () => client.getToken());
-    const unsubscribe = realtime.subscribe((event) => { if (event.type === "revoked") { client.setToken(undefined); clear(); } else if (event.type === "connected") setState("connected"); else if (event.type === "disconnected") setState("read-only"); else if (event.type === "synchronized") { setState("synchronized", true); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.reports }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.liveReport }); } else if (event.type === "report-changed") { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.reports }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.liveReport }); } else if (event.type === "notification" && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("kiddy-land-notification", { detail: event })); });
+    const unsubscribe = realtime.subscribe((event) => { if (event.type === "revoked") { client.setToken(undefined); clear(); } else if (event.type === "connected") setState("connected"); else if (event.type === "disconnected") setState("read-only"); else if (event.type === "synchronized") { setState("synchronized", true); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.reports }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.liveReport }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.overview }); } else if (event.type === "report-changed") { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.reports }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.liveReport }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.overview }); } else if (event.type === "notification" && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("kiddy-land-notification", { detail: event })); });
     realtime.connect();
     return () => { unsubscribe(); realtime.close(); };
   }, [client, clear, session, setState]);
@@ -57,6 +57,8 @@ export * from "./inventory/hooks";
 export * from "./kiosk";
 export * from "./members/hooks";
 export * from "./reports/hooks";
+export { useOverview } from "./overview";
+export type { OverviewResponse, OverviewTicket, OverviewHealth, OverviewLive } from "./overview";
 export type * from "./calendar/types";
 export * from "./calendar/hooks";
 export { formatDate, formatIdr } from "@kiddy-land/localization";

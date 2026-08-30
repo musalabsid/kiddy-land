@@ -31,6 +31,9 @@ import {
   useRouteAccess,
 } from "@workspace/ui/components/route-access-guard";
 import { TicketScanner } from "@workspace/ui/components/ticket-scanner";
+import { useState } from "react";
+import { Button } from "@workspace/ui/components/button";
+import { useLocale } from "@workspace/ui/lib/i18n";
 import { TicketPackageSettings } from "@workspace/ui/components/ticket-package-settings";
 import { createHttpHostSource } from "@workspace/ui/lib/host";
 import { ThemeProvider } from "@workspace/ui/providers/theme-provider";
@@ -149,24 +152,28 @@ const inventoryRoute = createRoute({
   },
 });
 
-const scannerEntryRoute = createRoute({
+const scannerRoute = createRoute({
   getParentRoute: () => shellRoute,
-  path: "/scanner/entry",
-  component: () => (
-    <RouteAccessGate requireMode="Scanner">
-      <TicketScanner kind="entry" />
-    </RouteAccessGate>
-  ),
-});
-
-const scannerExitRoute = createRoute({
-  getParentRoute: () => shellRoute,
-  path: "/scanner/exit",
-  component: () => (
-    <RouteAccessGate requireMode="Scanner">
-      <TicketScanner kind="exit" />
-    </RouteAccessGate>
-  ),
+  path: "/scanner",
+  component: () => {
+    const { t } = useLocale();
+    const [tab, setTab] = useState<"entry" | "exit">("entry");
+    return (
+      <RouteAccessGate requireMode="Scanner">
+        <div className="grid gap-4">
+          <div className="flex gap-2">
+            <Button variant={tab === "entry" ? "default" : "outline"} onClick={() => setTab("entry")}>
+              {t("scanner.entryTitle")}
+            </Button>
+            <Button variant={tab === "exit" ? "default" : "outline"} onClick={() => setTab("exit")}>
+              {t("scanner.exitTitle")}
+            </Button>
+          </div>
+          {tab === "entry" ? <TicketScanner kind="entry" /> : <TicketScanner kind="exit" />}
+        </div>
+      </RouteAccessGate>
+    );
+  },
 });
 
 const ownerDevicesRoute = createRoute({
@@ -322,8 +329,7 @@ export const routeTree = rootRoute.addChildren([
       salesHistoryRoute,
       membersRoute,
       inventoryRoute,
-      scannerEntryRoute,
-      scannerExitRoute,
+      scannerRoute,
       ownerDevicesRoute,
       ownerCalendarRoute,
       ownerPackagesRoute,
