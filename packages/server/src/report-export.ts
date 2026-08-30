@@ -2,15 +2,16 @@ function escape(value: unknown) { if (value == null) return ""; const text = typ
 function money(value: number | undefined) { if (value == null || Number.isNaN(value as number)) return "-"; return `Rp ${Number(value).toLocaleString("id-ID")}`; }
 function shortId(value: string | undefined) { if (!value) return "-"; const v = String(value); return v.length > 12 ? v.slice(0, 4) + "..." + v.slice(-4) : v; }
 function pdfText(value: unknown) { const s = value == null ? "" : String(value); return s.replace(/[()\\]/g, "\\$&"); }
-function pdfDocument(stream: string, width: number, height: number) {
-  const objects = [
+function pdfDocument(stream: string, width: number, height: number, image?: { obj: string; data: Buffer }) {
+  const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>`,
+    image ? `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> /XObject << /Im0 ${6} 0 R >> >> /Contents 5 0 R >>` : `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
     `<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream`,
   ];
+  if (image) objects.push(image.obj + `\nstream\n` + image.data.toString("binary") + `\nendstream`); // ponytail: logo only receipt/report
   let pdf = "%PDF-1.4\n";
   const offsets: number[] = [];
   objects.forEach((object, index) => {
@@ -59,7 +60,23 @@ export function reportCsv(report: { kind: string; filters: unknown; timezone: st
   return [...header.map((r) => r.map(escape).join(",")), ["data", "value"], ...rows.map((row) => ["row", JSON.stringify(row)]).map((r) => r.map(escape).join(","))].join("\r\n") + "\r\n";
 }
 
-export function reportPdf(report: { kind: string; filters: unknown; timezone: string; generatedAt: string; data: unknown }) {
+export function reportPdf(report: { kind: string; filters: unknown; timezone: string; generatedAt: string; data: unknown }, venueName = "Kiddy Land", logoUrl?: string | null) {
+  const pdfImageFromLogo = (url?: string | null) => {
+    if (!url || !url.startsWith("data:image/")) return null;
+    const comma = url.indexOf(",");
+    const mime = url.slice(5, url.indexOf(";"));
+    try {
+      const buf = Buffer.from(url.slice(comma + 1), "base64");
+      if (mime === "image/jpeg" || mime === "image/jpg") {
+        let i=2; let w=120,h=120;
+        while(i < buf.length-9){ if(buf[i]!==0xff) break; const m=buf[i+1]; const len=buf.readUInt16BE(i+2); if((m>=0xc0&&m<=0xc3)||m===0xc5||m===0xc6||m===0xc7){h=buf.readUInt16BE(i+5);w=buf.readUInt16BE(i+7);break;} i+=2+len; }
+        const obj=`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${buf.length} >>`;
+        return { image:{obj, data:buf}, w, h };
+      }
+    } catch {}
+    return null;
+  };
+  const logo = pdfImageFromLogo(logoUrl ?? null);
   const f = report.filters as { from: string; to: string };
   const W = 842; // A4 landscape
   const H = 595;
@@ -82,7 +99,7 @@ export function reportPdf(report: { kind: string; filters: unknown; timezone: st
     stream += `${gray} g ${x} ${yy} ${w} ${h} re f 0 g\n`;
   };
   // Header
-  text("KIDDY LAND", 9, margin, y, "F1");
+  if (logo?.image) { stream += `q 18 0 0 18 ${margin} ${y - 8} cm /Im0 Do Q\n`; text(venueName, 9, margin + 22, y, "F1"); } else { text(venueName, 9, margin, y, "F1"); }
   stream += `0.55 g\n`;
   text("FINANCIAL REPORT", 7, right - 95, y, "F1");
   stream += `0 g\n`;

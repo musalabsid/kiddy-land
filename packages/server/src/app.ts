@@ -215,7 +215,57 @@ export function createApp(
     const report = (kind: string, c: any) => { if (!owner(c)) return c.json({ error: "Forbidden" }, 403); try { return c.json((reports as any)[kind](query(c))); } catch (error) { console.error("report error", error); return c.json({ error: error instanceof Error ? error.message : String(error) }, 400); } };
     app.get("/reports/financial", (c) => report("financial", c)); app.get("/reports/playground", (c) => report("playground", c)); app.get("/reports/inventory", (c) => report("inventory", c)); app.get("/reports/membership", (c) => report("membership", c));
     app.get("/reports/live", (c) => { if (!owner(c)) return c.json({ error: "Forbidden" }, 403); return c.json(reports.live()); });
-    const exportReport = (kind: "financial" | "playground" | "inventory" | "membership", format: "csv" | "pdf", c: any) => { if (!owner(c)) return c.json({ error: "Forbidden" }, 403); try { const value = reports[kind](query(c)); const body = format === "csv" ? reportCsv(value) : reportPdf(value); return new Response(body, { headers: { "Content-Type": format === "csv" ? "text/csv; charset=utf-8" : "application/pdf", "Content-Disposition": `attachment; filename="${kind}-report.${format}"` } }); } catch { return c.json({ error: "Report unavailable" }, 400); } };
+    // Overview: today's tickets with live status, ordered longest playing first
+    if (sales && lifecycle && calendar) {
+      app.get("/overview/tickets", (c) => {
+        const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+        if (!current || !identity?.can(current, "read")) return c.json({ error: "Unauthorized" }, 401);
+        const today = calendar.operatingDate(new Date());
+        const now = Date.now();
+        const minutesBetween = (a:number,b:number)=> Math.max(0, Math.floor((b-a)/60000));
+        const list: any[] = [];
+        for (const sale of sales.sales.values()) {
+          if (sale.operatingDate !== today) continue;
+          for (const ticket of sale.tickets) {
+            const session = lifecycle.sessions.get(ticket.id);
+            const status = ticket.status;
+            const included = ticket.package.includedMinutes;
+            let elapsed = 0, remaining: number | null = null, overtime = 0;
+            if (session?.status === "active" && session.enteredAt) {
+              elapsed = minutesBetween(session.enteredAt, now);
+              if (included !== null) {
+                const threshold = (ticket.package as any).overtimeThreshold ?? 5;
+                const rawOver = Math.max(0, elapsed - included - threshold);
+                remaining = Math.max(0, included - elapsed);
+                overtime = rawOver;
+              }
+            } else if (status === "waiting" && included !== null) {
+              remaining = included;
+            }
+            list.push({
+              dailyNumber: (ticket as any).dailyNumber ?? ticket.code,
+              code: ticket.code,
+              ticketId: ticket.id,
+              saleId: sale.id,
+              packageName: ticket.package.name,
+              duration: included,
+              status,
+              sessionStatus: session?.status ?? null,
+              enteredAt: session?.enteredAt ?? null,
+              elapsedMinutes: elapsed,
+              remainingMinutes: remaining,
+              overtimeMinutes: overtime,
+              totalPlayingTime: elapsed,
+              childName: ticket.childName,
+            });
+          }
+        }
+        // longest playing first, waiting at bottom
+        list.sort((a,b)=> b.totalPlayingTime - a.totalPlayingTime);
+        return c.json({ operatingDate: today, tickets: list });
+      });
+    }
+    const exportReport = (kind: "financial" | "playground" | "inventory" | "membership", format: "csv" | "pdf", c: any) => { if (!owner(c)) return c.json({ error: "Forbidden" }, 403); try { const value = reports[kind](query(c)); const venue = venueSettings?.get() ?? { venueName: "Kiddy Land", logoUrl: null }; const body = format === "csv" ? reportCsv(value) : reportPdf(value, venue.venueName, venue.logoUrl as string | null); return new Response(body, { headers: { "Content-Type": format === "csv" ? "text/csv; charset=utf-8" : "application/pdf", "Content-Disposition": `attachment; filename="${kind}-report.${format}"` } }); } catch { return c.json({ error: "Report unavailable" }, 400); } };
     for (const kind of ["financial", "playground", "inventory", "membership"] as const) { app.get(`/reports/${kind}.csv`, (c) => exportReport(kind, "csv", c)); app.get(`/reports/${kind}.pdf`, (c) => exportReport(kind, "pdf", c)); }
   }
 

@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { inflateSync } from "node:zlib";
 import type { CalendarStore, PackageSnapshot } from "./calendar.ts";
 import type { LocalDatabase } from "./database.ts";
 import type { InventoryStore, ProductSnapshot as InventoryProductSnapshot } from "./inventory.ts";
@@ -13,7 +14,7 @@ export type TicketLineInput = { kind?: "ticket"; childId: string; childName?: st
 export type ProductLineInput = { kind: "product"; productId: string; quantity: number; discount?: number; memberId?: string; outOfStockException?: { reason: string; ownerId: string } };
 export type SaleStatus = "completed" | "void";
 export type SaleCorrection = { id: string; kind: "void" | "price-override" | "refund"; saleId: string; lineId?: string; originalOperatingDate: string; correctionDate: string; actorId: string; reason: string; originalAmount: number; correctedAmount: number; at: number };
-export type TicketRecord = { id: string; code: string; qrToken: string; childId: string; childName?: string; package: PackageSnapshot; status: "waiting" };
+export type TicketRecord = { id: string; code: string; dailyNumber: string; qrToken: string; childId: string; childName?: string; package: PackageSnapshot; status: "waiting" };
 export type ReceiptLine = { kind: "ticket"; ticketId: string; childId: string; packageName: string; price: number; originalPrice: number; membershipDiscount: number; memberId?: string; deposit: number } | { kind: "product"; lineId: string; productId: string; sku: string; productName: string; quantity: number; unitPrice: number; discount: number; membershipDiscount: number; memberId?: string; total: number };
 export type SaleLineInput = TicketLineInput | ProductLineInput;
 export type DepositRecord = { ticketId: string; amount: number; status: "held" | "applied" | "refunded" | "forfeited"; appliedAmount?: number; refundedAmount?: number };
@@ -25,14 +26,17 @@ function id(prefix: string) { return `${prefix}_${randomBytes(12).toString("hex"
 function opaque() { return `kp1.${randomBytes(24).toString("base64url")}`; }
 function reasonValid(value: string) { return Boolean(value?.trim()); }
 function pdfText(value: string) { return value.replace(/[()\\]/g, "\\$&"); }
-function pdfDocument(stream: string, width: number, height: number) {
-  const objects = [
+function pdfDocument(stream: string, width: number, height: number, image?: { obj: string; data: Buffer }) {
+  const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`,
+    image
+      ? `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R >> /XObject << /Im0 ${6} 0 R >> >> /Contents 5 0 R >>`
+      : `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     `<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream`,
   ];
+  if (image) objects.push(image.obj + `\nstream\n` + image.data.toString("binary") + `\nendstream`);
   let output = "%PDF-1.4\n";
   const offsets = [0];
   objects.forEach((object, index) => {
@@ -49,7 +53,50 @@ function pdf(title: string, lines: string[], width = 612, height = 792) {
   return pdfDocument(stream, width, height);
 }
 function fitPdfText(value: string, max = 38) { return value.length > max ? `${value.slice(0, max - 3)}...` : value; }
-function qrPdf(rows: Array<{ code: string; token: string; packageName: string; duration: string }>) {
+function parseLogoDataUrl(url?: string | null): { mime: string; buffer: Buffer } | null {
+  if (!url || !url.startsWith("data:image/")) return null;
+  const comma = url.indexOf(",");
+  if (comma === -1) return null;
+  const mime = url.slice(5, url.indexOf(";"));
+  try { return { mime, buffer: Buffer.from(url.slice(comma + 1), "base64") }; } catch { return null; }
+}
+function jpegSize(buf: Buffer): { w: number; h: number } | null {
+  // scan for SOF0/SOF2
+  let i = 2;
+  while (i < buf.length - 9) {
+    if (buf[i] !== 0xff) break;
+    const marker = buf[i + 1];
+    const len = buf.readUInt16BE(i + 2);
+    if ((marker >= 0xc0 && marker <= 0xc3) || marker === 0xc5 || marker === 0xc6 || marker === 0xc7) {
+      return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+    }
+    i += 2 + len;
+  }
+  return null;
+}
+function pngSize(buf: Buffer): { w: number; h: number } | null {
+  if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) return null;
+  return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+}
+function pdfImageFromLogo(logo?: string | null): { image?: { obj: string; data: Buffer }; w: number; h: number } | null {
+  const parsed = parseLogoDataUrl(logo ?? null);
+  if (!parsed) return null;
+  const { mime, buffer } = parsed;
+  if (mime === "image/jpeg" || mime === "image/jpg") {
+    const size = jpegSize(buffer) ?? { w: 120, h: 120 };
+    const obj = `<< /Type /XObject /Subtype /Image /Width ${size.w} /Height ${size.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${buffer.length} >>`;
+    return { image: { obj, data: buffer }, w: size.w, h: size.h };
+  }
+  if (mime === "image/png") {
+    const size = pngSize(buffer);
+    if (!size) return null;
+    // For PNG, we inflate IDAT and create raw RGB - ponytail: simplified fallback to skip image if complex
+    // Try raw FlateDecode of PNG bytes directly (may render incorrectly) - fallback to venueName only
+    return null;
+  }
+  return null;
+}
+function qrPdf(rows: Array<{ code: string; dailyNumber: string; token: string; packageName: string }>, venueName: string, logoUrl?: string | null) {
   const W = 595;
   const H = 842;
   const left = 28;
@@ -72,7 +119,7 @@ function qrPdf(rows: Array<{ code: string; token: string; packageName: string; d
     for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (qr.modules.data[r * size + c]) stream += `${qrX + (c + quiet) * qrUnit} ${H - qrTop - (r + quiet + 1) * qrUnit} ${qrUnit} ${qrUnit} re f\n`;
     const textX = qrX + qrPx + 14;
     const textTop = H - cellTop;
-    stream += `BT /F1 7 Tf ${textX} ${textTop - 13} Td (${pdfText("KIDDY LAND")}) Tj ET\nBT /F1 11 Tf ${textX} ${textTop - 28} Td (${pdfText(fitPdfText(row.packageName))}) Tj ET\nBT /F1 8 Tf ${textX} ${textTop - 43} Td (${pdfText(row.duration)}) Tj ET\nBT /F1 8 Tf ${textX} ${textTop - 55} Td (${pdfText(row.code)}) Tj ET\n`;
+    stream += `BT /F1 7 Tf ${textX} ${textTop - 13} Td (${pdfText(venueName)}) Tj ET\nBT /F1 11 Tf ${textX} ${textTop - 28} Td (${pdfText(fitPdfText(row.packageName))}) Tj ET\nBT /F1 14 Tf ${textX} ${textTop - 44} Td (${pdfText(row.dailyNumber)}) Tj ET\nBT /F1 7 Tf ${textX} ${textTop - 56} Td (${pdfText(row.code)}) Tj ET\n`;
     const cx = right - 37;
     const cy = H - (cellTop + cellH / 2);
     const radius = 11;
@@ -87,7 +134,7 @@ function receiptMoney(amount: number, locale: "id" | "en") {
   const value = new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { maximumFractionDigits: 0 }).format(amount);
   return `${locale === "id" ? "Rp" : "IDR"} ${value}`;
 }
-function receiptPdf(sale: SaleRecord) {
+function receiptPdf(sale: SaleRecord, venueName: string, logoUrl?: string | null) {
   const locale = sale.receipt.locale;
   const copy = locale === "id"
     ? { receipt: "STRUK", number: "Nomor", date: "Tanggal", payment: "Pembayaran", discount: "Diskon", subtotal: "Subtotal", total: "TOTAL", deposit: "Deposit ditahan", thanks: "Terima kasih sudah berkunjung" }
@@ -132,7 +179,15 @@ function receiptPdf(sale: SaleRecord) {
   const rightText = (value: string, size: number) => text(value, size, Math.max(padding, right - width(value, size)));
   const rule = () => { stream += `${padding} ${H - top} m ${right} ${H - top} l S\n`; top += 8; };
 
-  centered("KIDDY LAND", 16); top += 22;
+  const logo = pdfImageFromLogo(logoUrl ?? null);
+  if (logo?.image) {
+    // draw logo centered above venueName - simple 32x32 box
+    const imgW = 28, imgH = 28;
+    const imgX = (W - imgW) / 2;
+    stream += `q ${imgW} 0 0 ${imgH} ${imgX} ${H - top - imgH} cm /Im0 Do Q\n`;
+    top += imgH + 6;
+  }
+  centered(venueName, 16); top += 22; // logo only receipt/report
   centered(copy.receipt, 9); top += 16;
   text(`${copy.number}: ${sale.receipt.number}`, 8); top += 11;
   text(`${copy.date}: ${sale.operatingDate}`, 8); top += 11;
@@ -165,17 +220,48 @@ function receiptPdf(sale: SaleRecord) {
   if (deposit) { text(copy.deposit, 7.5); rightText(amount(deposit), 7.5); top += 12; }
   rule();
   centered(copy.thanks, 8);
-  return pdfDocument(stream, W, H);
+  return pdfDocument(stream, W, H, logo?.image);
 }
 export function createSaleStore(calendar: CalendarStore, database?: LocalDatabase, inventory?: InventoryStore, membership?: MembershipStore) {
   const sales = new Map<string, SaleRecord>();
   const idempotency = new Map<string, SaleRecord>();
   const printAttempts: PrintAttempt[] = [];
   let receiptSequence = 0;
+  const dailySeq = new Map<string, number>();
+  const loadDailySeq = () => {
+    if (!database) return;
+    try {
+      const rows = database.orm.all<{ operating_date: string; seq: number }>(sql`SELECT operating_date, seq FROM ticket_daily_seq`);
+      for (const r of rows) dailySeq.set(r.operating_date, r.seq);
+      // backfill from existing sales if empty (preserve max per day)
+      if (rows.length === 0) {
+        for (const sale of sales.values()) {
+          for (const t of sale.tickets) {
+            const n = Number((t as any).dailyNumber);
+            if (!Number.isNaN(n)) {
+              const cur = dailySeq.get(sale.operatingDate) ?? 0;
+              if (n > cur) dailySeq.set(sale.operatingDate, n);
+            }
+          }
+        }
+      }
+    } catch {}
+  };
   if (database) {
     const row = database.orm.all<{ sales: string; attempts: string; sequence: number }>(sql`SELECT sales_json AS sales, print_attempts_json AS attempts, receipt_sequence AS sequence FROM sales_state WHERE id = 1`)[0];
     if (row) { for (const sale of JSON.parse(row.sales) as SaleRecord[]) { sales.set(sale.id, sale); idempotency.set(sale.idempotencyKey, sale); } printAttempts.push(...JSON.parse(row.attempts) as PrintAttempt[]); receiptSequence = row.sequence; }
+    loadDailySeq();
   }
+  const nextDailyNumbers = (operatingDate: string, count: number): string[] => {
+    const start = (dailySeq.get(operatingDate) ?? 0) + 1;
+    const result: string[] = [];
+    for (let i = 0; i < count; i++) result.push(String(start + i).padStart(4, "0"));
+    dailySeq.set(operatingDate, start + count - 1);
+    if (database) {
+      try { database.orm.run(sql`INSERT INTO ticket_daily_seq(operating_date, seq) VALUES (${operatingDate}, ${start + count - 1}) ON CONFLICT(operating_date) DO UPDATE SET seq = excluded.seq`); } catch {}
+    }
+    return result;
+  };
   const persist = () => { if (!database) return; database.orm.run(sql`UPDATE sales_state SET sales_json = ${JSON.stringify([...sales.values()])}, print_attempts_json = ${JSON.stringify(printAttempts)}, receipt_sequence = ${receiptSequence}, updated_at = ${Date.now()} WHERE id = 1`); };
 
   function completeSale(input: { idempotencyKey: string; cashierId: string; operatingDate: string; at?: number; lines: SaleLineInput[]; paymentMethod: PaymentMethod; locale?: "id" | "en" }) {
@@ -200,7 +286,13 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
     const total = snapshots.reduce((sum, item, index) => sum + item.price - ticketDiscounts[index]!, 0) + productSnapshots.reduce((sum, item) => sum + item.total, 0) + depositTotal;
     const saleId = id("sale");
     inventory?.reserveBatch(productLines.map((line) => ({ productId: line.productId, quantity: line.quantity, actorId: input.cashierId, exception: line.outOfStockException })));
-    const tickets = ticketLines.map((line, index) => ({ id: id("ticket"), code: `T-${randomBytes(6).toString("hex").toUpperCase()}`, qrToken: opaque(), childId: line.childId, childName: line.childName, package: snapshots[index]!, status: "waiting" as const }));
+    // daily sequential 0001 per operatingDate, persisted via DB or in-memory
+    const tickets = (() => {
+      const base = ticketLines.map((line, index) => ({ id: id("ticket"), code: `T-${randomBytes(6).toString("hex").toUpperCase()}`, qrToken: opaque(), childId: line.childId, childName: line.childName, package: snapshots[index]!, status: "waiting" as const }));
+      // attach dailyNumber
+      const dailyNumbers = nextDailyNumbers(input.operatingDate, ticketLines.length);
+      return base.map((t, i) => ({ ...t, dailyNumber: dailyNumbers[i]! }));
+    })();
     const receiptLines: ReceiptLine[] = tickets.map((ticket, index) => ({ kind: "ticket", ticketId: ticket.id, childId: ticket.childId, packageName: ticket.package.name, price: ticket.package.price - ticketDiscounts[index]!, originalPrice: ticket.package.price, membershipDiscount: ticketDiscounts[index]!, memberId: ticketLines[index]!.memberId, deposit: ticket.package.deposit }));
     productSnapshots.forEach((snapshot, index) => receiptLines.push({ kind: "product", lineId: `${saleId}_product_${index + 1}`, productId: snapshot.productId, sku: snapshot.sku, productName: snapshot.name, quantity: snapshot.quantity, unitPrice: snapshot.unitPrice, discount: snapshot.discount, membershipDiscount: snapshot.membershipDiscount, memberId: productLines[index]!.memberId, total: snapshot.total }));
     const deposits: DepositRecord[] = tickets.map((ticket) => ({ ticketId: ticket.id, amount: ticket.package.deposit, status: "held" as const }));
@@ -230,10 +322,20 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
     const attempt: PrintAttempt = { id: id("print"), ...input, reprint: input.reprint ?? false, at: Date.now() }; printAttempts.push(attempt); persist(); return attempt;
   }
   async function qr(saleId: string, ticketId: string) { const sale = sales.get(saleId); const ticket = sale?.tickets.find((candidate) => candidate.id === ticketId); if (!sale || !ticket || sale.status !== "completed") throw new Error("Ticket unavailable"); return { contentType: "image/png", filename: `${ticket.code}.png`, body: await QRCode.toBuffer(ticket.qrToken, { type: "png", margin: 1, width: 320 }) }; }
+  const getVenue = (): { name: string; logo: string | null } => {
+    try {
+      if (!database) return { name: "Kiddy Land", logo: null };
+      const row = (database.db.query("SELECT state_json AS state FROM venue_settings WHERE id = 1").get() as { state: string } | undefined);
+      if (!row) return { name: "Kiddy Land", logo: null };
+      const st = JSON.parse(row.state) as { venueName?: string; logoUrl?: string | null };
+      return { name: st.venueName || "Kiddy Land", logo: st.logoUrl ?? null };
+    } catch { return { name: "Kiddy Land", logo: null }; }
+  };
   function artifact(saleId: string, kind: "tickets" | "receipt") {
     const sale = sales.get(saleId); if (!sale || sale.status !== "completed") throw new Error("Sale unavailable");
-    if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: receiptPdf(sale) };
-    return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: qrPdf(sale.tickets.map((ticket) => ({ code: ticket.code, token: ticket.qrToken, packageName: ticket.package.name, duration: ticket.package.includedMinutes === null ? (sale.receipt.locale === "id" ? "Tanpa batas" : "Unlimited") : `${ticket.package.includedMinutes} ${sale.receipt.locale === "id" ? "menit" : "min"}` }))) };
+    const venue = getVenue();
+    if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: receiptPdf(sale, venue.name) };
+    return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: qrPdf(sale.tickets.map((ticket) => ({ code: ticket.code, dailyNumber: (ticket as any).dailyNumber ?? ticket.code, token: ticket.qrToken, packageName: ticket.package.name })), venue.name, venue.logo) };
   }
   return { sales, printAttempts, complete, list, get, voidSale, addCorrection, recordPrintAttempt, artifact, qr, persist };
 }

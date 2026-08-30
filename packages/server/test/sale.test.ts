@@ -40,7 +40,8 @@ describe("cashier ticket sale", () => {
     expect(ticketPdf.startsWith("%PDF")).toBe(true);
     expect(ticketPdf).toContain("/MediaBox [0 0 595 842]");
     expect(ticketPdf).toContain("KIDDY LAND");
-    expect(ticketPdf).toContain("90 menit");
+    expect(ticketPdf).toContain("0001");
+    expect(ticketPdf).not.toContain("90 menit");
     expect(store.artifact(sale.id, "receipt").filename).toContain("R-");
     store.recordPrintAttempt({ saleId: sale.id, artifact: "tickets", actorId: "cashier", status: "unknown" });
     expect(store.get(sale.id)?.tickets).toHaveLength(1);
