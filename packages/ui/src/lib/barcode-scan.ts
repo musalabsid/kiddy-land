@@ -96,14 +96,18 @@ export function createScanLoop(options: {
   decode: (frame: HTMLVideoElement) => Promise<string | undefined>;
   onPayload: (raw: string) => void;
   intervalMs?: number;
+  debounceMs?: number;
   /** Frame source; defaults to `document.querySelector("video")`. Injected for tests. */
   getFrame?: () => HTMLVideoElement | null;
 }): { start: () => void; stop: () => void; isRunning: () => boolean } {
   const intervalMs = options.intervalMs ?? 200;
+  const debounceMs = options.debounceMs ?? 750;
   const getFrame = options.getFrame ?? (() => document.querySelector("video"));
   let timer: ReturnType<typeof setInterval> | undefined;
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
   let fired = false;
   let running = false;
+  let lastRaw: string | undefined;
   const tick = async () => {
     if (fired || !running) return;
     const frame = getFrame();
@@ -112,13 +116,22 @@ export function createScanLoop(options: {
     try {
       raw = await options.decode(frame);
     } catch {
-      return; // transient decode failure, keep scanning
+      return;
     }
     if (!raw || fired) return;
-    fired = true;
-    running = false;
-    stop();
-    options.onPayload(raw);
+    if (raw !== lastRaw) {
+      lastRaw = raw;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (fired || !running || lastRaw !== raw) return;
+        fired = true;
+        running = false;
+        stop();
+        options.onPayload(raw!);
+      }, debounceMs);
+      return;
+    }
+    // same raw, wait for debounce timer to fire (already scheduled on first change)
   };
   const start = () => {
     if (running || fired) return;
@@ -132,6 +145,11 @@ export function createScanLoop(options: {
       clearInterval(timer);
       timer = undefined;
     }
+    if (debounceTimer !== undefined) {
+      clearTimeout(debounceTimer);
+      debounceTimer = undefined;
+    }
+    lastRaw = undefined;
   };
   return { start, stop, isRunning: () => running || fired };
 }
