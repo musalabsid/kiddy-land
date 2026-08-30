@@ -3,6 +3,7 @@ import { usePublicVenue } from "@kiddy-land/client";
 import { Link, useLocation } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { NotificationAlerts, SoundPreference, useNotificationSound } from "@workspace/ui/components/notification-alerts";
+import { useAlertSound } from "@kiddy-land/client";
 import { Toaster } from "@workspace/ui/components/sonner";
 import {
   Sidebar,
@@ -66,6 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const logout = useLogout();
   const { soundEnabled, setSoundEnabled } = useNotificationSound();
+  useAlertSound();
   const venue = usePublicVenue();
   const active = (path: string) => pathname === path;
   const pageTitleKey = (pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/sales-history" ? "app.salesHistory" : pathname === "/members" ? "app.members" : pathname === "/inventory" || pathname === "/owner/inventory" ? "app.inventory" : pathname === "/scanner" ? "app.scanner" : pathname === "/kiosk" ? "app.kiosk" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : pathname === "/owner/customization" ? "app.customization" : "host.title") as MessageKey;

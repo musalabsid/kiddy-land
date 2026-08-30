@@ -151,6 +151,47 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       }
     } catch {}
   }, 60_000);
+  // Sound alert: check active tickets remaining == threshold (default 5) every 15s, broadcast to alertDevices
+  const alertNotified = new Map<string, number>();
+  const alertTimer = setInterval(() => {
+    try {
+      const cfg = venueSettings.get();
+      if (!cfg.alertEnabled) return;
+      const threshold = cfg.alertThreshold;
+      const allowedModes = new Set(cfg.alertDevices.map((d:string)=> d==="Kiosk"?"Public Kiosk":d));
+      const today = calendar.operatingDate(new Date());
+      const now = Date.now();
+      const minutesBetween=(a:number,b:number)=>Math.max(0,Math.floor((b-a)/60000));
+      for (const sale of sales.sales.values()) {
+        if (sale.operatingDate !== today) continue;
+        for (const ticket of sale.tickets) {
+          const session = lifecycle.sessions.get(ticket.id) as { enteredAt:number; status:string }|undefined;
+          if (!session || session.status !== "active" || !session.enteredAt) continue;
+          const included = ticket.package.includedMinutes;
+          if (included === null) continue;
+          const elapsed = minutesBetween(session.enteredAt, now);
+          const remaining = included - elapsed;
+          if (remaining !== threshold) continue;
+          const key = `${sale.operatingDate}:${ticket.id}:${threshold}`;
+          if (alertNotified.has(key)) continue;
+          alertNotified.set(key, now);
+          const dailyNumber = (ticket as any).dailyNumber ?? ticket.code;
+          const payload = { type: "alert", kind: "5min", dailyNumber, threshold, ticketId: ticket.id };
+          for (const [deviceId, info] of (identity as any).devices?.entries?.() ?? []) {
+            const mode = (info as any).mode as string;
+            const allowed = allowedModes.has(mode) || (mode==="Public Kiosk" && allowedModes.has("Public Kiosk"));
+            if (!allowed) continue;
+            const conn = (registry as any)?.get?.(deviceId);
+            if (conn) try { conn.send(JSON.stringify(payload)); } catch {}
+          }
+          try { (registry as any)?.broadcast?.(JSON.stringify(payload)); } catch {}
+          console.log(`[alert] ticket ${dailyNumber} ${threshold}m left`);
+        }
+      }
+      // cleanup old keys (>24h)
+      for (const [k,v] of alertNotified) if (now - v > 24*60*60*1000) alertNotified.delete(k);
+    } catch {}
+  }, 15_000);
   const backupLoaded = backups.load();
   const replacePrepared = (id: string) => backups.replacePrepared(id);
   const restorePrepared = options.restorePrepared ?? (async () => { throw new Error("Restore requires the Host Runtime restart coordinator"); });

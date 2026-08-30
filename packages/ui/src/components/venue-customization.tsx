@@ -5,7 +5,9 @@ import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Select } from "@workspace/ui/components/select";
-import { LoaderCircle, Upload, Image as ImageIcon } from "lucide-react";
+import { Switch } from "@workspace/ui/components/switch";
+import { Slider } from "@workspace/ui/components/slider";
+import { LoaderCircle, Upload, Image as ImageIcon, Bell } from "lucide-react";
 import { useLocale, type MessageKey } from "@workspace/ui/lib/i18n";
 
 const THEMES: { value: VenueTheme; labelKey: MessageKey; descKey: MessageKey; swatch: string }[] = [
@@ -33,6 +35,9 @@ export function VenueCustomization() {
   const [theme, setTheme] = React.useState<VenueTheme>("monochrome");
   const [logoUrl, setLogoUrl] = React.useState<string | null>(null);
   const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
+  const [alertEnabled, setAlertEnabled] = React.useState(false);
+  const [alertThreshold, setAlertThreshold] = React.useState(5);
+  const [alertDevices, setAlertDevices] = React.useState<Array<"Owner"|"Cashier"|"Kiosk">>(["Cashier","Kiosk"]);
 
   React.useEffect(() => {
     if (!data) return;
@@ -41,6 +46,9 @@ export function VenueCustomization() {
     setTheme(data.theme);
     setLogoUrl(data.logoUrl);
     setLogoPreview(data.logoUrl);
+    setAlertEnabled((data as any).alertEnabled ?? false);
+    setAlertThreshold((data as any).alertThreshold ?? 5);
+    setAlertDevices((data as any).alertDevices ?? ["Cashier","Kiosk"]);
   }, [data]);
 
   const onLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,7 +67,7 @@ export function VenueCustomization() {
 
   const onSave = async () => {
     try {
-      const next = await update.mutateAsync({ venueName: venueName.trim() || "Kiddy Land", backupInterval, theme, logoUrl });
+      const next = await update.mutateAsync({ venueName: venueName.trim() || "Kiddy Land", backupInterval, theme, logoUrl, alertEnabled, alertThreshold, alertDevices } as any);
       setVenueTheme(next.theme as VenueTheme);
     } catch (err) {
       alert(err instanceof Error ? err.message : t("customization.saveFailed"));
@@ -68,7 +76,7 @@ export function VenueCustomization() {
 
   if (isLoading) return <div className="p-6 text-sm text-muted-foreground flex items-center gap-2"><LoaderCircle className="size-4 animate-spin" /> Loading…</div>;
 
-  const dirty = data ? (data.venueName !== venueName || data.backupInterval !== backupInterval || data.theme !== theme || data.logoUrl !== logoUrl) : true;
+  const dirty = data ? (data.venueName !== venueName || data.backupInterval !== backupInterval || data.theme !== theme || data.logoUrl !== logoUrl || (data as any).alertEnabled !== alertEnabled || (data as any).alertThreshold !== alertThreshold || JSON.stringify((data as any).alertDevices) !== JSON.stringify(alertDevices)) : true;
 
   return (
     <div className="w-full max-w-6xl px-5 py-8 sm:px-8">
@@ -126,6 +134,35 @@ export function VenueCustomization() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Bell className="size-4" /> Sound alert</CardTitle>
+          <CardDescription>Putar peringatan suara "Tiket nomor 4, waktu bermain tinggal 5 menit lagi" dalam bahasa Indonesia</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <div><p className="text-sm font-medium">Enable alert</p><p className="text-xs text-muted-foreground">Aktifkan peringatan suara</p></div>
+            <Switch checked={alertEnabled} onCheckedChange={setAlertEnabled} />
+          </div>
+          <div className="grid gap-2">
+            <label className="text-sm font-medium">Threshold: {alertThreshold} menit (3-10)</label>
+            <Slider value={[alertThreshold]} min={3} max={10} step={1} onValueChange={(v:any)=> setAlertThreshold(v[0] ?? 5)} disabled={!alertEnabled} />
+          </div>
+          <div className="grid gap-2">
+            <label className="text-sm font-medium">Play on devices</label>
+            <div className="flex flex-wrap gap-2">
+              {(["Owner","Cashier","Kiosk"] as const).map((dev)=> (
+                <label key={dev} className="flex items-center gap-2 rounded border px-3 py-1.5 text-sm">
+                  <input type="checkbox" checked={alertDevices.includes(dev)} disabled={!alertEnabled} onChange={(e)=> setAlertDevices(prev=> e.target.checked ? [...prev, dev] : prev.filter(d=>d!==dev))} />
+                  {dev}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Default: Cashier + Kiosk on, Owner off. Browser SpeechSynthesis id-ID, "0004" → "empat".</p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

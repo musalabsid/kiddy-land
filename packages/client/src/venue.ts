@@ -9,6 +9,9 @@ export type VenueSettings = {
   logoUrl: string | null;
   backupInterval: BackupInterval;
   theme: VenueTheme;
+  alertEnabled: boolean;
+  alertThreshold: number;
+  alertDevices: Array<"Owner"|"Cashier"|"Kiosk">;
 };
 export type PublicVenue = Pick<VenueSettings, "venueName" | "logoUrl" | "theme">;
 
