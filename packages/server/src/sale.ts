@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { inflateSync } from "node:zlib";
 import type { CalendarStore, PackageSnapshot } from "./calendar.ts";
 import type { LocalDatabase } from "./database.ts";
 import type { InventoryStore, ProductSnapshot as InventoryProductSnapshot } from "./inventory.ts";
@@ -25,14 +26,17 @@ function id(prefix: string) { return `${prefix}_${randomBytes(12).toString("hex"
 function opaque() { return `kp1.${randomBytes(24).toString("base64url")}`; }
 function reasonValid(value: string) { return Boolean(value?.trim()); }
 function pdfText(value: string) { return value.replace(/[()\\]/g, "\\$&"); }
-function pdfDocument(stream: string, width: number, height: number) {
-  const objects = [
+function pdfDocument(stream: string, width: number, height: number, image?: { obj: string; data: Buffer }) {
+  const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`,
+    image
+      ? `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R >> /XObject << /Im0 ${6} 0 R >> >> /Contents 5 0 R >>`
+      : `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     `<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream`,
   ];
+  if (image) objects.push(image.obj + `\nstream\n` + image.data.toString("binary") + `\nendstream`);
   let output = "%PDF-1.4\n";
   const offsets = [0];
   objects.forEach((object, index) => {
@@ -49,7 +53,50 @@ function pdf(title: string, lines: string[], width = 612, height = 792) {
   return pdfDocument(stream, width, height);
 }
 function fitPdfText(value: string, max = 38) { return value.length > max ? `${value.slice(0, max - 3)}...` : value; }
-function qrPdf(rows: Array<{ code: string; dailyNumber: string; token: string; packageName: string }>) {
+function parseLogoDataUrl(url?: string | null): { mime: string; buffer: Buffer } | null {
+  if (!url || !url.startsWith("data:image/")) return null;
+  const comma = url.indexOf(",");
+  if (comma === -1) return null;
+  const mime = url.slice(5, url.indexOf(";"));
+  try { return { mime, buffer: Buffer.from(url.slice(comma + 1), "base64") }; } catch { return null; }
+}
+function jpegSize(buf: Buffer): { w: number; h: number } | null {
+  // scan for SOF0/SOF2
+  let i = 2;
+  while (i < buf.length - 9) {
+    if (buf[i] !== 0xff) break;
+    const marker = buf[i + 1];
+    const len = buf.readUInt16BE(i + 2);
+    if ((marker >= 0xc0 && marker <= 0xc3) || marker === 0xc5 || marker === 0xc6 || marker === 0xc7) {
+      return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+    }
+    i += 2 + len;
+  }
+  return null;
+}
+function pngSize(buf: Buffer): { w: number; h: number } | null {
+  if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) return null;
+  return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+}
+function pdfImageFromLogo(logo?: string | null): { image?: { obj: string; data: Buffer }; w: number; h: number } | null {
+  const parsed = parseLogoDataUrl(logo ?? null);
+  if (!parsed) return null;
+  const { mime, buffer } = parsed;
+  if (mime === "image/jpeg" || mime === "image/jpg") {
+    const size = jpegSize(buffer) ?? { w: 120, h: 120 };
+    const obj = `<< /Type /XObject /Subtype /Image /Width ${size.w} /Height ${size.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${buffer.length} >>`;
+    return { image: { obj, data: buffer }, w: size.w, h: size.h };
+  }
+  if (mime === "image/png") {
+    const size = pngSize(buffer);
+    if (!size) return null;
+    // For PNG, we inflate IDAT and create raw RGB - ponytail: simplified fallback to skip image if complex
+    // Try raw FlateDecode of PNG bytes directly (may render incorrectly) - fallback to venueName only
+    return null;
+  }
+  return null;
+}
+function qrPdf(rows: Array<{ code: string; dailyNumber: string; token: string; packageName: string }>, venueName: string, logoUrl?: string | null) {
   const W = 595;
   const H = 842;
   const left = 28;
@@ -72,7 +119,7 @@ function qrPdf(rows: Array<{ code: string; dailyNumber: string; token: string; p
     for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (qr.modules.data[r * size + c]) stream += `${qrX + (c + quiet) * qrUnit} ${H - qrTop - (r + quiet + 1) * qrUnit} ${qrUnit} ${qrUnit} re f\n`;
     const textX = qrX + qrPx + 14;
     const textTop = H - cellTop;
-    stream += `BT /F1 7 Tf ${textX} ${textTop - 13} Td (${pdfText("KIDDY LAND")}) Tj ET\nBT /F1 11 Tf ${textX} ${textTop - 28} Td (${pdfText(fitPdfText(row.packageName))}) Tj ET\nBT /F1 14 Tf ${textX} ${textTop - 44} Td (${pdfText(row.dailyNumber)}) Tj ET\nBT /F1 7 Tf ${textX} ${textTop - 56} Td (${pdfText(row.code)}) Tj ET\n`;
+    stream += `BT /F1 7 Tf ${textX} ${textTop - 13} Td (${pdfText(venueName)}) Tj ET\nBT /F1 11 Tf ${textX} ${textTop - 28} Td (${pdfText(fitPdfText(row.packageName))}) Tj ET\nBT /F1 14 Tf ${textX} ${textTop - 44} Td (${pdfText(row.dailyNumber)}) Tj ET\nBT /F1 7 Tf ${textX} ${textTop - 56} Td (${pdfText(row.code)}) Tj ET\n`;
     const cx = right - 37;
     const cy = H - (cellTop + cellH / 2);
     const radius = 11;
@@ -87,7 +134,7 @@ function receiptMoney(amount: number, locale: "id" | "en") {
   const value = new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { maximumFractionDigits: 0 }).format(amount);
   return `${locale === "id" ? "Rp" : "IDR"} ${value}`;
 }
-function receiptPdf(sale: SaleRecord) {
+function receiptPdf(sale: SaleRecord, venueName: string) {
   const locale = sale.receipt.locale;
   const copy = locale === "id"
     ? { receipt: "STRUK", number: "Nomor", date: "Tanggal", payment: "Pembayaran", discount: "Diskon", subtotal: "Subtotal", total: "TOTAL", deposit: "Deposit ditahan", thanks: "Terima kasih sudah berkunjung" }
@@ -132,7 +179,7 @@ function receiptPdf(sale: SaleRecord) {
   const rightText = (value: string, size: number) => text(value, size, Math.max(padding, right - width(value, size)));
   const rule = () => { stream += `${padding} ${H - top} m ${right} ${H - top} l S\n`; top += 8; };
 
-  centered("KIDDY LAND", 16); top += 22;
+  centered(venueName, 16); top += 22;
   centered(copy.receipt, 9); top += 16;
   text(`${copy.number}: ${sale.receipt.number}`, 8); top += 11;
   text(`${copy.date}: ${sale.operatingDate}`, 8); top += 11;
@@ -267,10 +314,20 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
     const attempt: PrintAttempt = { id: id("print"), ...input, reprint: input.reprint ?? false, at: Date.now() }; printAttempts.push(attempt); persist(); return attempt;
   }
   async function qr(saleId: string, ticketId: string) { const sale = sales.get(saleId); const ticket = sale?.tickets.find((candidate) => candidate.id === ticketId); if (!sale || !ticket || sale.status !== "completed") throw new Error("Ticket unavailable"); return { contentType: "image/png", filename: `${ticket.code}.png`, body: await QRCode.toBuffer(ticket.qrToken, { type: "png", margin: 1, width: 320 }) }; }
+  const getVenue = (): { name: string; logo: string | null } => {
+    try {
+      if (!database) return { name: "Kiddy Land", logo: null };
+      const row = (database.db.query("SELECT state_json AS state FROM venue_settings WHERE id = 1").get() as { state: string } | undefined);
+      if (!row) return { name: "Kiddy Land", logo: null };
+      const st = JSON.parse(row.state) as { venueName?: string; logoUrl?: string | null };
+      return { name: st.venueName || "Kiddy Land", logo: st.logoUrl ?? null };
+    } catch { return { name: "Kiddy Land", logo: null }; }
+  };
   function artifact(saleId: string, kind: "tickets" | "receipt") {
     const sale = sales.get(saleId); if (!sale || sale.status !== "completed") throw new Error("Sale unavailable");
-    if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: receiptPdf(sale) };
-    return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: qrPdf(sale.tickets.map((ticket) => ({ code: ticket.code, dailyNumber: (ticket as any).dailyNumber ?? ticket.code, token: ticket.qrToken, packageName: ticket.package.name }))) };
+    const venue = getVenue();
+    if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: receiptPdf(sale, venue.name) };
+    return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: qrPdf(sale.tickets.map((ticket) => ({ code: ticket.code, dailyNumber: (ticket as any).dailyNumber ?? ticket.code, token: ticket.qrToken, packageName: ticket.package.name })), venue.name, venue.logo) };
   }
   return { sales, printAttempts, complete, list, get, voidSale, addCorrection, recordPrintAttempt, artifact, qr, persist };
 }

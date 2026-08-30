@@ -59,7 +59,7 @@ export function reportCsv(report: { kind: string; filters: unknown; timezone: st
   return [...header.map((r) => r.map(escape).join(",")), ["data", "value"], ...rows.map((row) => ["row", JSON.stringify(row)]).map((r) => r.map(escape).join(","))].join("\r\n") + "\r\n";
 }
 
-export function reportPdf(report: { kind: string; filters: unknown; timezone: string; generatedAt: string; data: unknown }) {
+export function reportPdf(report: { kind: string; filters: unknown; timezone: string; generatedAt: string; data: unknown }, venueName = "Kiddy Land") {
   const f = report.filters as { from: string; to: string };
   const W = 842; // A4 landscape
   const H = 595;
@@ -82,7 +82,7 @@ export function reportPdf(report: { kind: string; filters: unknown; timezone: st
     stream += `${gray} g ${x} ${yy} ${w} ${h} re f 0 g\n`;
   };
   // Header
-  text("KIDDY LAND", 9, margin, y, "F1");
+  text(venueName, 9, margin, y, "F1");
   stream += `0.55 g\n`;
   text("FINANCIAL REPORT", 7, right - 95, y, "F1");
   stream += `0 g\n`;
