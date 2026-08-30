@@ -2,7 +2,7 @@ import { readVenueSettings, writeVenueSettings } from "./database.ts";
 import type { LocalDatabase } from "./database.ts";
 
 export type BackupInterval = "off" | "6h" | "12h" | "daily" | "weekly";
-export type VenueTheme = "monochrome" | "emerald" | "pastel" | "sunset" | "ocean";
+export type VenueTheme = "monochrome" | "emerald" | "pastel" | "violet" | "ocean";
 export type VenueSettings = {
   venueName: string;
   logoUrl: string | null; // data URL or null
@@ -18,7 +18,7 @@ const DEFAULTS: VenueSettings = {
 };
 
 const VALID_INTERVALS: BackupInterval[] = ["off", "6h", "12h", "daily", "weekly"];
-const VALID_THEMES: VenueTheme[] = ["monochrome", "emerald", "pastel", "sunset", "ocean"];
+const VALID_THEMES: VenueTheme[] = ["monochrome", "emerald", "pastel", "violet", "ocean"];
 
 export function createVenueSettingsStore(database: LocalDatabase) {
   const get = (): VenueSettings => {

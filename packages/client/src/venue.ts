@@ -3,7 +3,7 @@ import { useClient } from "./client-context";
 import { useLogout } from "./query/hooks";
 
 export type BackupInterval = "off" | "6h" | "12h" | "daily" | "weekly";
-export type VenueTheme = "monochrome" | "emerald" | "pastel" | "sunset" | "ocean";
+export type VenueTheme = "monochrome" | "emerald" | "pastel" | "violet" | "ocean";
 export type VenueSettings = {
   venueName: string;
   logoUrl: string | null;

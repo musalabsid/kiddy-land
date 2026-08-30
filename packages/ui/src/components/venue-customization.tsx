@@ -12,7 +12,7 @@ const THEMES: { value: VenueTheme; labelKey: MessageKey; descKey: MessageKey; sw
   { value: "monochrome", labelKey: "customization.themeMonochrome", descKey: "customization.themeMonochromeDesc", swatch: "bg-foreground" },
   { value: "emerald", labelKey: "customization.themeEmerald", descKey: "customization.themeEmeraldDesc", swatch: "bg-emerald-600" },
   { value: "pastel", labelKey: "customization.themePastel", descKey: "customization.themePastelDesc", swatch: "bg-pink-400" },
-  { value: "sunset", labelKey: "customization.themeSunset", descKey: "customization.themeSunsetDesc", swatch: "bg-amber-500" },
+  { value: "violet", labelKey: "customization.themeViolet", descKey: "customization.themeVioletDesc", swatch: "bg-violet-500" },
   { value: "ocean", labelKey: "customization.themeOcean", descKey: "customization.themeOceanDesc", swatch: "bg-blue-600" },
 ];
 const INTERVALS: { value: BackupInterval; labelKey: MessageKey }[] = [
