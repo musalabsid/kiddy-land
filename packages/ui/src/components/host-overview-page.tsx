@@ -2,15 +2,15 @@
 /* Hallmark · macrostructure: Workbench · theme: Lumen · nav: N5 · footer: Ft5 · genre: editorial */
 import * as React from "react";
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert";
-import { Card, CardContent } from "@workspace/ui/components/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@workspace/ui/components/card";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@workspace/ui/components/alert-dialog";
 import { Button } from "@workspace/ui/components/button";
 import { useHostStatus, type HostState, type HostStatusSource } from "@workspace/ui/lib/host";
-import { useLiveReport } from "@kiddy-land/client/react";
+import { useLiveReport, useOverviewTickets } from "@kiddy-land/client";
 import { useLocale, type MessageKey } from "@workspace/ui/lib/i18n";
 import { cn } from "@workspace/ui/lib/utils";
-import { AlertTriangle, CheckCircle2, LoaderCircle, PlugZap, RefreshCw, Server, Users, Wallet, WifiOff } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, LoaderCircle, PlugZap, RefreshCw, Server, Users, Wallet, WifiOff } from "lucide-react";
 
 export function HostOverviewPage({
   source,
@@ -92,6 +92,10 @@ export function HostOverviewPage({
           </div>
         </div>
 
+        <div className="mt-6">
+          <OverviewTicketsSection />
+        </div>
+
         <AlertDialog open={stopOpen} onOpenChange={setStopOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -127,4 +131,47 @@ function StatusIcon({ state, size }: { state: HostState; size?: "sm" | "md" }) {
   if (state === "unhealthy") return <WifiOff className={cn("mt-0.5", cls, "text-muted-foreground")} />;
   return <LoaderCircle className={cn("mt-0.5 animate-spin", cls, "text-primary")} />;
 }
+function OverviewTicketsSection() {
+  const { data, isLoading } = useOverviewTickets();
+  const tickets = data?.tickets ?? [];
+  if (isLoading) return <Card><CardHeader><CardTitle className="flex items-center gap-2"><Clock3 className="size-4" /> Today's Tickets</CardTitle></CardHeader><CardContent><Skeleton className="h-24 w-full" /></CardContent></Card>;
+  if (!tickets.length) return <Card><CardHeader><CardTitle className="flex items-center gap-2"><Clock3 className="size-4" /> Today\'s Tickets</CardTitle><CardDescription>{data?.operatingDate ?? ""} — no tickets yet</CardDescription></CardHeader></Card>;
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2"><Clock3 className="size-4" /> Today's Tickets — {tickets.length}</CardTitle><CardDescription>{data?.operatingDate} — longest playing on top</CardDescription></CardHeader>
+      <CardContent className="overflow-x-auto p-0">
+        <table className="w-full text-sm">
+          <thead className="border-b bg-muted/30 text-xs text-muted-foreground"><tr><th className="px-3 py-2 text-left">No</th><th className="px-3 py-2 text-left">Package</th><th className="px-3 py-2 text-left">Dur</th><th className="px-3 py-2 text-left">Status</th><th className="px-3 py-2 text-right">Played</th><th className="px-3 py-2 text-right">Left</th><th className="px-3 py-2 text-right">Overtime</th></tr></thead>
+          <tbody>{tickets.map(t => <TicketRow key={t.ticketId} ticket={t} />)}</tbody>
+        </table>
+      </CardContent>
+    </Card>
+  );
+}
+const TicketRow = React.memo(function TicketRow({ ticket }: { ticket: any }) {
+  const [now, setNow] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    if (ticket.status !== "active" && ticket.sessionStatus !== "active") return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [ticket.status, ticket.sessionStatus, ticket.enteredAt]);
+  const remaining = ticket.enteredAt && ticket.duration != null ? Math.max(0, (ticket.duration * 60000 - (now - ticket.enteredAt)) / 60000) : ticket.remainingMinutes;
+  const elapsed = ticket.enteredAt && ticket.sessionStatus === "active" ? Math.floor((now - ticket.enteredAt)/60000) : ticket.elapsedMinutes;
+  const isActive = ticket.status === "active" || ticket.sessionStatus === "active";
+  const fmt = (m:number|null)=> m==null? "—" : m<=0? "0m" : `${Math.floor(m)}m ${String(Math.floor((m%1)*60)).padStart(2,"0")}s`;
+  const left = isActive && ticket.duration!=null ? fmt(remaining) : ticket.status==="waiting" ? `${ticket.duration ?? "∞"}m` : "—";
+  const overtime = ticket.overtimeMinutes > 0 ? `${ticket.overtimeMinutes}m` : "—";
+  const badgeVariant = ticket.status==="active" ? "default" : ticket.status==="waiting" ? "secondary" : ticket.status==="completed" ? "outline" : "destructive";
+  return (
+    <tr className={ticket.overtimeMinutes>0 ? "bg-destructive/5" : ""}>
+      <td className="px-3 py-2 font-mono font-bold">{ticket.dailyNumber}</td>
+      <td className="px-3 py-2">{ticket.packageName}</td>
+      <td className="px-3 py-2">{ticket.duration==null? "∞" : `${ticket.duration}m`}</td>
+      <td className="px-3 py-2"><span className={badgeVariant==="default"?"inline-flex rounded-full bg-primary px-2 py-0.5 text-[11px] font-medium text-primary-foreground":badgeVariant==="secondary"?"inline-flex rounded-full bg-secondary px-2 py-0.5 text-[11px]":badgeVariant==="outline"?"inline-flex rounded-full border px-2 py-0.5 text-[11px]":"inline-flex rounded-full bg-destructive px-2 py-0.5 text-[11px] text-destructive-foreground"}>{ticket.status}</span>{isActive && ticket.sessionStatus? <span className="ml-1 text-xs text-muted-foreground">·{ticket.sessionStatus}</span>:null}</td>
+      <td className="px-3 py-2 text-right font-mono">{elapsed}m</td>
+      <td className={isActive && remaining!=null && remaining<=5 ? "px-3 py-2 text-right font-mono text-destructive font-semibold" : "px-3 py-2 text-right font-mono"}>{left}</td>
+      <td className={ticket.overtimeMinutes>0 ? "px-3 py-2 text-right font-mono text-destructive" : "px-3 py-2 text-right font-mono"}>{overtime}</td>
+    </tr>
+  );
+});
 function LiveCard({icon:Icon,label,value,loading,sub,tone}:{icon:any,label:string,value:number,loading:boolean,sub:string,tone?:"default"|"destructive"}){ return <Card className={tone==="destructive"?"border-destructive/30":""}><CardContent className="flex items-center gap-4 p-4"><div className={tone==="destructive"?"flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive":"flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary"}><Icon className="size-5" /></div><div className="min-w-0"><p className="text-xs text-muted-foreground">{label}</p>{loading ? <Skeleton className="mt-1 h-7 w-12" /> : <p className="text-3xl font-bold tracking-tight">{value}</p>}<p className="text-xs text-muted-foreground">{sub}</p></div></CardContent></Card>; }
