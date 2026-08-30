@@ -20,6 +20,7 @@ export type ScannerCapability = {
   secure: boolean;
   camera: boolean;
   supported: boolean;
+  supportsBarcode: boolean;
 };
 
 export function isSecureContextAvailable(): boolean {
@@ -63,11 +64,25 @@ export async function detectCapability(): Promise<ScannerCapability> {
   const secure = isSecureContextAvailable();
   const camera = hasMediaDevices();
   const native = await nativeQrSupported();
+  // Check if native actually supports EAN (barcode), not just QR
+  let supportsBarcode = false;
+  if (native) {
+    try {
+      const Ctor = nativeBarcodeDetector();
+      if (Ctor && typeof (new Ctor({formats:["ean_13"]}) as any).getSupportedFormats === 'function') {
+        const fmts = await new Ctor({formats:["ean_13"]}).getSupportedFormats?.();
+        supportsBarcode = Array.isArray(fmts) && fmts.includes("ean_13");
+      } else {
+        supportsBarcode = true; // native exists but no getSupportedFormats -> assume supports all
+      }
+    } catch { supportsBarcode = true; }
+  }
   return {
     decoder: native ? "native" : camera ? "jsqr" : "none",
     secure,
     camera,
     supported: secure && camera && (native || jsQR !== undefined),
+    supportsBarcode,
   };
 }
 
@@ -140,6 +155,10 @@ export function createJsqrDecoder(canvas: HTMLCanvasElement, context: CanvasRend
   };
 }
 
+export function barcodeErrorMessage(capability?: ScannerCapability): string | undefined {
+  if (capability && !capability.supportsBarcode) return "Product barcode scanning needs Chrome/Edge with native BarcodeDetector (EAN). This browser only decodes QR — ticket QR still works, use manual input for product EAN.";
+  return undefined;
+}
 export function errorMessage(kind: ScannerErrorKind): string {
   switch (kind) {
     case "insecure": return "Camera access requires HTTPS (or localhost). This page is served over plain HTTP.";

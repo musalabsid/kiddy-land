@@ -56,6 +56,9 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
   const persistDevice = (device: PairedDevice) => database?.db.run("INSERT INTO paired_devices(id, mode, kind, revoked_at, created_at, employee_name) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET mode=excluded.mode, kind=excluded.kind, revoked_at=excluded.revoked_at, employee_name=excluded.employee_name", [device.id, device.mode, device.kind, device.revokedAt ?? null, device.createdAt, device.employeeName ?? null]);
   const enrollments = new Map<string, Enrollment>();
   const sessions = new Map<string, Session>();
+  const persistSession = (session: Session) => database?.db.run("INSERT INTO sessions(token, device_id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(token) DO UPDATE SET device_id=excluded.device_id, user_id=excluded.user_id, expires_at=excluded.expires_at", [session.token, session.deviceId, session.userId ?? null, session.createdAt, session.expiresAt]);
+  const deleteSession = (token: string) => database?.db.run("DELETE FROM sessions WHERE token = ?", [token]);
+  const deleteSessionsByDevice = (deviceId: string) => database?.db.run("DELETE FROM sessions WHERE device_id = ?", [deviceId]);
   try { database?.db.run("ALTER TABLE staff_users ADD COLUMN display_name TEXT"); } catch {}
   const storedUsers = database?.db.query("SELECT id, username, role, password_hash AS passwordHash, display_name AS displayName FROM staff_users").all() as Array<StaffUser> | undefined;
   storedUsers?.forEach((user) => users.set(user.id, user));
@@ -65,6 +68,9 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
   // ponytail: ensure employee_name column exists for old DBs
   try { database?.db.run("ALTER TABLE paired_devices ADD COLUMN employee_name TEXT"); } catch {}
   const storedDevices = database?.db.query("SELECT id, mode, kind, revoked_at AS revokedAt, created_at AS createdAt, employee_name AS employeeName FROM paired_devices").all() as PairedDevice[] | undefined;
+  try { database?.db.run("CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, device_id TEXT NOT NULL, user_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)"); } catch {}
+  const storedSessions = database?.db.query("SELECT token, device_id AS deviceId, user_id AS userId, created_at AS createdAt, expires_at AS expiresAt FROM sessions WHERE expires_at > ?").all(Date.now()) as Session[] | undefined;
+  storedSessions?.forEach((session) => sessions.set(session.token, session));
   storedDevices?.forEach((device) => {
     const m = device.mode as string;
     if (m === "Entrance Scanner" || m === "Exit Scanner") (device as {mode: string}).mode = "Scanner";
@@ -145,6 +151,7 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     const ttlMs = 30 * 24 * 60 * 60_000;
     const session = { token: token(), deviceId, userId, createdAt, expiresAt: createdAt + ttlMs };
     sessions.set(session.token, session);
+    persistSession(session);
     return session;
   }
   function login(deviceId: string, username: string, password: string) {
@@ -180,7 +187,8 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     if (!device) return false;
     device.revokedAt = Date.now();
     persistDevice(device);
-    for (const [key, session] of sessions) if (session.deviceId === deviceId) sessions.delete(key);
+    for (const [key, session] of sessions) if (session.deviceId === deviceId) { sessions.delete(key); deleteSession(key); }
+    deleteSessionsByDevice(deviceId);
     initial?.events?.deviceRevoked?.(deviceId);
     return true;
   }
@@ -188,7 +196,8 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     const device = devices.get(deviceId);
     if (!device) return false;
     // Hard delete: also revokes (kills sessions) and removes the pairing history.
-    for (const [key, session] of sessions) if (session.deviceId === deviceId) sessions.delete(key);
+    for (const [key, session] of sessions) if (session.deviceId === deviceId) { sessions.delete(key); deleteSession(key); }
+    deleteSessionsByDevice(deviceId);
     devices.delete(deviceId);
     database?.db.run("DELETE FROM paired_devices WHERE id = ?", [deviceId]);
     initial?.events?.deviceRevoked?.(deviceId);

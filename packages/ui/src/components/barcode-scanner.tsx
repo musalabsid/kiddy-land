@@ -60,6 +60,7 @@ export function BarcodeScanner({
   const [error, setError] = React.useState<ScannerError | undefined>(undefined);
   const [capability, setCapability] = React.useState<Awaited<ReturnType<typeof detectCapability>> | undefined>(undefined);
   const [focusing, setFocusing] = React.useState(false);
+  const [capsInfo, setCapsInfo] = React.useState<string>("");
 
   React.useEffect(() => {
     let alive = true;
@@ -113,13 +114,19 @@ export function BarcodeScanner({
     if (cancelledRef.current) { stream.getTracks().forEach((track) => track.stop()); return; } // cancelled while awaiting permission
     if (cancelledRef.current) return; // cancelled while permission prompt was open
     streamRef.current = stream;
-    // continuous autofocus for close scans (15-20cm), fallback silently
+    // capture caps for debug and try continuous autofocus
     try {
       const track = stream.getVideoTracks()[0];
       const caps = (track.getCapabilities as any)?.();
+      setCapsInfo(caps ? JSON.stringify({ focusMode: caps.focusMode, focusDistance: caps.focusDistance, zoom: caps.zoom }, null, 2) : "no caps");
       if (caps?.focusMode?.includes("continuous")) await (track as any).applyConstraints({ advanced: [{ focusMode: "continuous" }] });
-      else if (caps?.focusMode?.includes("auto")) await (track as any).applyConstraints({ advanced: [{ focusMode: "continuous" }] });
-    } catch {}
+      else if (caps?.focusMode?.includes("auto")) await (track as any).applyConstraints({ advanced: [{ focusMode: "auto" }] });
+      else if (caps?.focusMode?.includes("manual") && caps?.focusDistance) {
+        // manual: set distance to mid-range for 15-20cm (usually 0 is near, max is far)
+        const mid = (caps.focusDistance.min + caps.focusDistance.max) / 2;
+        await (track as any).applyConstraints({ advanced: [{ focusMode: "manual", focusDistance: mid }] });
+      }
+    } catch { setCapsInfo("caps error"); }
     const video = videoRef.current;
     if (!video) { stream.getTracks().forEach((track) => track.stop()); return; }
     video.srcObject = stream;
@@ -194,30 +201,29 @@ export function BarcodeScanner({
   return (
     <div className={className}>
       <p className="text-xs text-muted-foreground">{t("auth.scanHint")} — {t("scanner.tapToFocus")} ({t("scanner.holdDistance")})</p>
-      <div className={`relative cursor-pointer ${focusing ? "ring-2 ring-primary" : ""}`} onClick={async () => {
+      <div className={`relative cursor-pointer border ${focusing ? "ring-2 ring-primary border-primary" : "border-border"} `} onClick={async () => {
         setFocusing(true);
         try {
           const tr = streamRef.current?.getVideoTracks()[0] as any;
           if (tr) {
             const caps = tr.getCapabilities?.();
-            // try continuous, then auto, then single-shot - most phones support one of these
-            try { await tr.applyConstraints({ advanced: [{ focusMode: "continuous" }] } as any); } catch {
-              try { await tr.applyConstraints({ advanced: [{ focusMode: "auto" }] } as any); } catch {
-                try { await tr.applyConstraints({ advanced: [{ focusMode: "single-shot" }] } as any); } catch {}
-              }
-            }
-            // also nudge focusDistance if supported (helps blur when too close)
-            try { if (caps?.focusDistance) await tr.applyConstraints({ advanced: [{ focusDistance: caps.focusDistance.max ? caps.focusDistance.max * 0.5 : 0 }] } as any); } catch {}
+            if (caps?.focusMode?.includes("continuous")) await tr.applyConstraints({ advanced: [{ focusMode: "continuous" }] } as any);
+            else if (caps?.focusMode?.includes("auto")) await tr.applyConstraints({ advanced: [{ focusMode: "auto" }] } as any);
+            else if (caps?.focusMode?.includes("manual") && caps?.focusDistance) {
+              const mid = (caps.focusDistance.min + caps.focusDistance.max) / 2;
+              await tr.applyConstraints({ advanced: [{ focusMode: "manual", focusDistance: mid }] } as any);
+            } else try { await tr.applyConstraints({ advanced: [{ focusMode: "continuous" }] } as any); } catch { try { await tr.applyConstraints({ advanced: [{ focusMode: "single-shot" }] } as any); } catch {} }
           }
         } catch {}
         setTimeout(() => setFocusing(false), 600);
       }}>
         <video ref={videoRef} autoPlay playsInline muted className="aspect-[4/3] w-full border border-border bg-muted object-cover pointer-events-none" title={t("scanner.tapToFocus")} />
-        <button type="button" onClick={async (e) => { e.stopPropagation(); setFocusing(true); try { const tr=streamRef.current?.getVideoTracks()[0] as any; if(tr) await tr.applyConstraints({ advanced: [{ focusMode: "continuous" }] } as any); } catch { try { const tr2=streamRef.current?.getVideoTracks()[0] as any; await tr2?.applyConstraints({ advanced: [{ focusMode: "single-shot" }] } as any); } catch {} } setTimeout(()=>setFocusing(false),600); }} className="absolute inset-x-2 bottom-2 rounded bg-background/90 py-2 text-sm font-medium backdrop-blur hover:bg-background">{t("scanner.tapToFocus")} — {t("scanner.holdDistance")}</button>
+        <button type="button" onClick={async (e) => { e.stopPropagation(); setFocusing(true); try { const tr=streamRef.current?.getVideoTracks()[0] as any; if(tr){ const caps=tr.getCapabilities?.(); if(caps?.focusMode?.includes("manual") && caps?.focusDistance){ const mid=(caps.focusDistance.min+caps.focusDistance.max)/2; await tr.applyConstraints({ advanced: [{ focusMode: "manual", focusDistance: mid }] } as any);} else await tr.applyConstraints({ advanced: [{ focusMode: "continuous" }] } as any);} } catch { try { const tr2=streamRef.current?.getVideoTracks()[0] as any; await tr2?.applyConstraints({ advanced: [{ focusMode: "single-shot" }] } as any); } catch {} } setTimeout(()=>setFocusing(false),600); }} className="absolute inset-x-2 bottom-2 rounded bg-background/90 py-2 text-sm font-medium backdrop-blur hover:bg-background">{t("scanner.tapToFocus")} — {t("scanner.holdDistance")}</button>
+        {capsInfo && <pre className="absolute bottom-2 left-2 max-h-24 max-w-[70%] overflow-auto rounded bg-black/80 p-2 font-mono text-[10px] leading-tight text-white">{capsInfo}</pre>}
         {focusing && <span className="absolute left-2 top-2 rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground">Focusing…</span>}
       </div>
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
-      <Button type="button" variant="outline" onClick={cancel}><X data-icon="inline-start" />{t("auth.scanCancel")}</Button>
+      {!autoStart && <Button type="button" variant="outline" onClick={cancel}><X data-icon="inline-start" />{t("auth.scanCancel")}</Button>}
     </div>
   );
 }
