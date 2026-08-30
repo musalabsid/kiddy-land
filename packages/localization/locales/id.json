@@ -497,5 +497,7 @@
   "host.ipChangedTitle": "IP Host berubah",
   "host.ipChangedDesc": "Pindai ulang QR pairing di layar ini untuk HP/tablet.",
   "scanner.tapToFocus": "Ketuk untuk fokus",
-  "scanner.holdDistance": "jarak 15–20cm"
+  "scanner.holdDistance": "jarak 15–20cm",
+  "scanner.showCameras": "Tampilkan kamera",
+  "scanner.hideCameras": "Sembunyikan kamera"
 }
