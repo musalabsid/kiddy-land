@@ -134,7 +134,7 @@ function receiptMoney(amount: number, locale: "id" | "en") {
   const value = new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { maximumFractionDigits: 0 }).format(amount);
   return `${locale === "id" ? "Rp" : "IDR"} ${value}`;
 }
-function receiptPdf(sale: SaleRecord, venueName: string) {
+function receiptPdf(sale: SaleRecord, venueName: string, logoUrl?: string | null) {
   const locale = sale.receipt.locale;
   const copy = locale === "id"
     ? { receipt: "STRUK", number: "Nomor", date: "Tanggal", payment: "Pembayaran", discount: "Diskon", subtotal: "Subtotal", total: "TOTAL", deposit: "Deposit ditahan", thanks: "Terima kasih sudah berkunjung" }
@@ -179,7 +179,15 @@ function receiptPdf(sale: SaleRecord, venueName: string) {
   const rightText = (value: string, size: number) => text(value, size, Math.max(padding, right - width(value, size)));
   const rule = () => { stream += `${padding} ${H - top} m ${right} ${H - top} l S\n`; top += 8; };
 
-  centered(venueName, 16); top += 22;
+  const logo = pdfImageFromLogo(logoUrl ?? null);
+  if (logo?.image) {
+    // draw logo centered above venueName - simple 32x32 box
+    const imgW = 28, imgH = 28;
+    const imgX = (W - imgW) / 2;
+    stream += `q ${imgW} 0 0 ${imgH} ${imgX} ${H - top - imgH} cm /Im0 Do Q\n`;
+    top += imgH + 6;
+  }
+  centered(venueName, 16); top += 22; // logo only receipt/report
   centered(copy.receipt, 9); top += 16;
   text(`${copy.number}: ${sale.receipt.number}`, 8); top += 11;
   text(`${copy.date}: ${sale.operatingDate}`, 8); top += 11;
@@ -212,7 +220,7 @@ function receiptPdf(sale: SaleRecord, venueName: string) {
   if (deposit) { text(copy.deposit, 7.5); rightText(amount(deposit), 7.5); top += 12; }
   rule();
   centered(copy.thanks, 8);
-  return pdfDocument(stream, W, H);
+  return pdfDocument(stream, W, H, logo?.image);
 }
 export function createSaleStore(calendar: CalendarStore, database?: LocalDatabase, inventory?: InventoryStore, membership?: MembershipStore) {
   const sales = new Map<string, SaleRecord>();
