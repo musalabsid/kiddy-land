@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react";
+import { useClient } from "@kiddy-land/client/react";
 
 type Theme = "dark" | "light" | "system";
 export type VenueTheme = "monochrome" | "emerald" | "pastel" | "sunset" | "ocean";
@@ -18,13 +19,14 @@ function isEditableTarget(target: EventTarget | null) { return target instanceof
 function applyTheme(theme: Theme) { const root = document.documentElement; root.classList.remove("light", "dark"); root.classList.add(theme === "system" ? getSystemTheme() : theme); }
 
 export function ThemeProvider({ children, defaultTheme = "system", storageKey = "theme" }: ThemeProviderProps) {
+  const client = useClient();
   const [theme, setThemeState] = React.useState<Theme>(() => { if (typeof window === "undefined") return defaultTheme; const stored = window.localStorage.getItem(storageKey); return isTheme(stored) ? stored : defaultTheme; });
   const setTheme = React.useCallback((next: Theme) => { window.localStorage.setItem(storageKey, next); setThemeState(next); }, [storageKey]);
   const [venueTheme, setVenueThemeState] = React.useState<VenueTheme>(() => { if (typeof window === "undefined") return "monochrome"; const stored = window.localStorage.getItem("venue-theme"); return isVenueTheme(stored) ? stored : "monochrome"; });
   const setVenueTheme = React.useCallback((next: VenueTheme) => { window.localStorage.setItem("venue-theme", next); setVenueThemeState(next); applyVenueTheme(next); }, []);
   React.useEffect(() => { applyTheme(theme); if (theme !== "system") return undefined; const media = window.matchMedia(COLOR_SCHEME_QUERY); const onChange = () => applyTheme("system"); media.addEventListener("change", onChange); return () => media.removeEventListener("change", onChange); }, [theme]);
   React.useEffect(() => { applyVenueTheme(venueTheme); }, [venueTheme]);
-  React.useEffect(() => { const initial = document.documentElement.getAttribute("data-theme") ?? venueTheme; const id = setTimeout(() => { if ((document.documentElement.getAttribute("data-theme") ?? venueTheme) !== initial) return; fetch("/public/venue").then(r => r.json()).then((d: { theme?: string }) => { if (d?.theme && isVenueTheme(d.theme)) { const current = document.documentElement.getAttribute("data-theme") ?? venueTheme; if (current !== initial) return; setVenueThemeState(d.theme as VenueTheme); applyVenueTheme(d.theme as VenueTheme); window.localStorage.setItem("venue-theme", d.theme); } }).catch(() => {}); }, 300); return () => clearTimeout(id); }, []);
+  React.useEffect(() => { const initial = document.documentElement.getAttribute("data-theme") ?? venueTheme; const id = setTimeout(() => { if ((document.documentElement.getAttribute("data-theme") ?? venueTheme) !== initial) return; client.get<{ theme?: string }>("/public/venue").then((d) => { if (d?.theme && isVenueTheme(d.theme)) { const current = document.documentElement.getAttribute("data-theme") ?? venueTheme; if (current !== initial) return; setVenueThemeState(d.theme as VenueTheme); applyVenueTheme(d.theme as VenueTheme); window.localStorage.setItem("venue-theme", d.theme); } }).catch(() => {}); }, 300); return () => clearTimeout(id); }, [client, venueTheme]);
   React.useEffect(() => { const onKeyDown = (event: KeyboardEvent) => { if (!event.repeat && !event.metaKey && !event.ctrlKey && !event.altKey && event.key.toLowerCase() === "d" && !isEditableTarget(event.target)) setTheme(theme === "dark" ? "light" : "dark"); }; window.addEventListener("keydown", onKeyDown); return () => window.removeEventListener("keydown", onKeyDown); }, [theme, setTheme]);
   return <ThemeContext.Provider value={{ theme, setTheme, venueTheme, setVenueTheme }}>{children}</ThemeContext.Provider>;
 }
