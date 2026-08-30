@@ -196,16 +196,21 @@ export function BarcodeScanner({
     try { if (selectedId) localStorage.setItem("kiddy-land-selected-camera", selectedId); else localStorage.removeItem("kiddy-land-selected-camera"); } catch {}
   }, [selectedId]);
 
-  // When user picks a different camera while scanning, restart with new device (autoStart will re-trigger start)
+  // When user picks a different camera while scanning, restart with new device
   const prevSelectedId = React.useRef<string | undefined>(undefined);
+  const switchedRef = React.useRef(false);
   React.useEffect(() => {
     if (!selectedId || selectedId === prevSelectedId.current) return;
     prevSelectedId.current = selectedId;
-    if (status === "scanning") cancel();
+    if (status === "scanning") {
+      switchedRef.current = true;
+      cancel();
+    }
   }, [selectedId]);
 
   React.useEffect(() => {
-    if (autoStart && capability?.supported && (status === "idle" || status === "done")) {
+    if ((autoStart || switchedRef.current) && capability?.supported && (status === "idle" || status === "done")) {
+      switchedRef.current = false;
       void start();
     }
   }, [autoStart, capability, status, start]);
@@ -241,7 +246,7 @@ export function BarcodeScanner({
           <button type="button" onClick={() => setShowPicker(v => !v)} className="relative z-10 shrink-0 rounded-full border bg-background px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-accent">
             {showPicker ? t("scanner.hideCameras") : t("scanner.showCameras")} {devices.length ? `(${devices.length})` : ""}
           </button>
-          {!autoStart && <button type="button" onClick={cancel} className="shrink-0 rounded-full border bg-background px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-accent"><X className="size-3" /> {t("auth.scanCancel")}</button>}
+          {!autoStart && <button type="button" onClick={cancel} className="inline-flex shrink-0 items-center gap-1 rounded-full border bg-background px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-accent"><X className="size-3" /> {t("auth.scanCancel")}</button>}
         </div>
         {showPicker && devices.length > 0 && (
           <div className="rounded-lg border bg-muted/30 p-2">
