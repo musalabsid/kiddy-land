@@ -14,16 +14,18 @@ function ScannerPage() {
   const [tab, setTab] = useState<"entry" | "exit">("entry");
   return (
     <RouteAccessGate requireMode="Scanner">
-      <div className="grid gap-4">
-        <div className="flex gap-2">
-          <Button variant={tab === "entry" ? "default" : "outline"} onClick={() => setTab("entry")}>
-            {t("scanner.entryTitle")}
-          </Button>
-          <Button variant={tab === "exit" ? "default" : "outline"} onClick={() => setTab("exit")}>
-            {t("scanner.exitTitle")}
-          </Button>
+      <div className="w-full max-w-6xl px-5 py-8 sm:px-8">
+        <div className="grid gap-4">
+          <div className="flex gap-2">
+            <Button variant={tab === "entry" ? "default" : "outline"} onClick={() => setTab("entry")}>
+              {t("scanner.entryTitle")}
+            </Button>
+            <Button variant={tab === "exit" ? "default" : "outline"} onClick={() => setTab("exit")}>
+              {t("scanner.exitTitle")}
+            </Button>
+          </div>
+          {tab === "entry" ? <TicketScanner kind="entry" enableCamera /> : <TicketScanner kind="exit" enableCamera />}
         </div>
-        {tab === "entry" ? <TicketScanner kind="entry" enableCamera /> : <TicketScanner kind="exit" enableCamera />}
       </div>
     </RouteAccessGate>
   );

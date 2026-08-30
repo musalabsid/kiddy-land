@@ -9,7 +9,9 @@ export const Route = createFileRoute("/_authenticated/_shell/sales")({
 function SalesPage() {
   return (
     <RouteAccessGate requireMode="Cashier">
-      <CashierSale />
+      <div className="w-full max-w-6xl px-5 py-8 sm:px-8">
+        <CashierSale />
+      </div>
     </RouteAccessGate>
   );
 }
