@@ -569,5 +569,7 @@
   "overview.sales": "Sales today",
   "overview.grace": "Grace",
   "overview.salesTodayTotal": "Sales today (Rp)",
-  "overview.salesTodayTotalSub": "Today's revenue"
+  "overview.salesTodayTotalSub": "Today's revenue",
+  "scanner.depositReturn": "Deposit return",
+  "scanner.refunded": "Refunded"
 }

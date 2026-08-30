@@ -53,6 +53,7 @@ export type OverviewTicket = {
   graceMinutes: number;
   outstandingCharge: number;
   depositStatus: string;
+  depositAmount: number;
 };
 
 export type OverviewResponse = {

@@ -153,6 +153,7 @@ export function createApp(
       graceMinutes: number;
       outstandingCharge: number;
       depositStatus: string;
+      depositAmount: number;
     }> = [];
     for (const sale of sales.sales.values()) {
       if (sale.operatingDate !== today) continue;
@@ -204,6 +205,7 @@ export function createApp(
           graceMinutes: threshold,
           outstandingCharge: session?.outstandingCharge ?? 0,
           depositStatus: deposit?.status ?? "held",
+          depositAmount: deposit?.amount ?? ticket.package.deposit ?? 0,
         });
       }
     }

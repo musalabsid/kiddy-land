@@ -173,7 +173,7 @@ export function HostOverviewPage({
 
           {live && (live.salesTodayTotal !== undefined || live.sales !== undefined) ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <LiveCard icon={Package} label={t("overview.salesTodayTotal") ?? "Sales today (Rp)"} value={live?.salesTodayTotal ?? 0} loading={overview.isLoading} sub={live?.ticketTodayTotal != null ? `${locale === "id" ? "Tiket" : "Ticket"} ${new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(live.ticketTodayTotal)} · ${locale === "id" ? "Produk" : "Product"} ${new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(live.productTodayTotal ?? 0)}` : operatingDate || "—"} />
+              <Card><CardContent className="flex items-center gap-4 p-4"><div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><Package className="size-5" /></div><div className="min-w-0"><p className="text-xs text-muted-foreground">{t("overview.salesTodayTotal") ?? "Sales today (Rp)"}</p>{overview.isLoading ? <Skeleton className="mt-1 h-7 w-24" /> : <p className="text-3xl font-bold tracking-tight">{new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { maximumFractionDigits: 0 }).format(live?.salesTodayTotal ?? 0)}</p>}<p className="text-xs text-muted-foreground">{live?.ticketTodayTotal != null ? `${locale === "id" ? "Tiket" : "Ticket"} ${new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(live.ticketTodayTotal)} · ${locale === "id" ? "Produk" : "Product"} ${new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(live.productTodayTotal ?? 0)}` : operatingDate || "—"}</p></div></CardContent></Card>
               <LiveCard icon={ShoppingBag} label={t("overview.sales")} value={live.sales} loading={overview.isLoading} sub={operatingDate || "—"} />
             </div>
           ) : null}
@@ -457,7 +457,8 @@ function TicketRow({ ticket, locale, t }: { ticket: OverviewTicket; locale: "id"
             {ticket.depositStatus}
           </span>
         </div>
-        {outstanding > 0 ? <div className="mt-1 font-mono text-xs font-medium text-destructive">{formatIdr(outstanding, locale as "id" | "en")}</div> : <div className="mt-1 text-xs text-muted-foreground">—</div>}
+        {ticket.depositAmount > 0 ? <div className="mt-1 font-mono text-xs text-muted-foreground">{formatIdr(ticket.depositAmount, locale as "id" | "en")}</div> : <div className="mt-1 text-xs text-muted-foreground">—</div>}
+        {outstanding > 0 ? <div className="mt-0.5 font-mono text-xs font-medium text-destructive">{formatIdr(outstanding, locale as "id" | "en")}</div> : null}
       </td>
     </tr>
   );

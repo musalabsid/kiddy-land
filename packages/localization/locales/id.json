@@ -569,5 +569,7 @@
   "overview.sales": "Penjualan hari ini",
   "overview.grace": "Tenggang",
   "overview.salesTodayTotal": "Penjualan hari ini (Rp)",
-  "overview.salesTodayTotalSub": "Pendapatan hari ini"
+  "overview.salesTodayTotalSub": "Pendapatan hari ini",
+  "scanner.depositReturn": "Deposit kembali",
+  "scanner.refunded": "Dikembalikan"
 }
