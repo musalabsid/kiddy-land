@@ -21,7 +21,7 @@ export function openLocalDatabase(path: string): LocalDatabase {
   db.run("PRAGMA foreign_keys = ON");
   db.run("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)");
   const version = Number((db.query("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations").get() as { version: number }).version);
-  if (version > 8) throw new Error(`Unsupported database schema version ${version}`);
+  if (version > 9) throw new Error(`Unsupported database schema version ${version}`);
   if (version < 1) {
     db.run(`CREATE TABLE IF NOT EXISTS calendar_state (
       id INTEGER PRIMARY KEY CHECK (id = 1), timezone TEXT NOT NULL,
@@ -64,6 +64,10 @@ export function openLocalDatabase(path: string): LocalDatabase {
     db.run(`CREATE TABLE IF NOT EXISTS venue_settings (id INTEGER PRIMARY KEY CHECK (id = 1), state_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`);
     db.run("INSERT OR IGNORE INTO venue_settings(id, state_json, updated_at) VALUES (1, ?, ?)", [JSON.stringify({ venueName: "Kiddy Land", logoUrl: null, backupInterval: "daily", theme: "monochrome" }), Date.now()]);
     db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (8, ?)", [Date.now()]);
+  }
+  if (version < 9) {
+    db.run(`CREATE TABLE IF NOT EXISTS ticket_daily_seq (operating_date TEXT PRIMARY KEY, seq INTEGER NOT NULL)`);
+    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (9, ?)", [Date.now()]);
   }
   const orm = drizzle(db, { schema });
   const transaction = <T,>(work: () => T): T => { db.run("BEGIN IMMEDIATE"); try { const result = work(); db.run("COMMIT"); return result; } catch (error) { db.run("ROLLBACK"); throw error; } };

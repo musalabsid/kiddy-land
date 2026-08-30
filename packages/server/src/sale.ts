@@ -13,7 +13,7 @@ export type TicketLineInput = { kind?: "ticket"; childId: string; childName?: st
 export type ProductLineInput = { kind: "product"; productId: string; quantity: number; discount?: number; memberId?: string; outOfStockException?: { reason: string; ownerId: string } };
 export type SaleStatus = "completed" | "void";
 export type SaleCorrection = { id: string; kind: "void" | "price-override" | "refund"; saleId: string; lineId?: string; originalOperatingDate: string; correctionDate: string; actorId: string; reason: string; originalAmount: number; correctedAmount: number; at: number };
-export type TicketRecord = { id: string; code: string; qrToken: string; childId: string; childName?: string; package: PackageSnapshot; status: "waiting" };
+export type TicketRecord = { id: string; code: string; dailyNumber: string; qrToken: string; childId: string; childName?: string; package: PackageSnapshot; status: "waiting" };
 export type ReceiptLine = { kind: "ticket"; ticketId: string; childId: string; packageName: string; price: number; originalPrice: number; membershipDiscount: number; memberId?: string; deposit: number } | { kind: "product"; lineId: string; productId: string; sku: string; productName: string; quantity: number; unitPrice: number; discount: number; membershipDiscount: number; memberId?: string; total: number };
 export type SaleLineInput = TicketLineInput | ProductLineInput;
 export type DepositRecord = { ticketId: string; amount: number; status: "held" | "applied" | "refunded" | "forfeited"; appliedAmount?: number; refundedAmount?: number };
@@ -49,7 +49,7 @@ function pdf(title: string, lines: string[], width = 612, height = 792) {
   return pdfDocument(stream, width, height);
 }
 function fitPdfText(value: string, max = 38) { return value.length > max ? `${value.slice(0, max - 3)}...` : value; }
-function qrPdf(rows: Array<{ code: string; token: string; packageName: string; duration: string }>) {
+function qrPdf(rows: Array<{ code: string; dailyNumber: string; token: string; packageName: string }>) {
   const W = 595;
   const H = 842;
   const left = 28;
@@ -72,7 +72,7 @@ function qrPdf(rows: Array<{ code: string; token: string; packageName: string; d
     for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) if (qr.modules.data[r * size + c]) stream += `${qrX + (c + quiet) * qrUnit} ${H - qrTop - (r + quiet + 1) * qrUnit} ${qrUnit} ${qrUnit} re f\n`;
     const textX = qrX + qrPx + 14;
     const textTop = H - cellTop;
-    stream += `BT /F1 7 Tf ${textX} ${textTop - 13} Td (${pdfText("KIDDY LAND")}) Tj ET\nBT /F1 11 Tf ${textX} ${textTop - 28} Td (${pdfText(fitPdfText(row.packageName))}) Tj ET\nBT /F1 8 Tf ${textX} ${textTop - 43} Td (${pdfText(row.duration)}) Tj ET\nBT /F1 8 Tf ${textX} ${textTop - 55} Td (${pdfText(row.code)}) Tj ET\n`;
+    stream += `BT /F1 7 Tf ${textX} ${textTop - 13} Td (${pdfText("KIDDY LAND")}) Tj ET\nBT /F1 11 Tf ${textX} ${textTop - 28} Td (${pdfText(fitPdfText(row.packageName))}) Tj ET\nBT /F1 14 Tf ${textX} ${textTop - 44} Td (${pdfText(row.dailyNumber)}) Tj ET\nBT /F1 7 Tf ${textX} ${textTop - 56} Td (${pdfText(row.code)}) Tj ET\n`;
     const cx = right - 37;
     const cy = H - (cellTop + cellH / 2);
     const radius = 11;
@@ -172,10 +172,41 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
   const idempotency = new Map<string, SaleRecord>();
   const printAttempts: PrintAttempt[] = [];
   let receiptSequence = 0;
+  const dailySeq = new Map<string, number>();
+  const loadDailySeq = () => {
+    if (!database) return;
+    try {
+      const rows = database.orm.all<{ operating_date: string; seq: number }>(sql`SELECT operating_date, seq FROM ticket_daily_seq`);
+      for (const r of rows) dailySeq.set(r.operating_date, r.seq);
+      // backfill from existing sales if empty (preserve max per day)
+      if (rows.length === 0) {
+        for (const sale of sales.values()) {
+          for (const t of sale.tickets) {
+            const n = Number((t as any).dailyNumber);
+            if (!Number.isNaN(n)) {
+              const cur = dailySeq.get(sale.operatingDate) ?? 0;
+              if (n > cur) dailySeq.set(sale.operatingDate, n);
+            }
+          }
+        }
+      }
+    } catch {}
+  };
   if (database) {
     const row = database.orm.all<{ sales: string; attempts: string; sequence: number }>(sql`SELECT sales_json AS sales, print_attempts_json AS attempts, receipt_sequence AS sequence FROM sales_state WHERE id = 1`)[0];
     if (row) { for (const sale of JSON.parse(row.sales) as SaleRecord[]) { sales.set(sale.id, sale); idempotency.set(sale.idempotencyKey, sale); } printAttempts.push(...JSON.parse(row.attempts) as PrintAttempt[]); receiptSequence = row.sequence; }
+    loadDailySeq();
   }
+  const nextDailyNumbers = (operatingDate: string, count: number): string[] => {
+    const start = (dailySeq.get(operatingDate) ?? 0) + 1;
+    const result: string[] = [];
+    for (let i = 0; i < count; i++) result.push(String(start + i).padStart(4, "0"));
+    dailySeq.set(operatingDate, start + count - 1);
+    if (database) {
+      try { database.orm.run(sql`INSERT INTO ticket_daily_seq(operating_date, seq) VALUES (${operatingDate}, ${start + count - 1}) ON CONFLICT(operating_date) DO UPDATE SET seq = excluded.seq`); } catch {}
+    }
+    return result;
+  };
   const persist = () => { if (!database) return; database.orm.run(sql`UPDATE sales_state SET sales_json = ${JSON.stringify([...sales.values()])}, print_attempts_json = ${JSON.stringify(printAttempts)}, receipt_sequence = ${receiptSequence}, updated_at = ${Date.now()} WHERE id = 1`); };
 
   function completeSale(input: { idempotencyKey: string; cashierId: string; operatingDate: string; at?: number; lines: SaleLineInput[]; paymentMethod: PaymentMethod; locale?: "id" | "en" }) {
@@ -200,7 +231,13 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
     const total = snapshots.reduce((sum, item, index) => sum + item.price - ticketDiscounts[index]!, 0) + productSnapshots.reduce((sum, item) => sum + item.total, 0) + depositTotal;
     const saleId = id("sale");
     inventory?.reserveBatch(productLines.map((line) => ({ productId: line.productId, quantity: line.quantity, actorId: input.cashierId, exception: line.outOfStockException })));
-    const tickets = ticketLines.map((line, index) => ({ id: id("ticket"), code: `T-${randomBytes(6).toString("hex").toUpperCase()}`, qrToken: opaque(), childId: line.childId, childName: line.childName, package: snapshots[index]!, status: "waiting" as const }));
+    // daily sequential 0001 per operatingDate, persisted via DB or in-memory
+    const tickets = (() => {
+      const base = ticketLines.map((line, index) => ({ id: id("ticket"), code: `T-${randomBytes(6).toString("hex").toUpperCase()}`, qrToken: opaque(), childId: line.childId, childName: line.childName, package: snapshots[index]!, status: "waiting" as const }));
+      // attach dailyNumber
+      const dailyNumbers = nextDailyNumbers(input.operatingDate, ticketLines.length);
+      return base.map((t, i) => ({ ...t, dailyNumber: dailyNumbers[i]! }));
+    })();
     const receiptLines: ReceiptLine[] = tickets.map((ticket, index) => ({ kind: "ticket", ticketId: ticket.id, childId: ticket.childId, packageName: ticket.package.name, price: ticket.package.price - ticketDiscounts[index]!, originalPrice: ticket.package.price, membershipDiscount: ticketDiscounts[index]!, memberId: ticketLines[index]!.memberId, deposit: ticket.package.deposit }));
     productSnapshots.forEach((snapshot, index) => receiptLines.push({ kind: "product", lineId: `${saleId}_product_${index + 1}`, productId: snapshot.productId, sku: snapshot.sku, productName: snapshot.name, quantity: snapshot.quantity, unitPrice: snapshot.unitPrice, discount: snapshot.discount, membershipDiscount: snapshot.membershipDiscount, memberId: productLines[index]!.memberId, total: snapshot.total }));
     const deposits: DepositRecord[] = tickets.map((ticket) => ({ ticketId: ticket.id, amount: ticket.package.deposit, status: "held" as const }));
@@ -233,7 +270,7 @@ export function createSaleStore(calendar: CalendarStore, database?: LocalDatabas
   function artifact(saleId: string, kind: "tickets" | "receipt") {
     const sale = sales.get(saleId); if (!sale || sale.status !== "completed") throw new Error("Sale unavailable");
     if (kind === "receipt") return { contentType: "application/pdf", filename: `${sale.receipt.number}.pdf`, body: receiptPdf(sale) };
-    return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: qrPdf(sale.tickets.map((ticket) => ({ code: ticket.code, token: ticket.qrToken, packageName: ticket.package.name, duration: ticket.package.includedMinutes === null ? (sale.receipt.locale === "id" ? "Tanpa batas" : "Unlimited") : `${ticket.package.includedMinutes} ${sale.receipt.locale === "id" ? "menit" : "min"}` }))) };
+    return { contentType: "application/pdf", filename: `${sale.receipt.number}-tickets.pdf`, body: qrPdf(sale.tickets.map((ticket) => ({ code: ticket.code, dailyNumber: (ticket as any).dailyNumber ?? ticket.code, token: ticket.qrToken, packageName: ticket.package.name }))) };
   }
   return { sales, printAttempts, complete, list, get, voidSale, addCorrection, recordPrintAttempt, artifact, qr, persist };
 }

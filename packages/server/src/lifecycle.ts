@@ -26,7 +26,7 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
   function findTicket(codeOrToken: string) {
     const recoveredId = recoveryCodes.get(codeOrToken);
     for (const sale of sales.sales.values()) {
-      const ticket = sale.tickets.find((candidate) => candidate.id === recoveredId || candidate.code === codeOrToken || candidate.qrToken === codeOrToken);
+      const ticket = sale.tickets.find((candidate) => candidate.id === recoveredId || candidate.code === codeOrToken || (candidate as any).dailyNumber === codeOrToken || candidate.qrToken === codeOrToken);
       if (ticket) return ticket;
     }
     return undefined;
