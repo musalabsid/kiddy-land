@@ -571,5 +571,6 @@
   "overview.salesTodayTotal": "Penjualan hari ini (Rp)",
   "overview.salesTodayTotalSub": "Pendapatan hari ini",
   "scanner.depositReturn": "Deposit kembali",
-  "scanner.refunded": "Dikembalikan"
+  "scanner.refunded": "Dikembalikan",
+  "sale.hideQr": "Sembunyikan QR"
 }

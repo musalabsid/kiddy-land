@@ -18,6 +18,7 @@ export function CashierTodaySales() {
   const query = useSales({ operatingDate });
   const sales = query.data ?? [];
   const [expanded, setExpanded] = React.useState<string | null>(null);
+  const [qrUrls, setQrUrls] = React.useState<Record<string, string>>({});
 
   const artifact = async (saleId: string, kind: "tickets" | "receipt", action: "open" | "download" = "open") => {
     const popup = action === "open" ? window.open("", "_blank") : null;
@@ -131,22 +132,26 @@ export function CashierTodaySales() {
                             <span className="ml-1 rounded bg-muted px-1.5 py-0.5">{t("sale.member")}</span>
                           ) : null}
                         </span>
+                        <div className="grid gap-1">
                         <Button
                           size="sm"
                           variant="ghost"
                           className="h-6 px-2 text-xs"
                           onClick={() => {
+                            if (qrUrls[ticket.id]) { URL.revokeObjectURL(qrUrls[ticket.id]!); setQrUrls(prev => { const n={...prev}; delete n[ticket.id]; return n; }); return; }
                             const url = `${client.origin}/sales/${sale.id}/tickets/${ticket.id}/qr`;
                             fetch(url, { headers: { Authorization: `Bearer ${client.getToken()}` } })
                               .then((r) => r.blob())
                               .then((blob) => {
                                 const u = URL.createObjectURL(blob);
-                                window.open(u, "_blank");
+                                setQrUrls(prev => ({ ...prev, [ticket.id]: u }));
                               });
                           }}
                         >
-                          {t("sale.showQr")}
+                          {qrUrls[ticket.id] ? t("sale.hideQr") ?? "Hide QR" : t("sale.showQr")}
                         </Button>
+                        {qrUrls[ticket.id] ? <img src={qrUrls[ticket.id]} alt="QR" className="mt-1 size-32 rounded border bg-white p-1" /> : null}
+                        </div>
                       </div>
                     ))}
                     {sale.lines

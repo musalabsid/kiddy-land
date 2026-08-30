@@ -209,7 +209,9 @@ export function createApp(
         });
       }
     }
-    tickets.sort((a, b) => b.playingMinutes - a.playingMinutes);
+    // active (longest playing first) → waiting → everything else
+    const statusRank = (s: string) => (s === "active" ? 0 : s === "waiting" ? 1 : 2);
+    tickets.sort((a, b) => statusRank(a.status) - statusRank(b.status) || b.playingMinutes - a.playingMinutes);
     return c.json({ health, live, tickets, generatedAt: new Date(now).toISOString(), timezone: calendar.timezone });
   });
 

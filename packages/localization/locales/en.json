@@ -571,5 +571,6 @@
   "overview.salesTodayTotal": "Sales today (Rp)",
   "overview.salesTodayTotalSub": "Today's revenue",
   "scanner.depositReturn": "Deposit return",
-  "scanner.refunded": "Refunded"
+  "scanner.refunded": "Refunded",
+  "sale.hideQr": "Hide QR"
 }

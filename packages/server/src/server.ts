@@ -158,7 +158,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       const cfg = venueSettings.get();
       if (!cfg.alertEnabled) return;
       const threshold = cfg.alertThreshold;
-      const allowedModes = new Set(cfg.alertDevices.map((d:string)=> d==="Kiosk"?"Public Kiosk":d));
+      const allowedModes = new Set(cfg.alertDevices.map((d:string)=> d==="Kiosk"?"Public Kiosk": d==="Owner"?"Owner Dashboard":d));
       const today = calendar.operatingDate(new Date());
       const now = Date.now();
       const minutesBetween=(a:number,b:number)=>Math.max(0,Math.floor((b-a)/60000));
@@ -171,23 +171,31 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
           if (included === null) continue;
           const elapsed = minutesBetween(session.enteredAt, now);
           const remaining = included - elapsed;
-          if (remaining !== threshold) continue;
+          if (remaining === null || remaining > threshold || remaining < 0) continue; // trigger once when 5..0
           const key = `${sale.operatingDate}:${ticket.id}:${threshold}`;
           if (alertNotified.has(key)) continue;
           alertNotified.set(key, now);
-          const dailyNumber = (ticket as any).dailyNumber ?? ticket.code;
-          const payload = { type: "alert", kind: "5min", dailyNumber, threshold, ticketId: ticket.id };
+          // collect for staggered broadcast 15s apart (ponytail: avoid overlapping TTS)
+          (globalThis as any).__alertQueue = (globalThis as any).__alertQueue ?? [];
+          (globalThis as any).__alertQueue.push({ dailyNumber: (ticket as any).dailyNumber ?? ticket.code, threshold, ticketId: ticket.id, allowedModes });
+        }
+      }
+      const queue: Array<{dailyNumber:string;threshold:number;ticketId:string;allowedModes:Set<string>}> = (globalThis as any).__alertQueue ?? [];
+      (globalThis as any).__alertQueue = [];
+      queue.forEach((item, i) => {
+        setTimeout(() => {
+          const payload = { type: "alert", kind: "5min", dailyNumber: item.dailyNumber, threshold: item.threshold, ticketId: item.ticketId };
           for (const [deviceId, info] of (identity as any).devices?.entries?.() ?? []) {
             const mode = (info as any).mode as string;
-            const allowed = allowedModes.has(mode) || (mode==="Public Kiosk" && allowedModes.has("Public Kiosk"));
+            const allowed = item.allowedModes.has(mode) || (mode==="Public Kiosk" && item.allowedModes.has("Public Kiosk"));
             if (!allowed) continue;
             const conn = (registry as any)?.get?.(deviceId);
             if (conn) try { conn.send(JSON.stringify(payload)); } catch {}
           }
           try { (registry as any)?.broadcast?.(JSON.stringify(payload)); } catch {}
-          console.log(`[alert] ticket ${dailyNumber} ${threshold}m left`);
-        }
-      }
+          console.log(`[alert] ticket ${item.dailyNumber} ${item.threshold}m left (staggered ${i*15}s)`);
+        }, i * 15_000);
+      });
       // cleanup old keys (>24h)
       for (const [k,v] of alertNotified) if (now - v > 24*60*60*1000) alertNotified.delete(k);
     } catch {}
