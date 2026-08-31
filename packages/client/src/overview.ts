@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+
 import { useClient } from "./client-context";
 import { clientQueryKeys } from "./query/query-client";
 
@@ -30,7 +31,13 @@ export type OverviewLive = {
   };
 };
 
-export type OverviewTicketStatus = "waiting" | "active" | "completed" | "auto-closed" | "void" | "expired";
+export type OverviewTicketStatus =
+  | "waiting"
+  | "active"
+  | "completed"
+  | "auto-closed"
+  | "void"
+  | "expired";
 
 export type OverviewTicket = {
   ticketId: string;
@@ -64,7 +71,10 @@ export type OverviewResponse = {
   timezone: string;
 };
 
-export function useOverview(opts?: { enabled?: boolean; refetchInterval?: number }) {
+export function useOverview(opts?: {
+  enabled?: boolean;
+  refetchInterval?: number;
+}) {
   const client = useClient();
   return useQuery({
     queryKey: clientQueryKeys.overview,

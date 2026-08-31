@@ -12,6 +12,7 @@
 ```bash
 sudo apt install ./kiddy-land_0.1.0_amd64.deb
 ```
+
 Lalu buka dari launcher.
 
 ## Setelah install — lanjut ke Setup Jaringan!

@@ -1,18 +1,40 @@
-/// <reference path="./assets.d.ts" />
 import * as React from "react";
+
 import bellUrl from "../bell-intro.mp3";
 
 function toIndonesianWords(n: number): string {
   if (n === 0) return "nol";
-  const units=["","satu","dua","tiga","empat","lima","enam","tujuh","delapan","sembilan","sepuluh","sebelas"] as const;
+  const units = [
+    "",
+    "satu",
+    "dua",
+    "tiga",
+    "empat",
+    "lima",
+    "enam",
+    "tujuh",
+    "delapan",
+    "sembilan",
+    "sepuluh",
+    "sebelas",
+  ] as const;
   if (n < 12) return units[n]!;
-  if (n < 20) return units[n-10]! + " belas";
+  if (n < 20) return units[n - 10]! + " belas";
   if (n < 100) {
-    const tens=Math.floor(n/10), ones=n%10;
-    return units[tens]! + " puluh" + (ones ? " " + toIndonesianWords(ones) : "");
+    const tens = Math.floor(n / 10),
+      ones = n % 10;
+    return (
+      units[tens]! + " puluh" + (ones ? " " + toIndonesianWords(ones) : "")
+    );
   }
-  if (n < 200) return "seratus" + (n-100 ? " " + toIndonesianWords(n-100) : "");
-  if (n < 1000) return (units[Math.floor(n/100)] as string) + " ratus" + (n%100 ? " " + toIndonesianWords(n%100) : "");
+  if (n < 200)
+    return "seratus" + (n - 100 ? " " + toIndonesianWords(n - 100) : "");
+  if (n < 1000)
+    return (
+      (units[Math.floor(n / 100)] as string) +
+      " ratus" +
+      (n % 100 ? " " + toIndonesianWords(n % 100) : "")
+    );
   return String(n);
 }
 
@@ -67,27 +89,45 @@ export function useAlertSound(enabled?: boolean) {
   React.useEffect(() => {
     if (enabled === false) return;
     const safeSpeakText = (text: string) => {
-      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+      if (typeof window === "undefined" || !("speechSynthesis" in window))
+        return;
       const ss = window.speechSynthesis;
-      try { if (ss.paused) ss.resume(); } catch {}
+      try {
+        if (ss.paused) ss.resume();
+      } catch {}
       const utter = new SpeechSynthesisUtterance(text);
-      utter.lang = "id-ID"; utter.rate = 0.95;
+      utter.lang = "id-ID";
+      utter.rate = 0.95;
       let done = false;
       let poll: ReturnType<typeof setInterval> | undefined;
       const attempt = () => {
-        if (done) return; done = true;
+        if (done) return;
+        done = true;
         if (poll) clearInterval(poll);
         const voices = ss.getVoices();
-        const idVoice = voices.find((v) => v.lang.toLowerCase().startsWith("id")) ?? voices[0];
+        const idVoice =
+          voices.find((v) => v.lang.toLowerCase().startsWith("id")) ??
+          voices[0];
         if (idVoice) utter.voice = idVoice;
-        try { ss.speak(utter); } catch {}
+        try {
+          ss.speak(utter);
+        } catch {}
       };
-      const onVoices = () => { ss.removeEventListener("voiceschanged", onVoices); attempt(); };
-      if (ss.getVoices().length) { attempt(); return; }
+      const onVoices = () => {
+        ss.removeEventListener("voiceschanged", onVoices);
+        attempt();
+      };
+      if (ss.getVoices().length) {
+        attempt();
+        return;
+      }
       ss.addEventListener("voiceschanged", onVoices);
       let tries = 0;
       poll = setInterval(() => {
-        if (ss.getVoices().length || ++tries >= 30) { ss.removeEventListener("voiceschanged", onVoices); attempt(); }
+        if (ss.getVoices().length || ++tries >= 30) {
+          ss.removeEventListener("voiceschanged", onVoices);
+          attempt();
+        }
       }, 300);
     };
     // Server sends type:"alert" with dailyNumber/threshold (5-min timer) — bridged by RealtimeSync
@@ -101,9 +141,20 @@ export function useAlertSound(enabled?: boolean) {
       const human = Number.isNaN(n) ? daily : toIndonesianWords(n);
       const thr = Number(detail.threshold ?? 5);
       const thrWord = toIndonesianWords(Math.max(1, thr));
-      const text = "Tiket nomor " + human + ", waktu bermain tinggal " + thrWord + " menit lagi.";
-      const safeSpeak = () => { try { safeSpeakText(text); } catch {} };
-      playBell().then(() => setTimeout(safeSpeak, 800)).catch(safeSpeak);
+      const text =
+        "Tiket nomor " +
+        human +
+        ", waktu bermain tinggal " +
+        thrWord +
+        " menit lagi.";
+      const safeSpeak = () => {
+        try {
+          safeSpeakText(text);
+        } catch {}
+      };
+      playBell()
+        .then(() => setTimeout(safeSpeak, 800))
+        .catch(safeSpeak);
     };
     window.addEventListener("kiddy-land-alert", handler as any);
     return () => window.removeEventListener("kiddy-land-alert", handler as any);

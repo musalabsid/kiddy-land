@@ -1,17 +1,41 @@
-function escape(value: unknown) { if (value == null) return ""; const text = typeof value === "string" ? value : JSON.stringify(value); return `"${text.replace(/"/g, '""')}"`; }
-function money(value: number | undefined) { if (value == null || Number.isNaN(value as number)) return "-"; return `Rp ${Number(value).toLocaleString("id-ID")}`; }
-function shortId(value: string | undefined) { if (!value) return "-"; const v = String(value); return v.length > 12 ? v.slice(0, 4) + "..." + v.slice(-4) : v; }
-function pdfText(value: unknown) { const s = value == null ? "" : String(value); return s.replace(/[()\\]/g, "\\$&"); }
-function pdfDocument(stream: string, width: number, height: number, image?: { obj: string; data: Buffer }) {
+function escape(value: unknown) {
+  if (value == null) return "";
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+function money(value: number | undefined) {
+  if (value == null || Number.isNaN(value as number)) return "-";
+  return `Rp ${Number(value).toLocaleString("id-ID")}`;
+}
+function shortId(value: string | undefined) {
+  if (!value) return "-";
+  const v = String(value);
+  return v.length > 12 ? v.slice(0, 4) + "..." + v.slice(-4) : v;
+}
+function pdfText(value: unknown) {
+  const s = value == null ? "" : String(value);
+  return s.replace(/[()\\]/g, "\\$&");
+}
+function pdfDocument(
+  stream: string,
+  width: number,
+  height: number,
+  image?: { obj: string; data: Buffer },
+) {
   const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Count 1 /Kids [3 0 R] >>",
-    image ? `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> /XObject << /Im0 ${6} 0 R >> >> /Contents 5 0 R >>` : `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>`,
+    image
+      ? `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> /XObject << /Im0 ${6} 0 R >> >> /Contents 5 0 R >>`
+      : `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
     `<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream`,
   ];
-  if (image) objects.push(image.obj + `\nstream\n` + image.data.toString("binary") + `\nendstream`); // ponytail: logo only receipt/report
+  if (image)
+    objects.push(
+      image.obj + `\nstream\n` + image.data.toString("binary") + `\nendstream`,
+    ); // ponytail: logo only receipt/report
   let pdf = "%PDF-1.4\n";
   const offsets: number[] = [];
   objects.forEach((object, index) => {
@@ -27,14 +51,62 @@ function pdfDocument(stream: string, width: number, height: number, image?: { ob
   return pdf;
 }
 
-export function reportCsv(report: { kind: string; filters: unknown; timezone: string; generatedAt: string; data: unknown }) {
+export function reportCsv(report: {
+  kind: string;
+  filters: unknown;
+  timezone: string;
+  generatedAt: string;
+  data: unknown;
+}) {
   const f = report.filters as { from: string; to: string };
-  const header = [["report", report.kind], ["period", `${f.from} to ${f.to}`], ["timezone", report.timezone], ["generatedAt", report.generatedAt]];
+  const header = [
+    ["report", report.kind],
+    ["period", `${f.from} to ${f.to}`],
+    ["timezone", report.timezone],
+    ["generatedAt", report.generatedAt],
+  ];
   const data = report.data as any;
-  if (report.kind === "financial" && data.rows && Array.isArray(data.rows) && (data.rows[0] as any)?.saleId) {
-    const rows: string[][] = [["saleId", "operatingDate", "cashierId", "paymentMethod", "ticketRevenue", "productRevenue", "total", "depositReceived", "status"]];
-    for (const row of data.rows as Array<{ saleId: string; operatingDate: string; cashierId: string; paymentMethod: string; ticketRevenue: number; productRevenue: number; total: number; depositReceived: number; status: string }>) {
-      rows.push([row.saleId ?? "", row.operatingDate ?? "", row.cashierId ?? "", row.paymentMethod ?? "", String(row.ticketRevenue ?? ""), String(row.productRevenue ?? ""), String(row.total ?? ""), String(row.depositReceived ?? ""), row.status ?? ""]);
+  if (
+    report.kind === "financial" &&
+    data.rows &&
+    Array.isArray(data.rows) &&
+    (data.rows[0] as any)?.saleId
+  ) {
+    const rows: string[][] = [
+      [
+        "saleId",
+        "operatingDate",
+        "cashierId",
+        "paymentMethod",
+        "ticketRevenue",
+        "productRevenue",
+        "total",
+        "depositReceived",
+        "status",
+      ],
+    ];
+    for (const row of data.rows as Array<{
+      saleId: string;
+      operatingDate: string;
+      cashierId: string;
+      paymentMethod: string;
+      ticketRevenue: number;
+      productRevenue: number;
+      total: number;
+      depositReceived: number;
+      status: string;
+    }>) {
+      rows.push([
+        row.saleId ?? "",
+        row.operatingDate ?? "",
+        row.cashierId ?? "",
+        row.paymentMethod ?? "",
+        String(row.ticketRevenue ?? ""),
+        String(row.productRevenue ?? ""),
+        String(row.total ?? ""),
+        String(row.depositReceived ?? ""),
+        row.status ?? "",
+      ]);
     }
     rows.push([]);
     rows.push(["totals", ""]);
@@ -47,20 +119,64 @@ export function reportCsv(report: { kind: string; filters: unknown; timezone: st
     rows.push(["depositsReceived", String(t.depositsReceived)]);
     rows.push(["refunds", String(t.refunds)]);
     rows.push(["voids", String(t.voids)]);
-    return [...header.map((r) => r.map(escape).join(",")), ...rows.map((r) => r.map(escape).join(","))].join("\r\n") + "\r\n";
+    return (
+      [
+        ...header.map((r) => r.map(escape).join(",")),
+        ...rows.map((r) => r.map(escape).join(",")),
+      ].join("\r\n") + "\r\n"
+    );
   }
   if (report.kind === "inventory" && data.products) {
-    const rows: string[][] = [["sku", "name", "stock", "price", "lowStockThreshold", "archived"]];
-    for (const p of data.products as Array<{ sku: string; name: string; stock: number; price: number; lowStockThreshold: number; archived: boolean }>) {
-      rows.push([p.sku, p.name, String(p.stock), String(p.price), String(p.lowStockThreshold), String(p.archived)]);
+    const rows: string[][] = [
+      ["sku", "name", "stock", "price", "lowStockThreshold", "archived"],
+    ];
+    for (const p of data.products as Array<{
+      sku: string;
+      name: string;
+      stock: number;
+      price: number;
+      lowStockThreshold: number;
+      archived: boolean;
+    }>) {
+      rows.push([
+        p.sku,
+        p.name,
+        String(p.stock),
+        String(p.price),
+        String(p.lowStockThreshold),
+        String(p.archived),
+      ]);
     }
-    return [...header.map((r) => r.map(escape).join(",")), ...rows.map((r) => r.map(escape).join(","))].join("\r\n") + "\r\n";
+    return (
+      [
+        ...header.map((r) => r.map(escape).join(",")),
+        ...rows.map((r) => r.map(escape).join(",")),
+      ].join("\r\n") + "\r\n"
+    );
   }
   const rows = (data as { rows?: unknown[] }).rows ?? [data];
-  return [...header.map((r) => r.map(escape).join(",")), ["data", "value"], ...rows.map((row) => ["row", JSON.stringify(row)]).map((r) => r.map(escape).join(","))].join("\r\n") + "\r\n";
+  return (
+    [
+      ...header.map((r) => r.map(escape).join(",")),
+      ["data", "value"],
+      ...rows
+        .map((row) => ["row", JSON.stringify(row)])
+        .map((r) => r.map(escape).join(",")),
+    ].join("\r\n") + "\r\n"
+  );
 }
 
-export function reportPdf(report: { kind: string; filters: unknown; timezone: string; generatedAt: string; data: unknown }, venueName = "Kiddy Land", logoUrl?: string | null) {
+export function reportPdf(
+  report: {
+    kind: string;
+    filters: unknown;
+    timezone: string;
+    generatedAt: string;
+    data: unknown;
+  },
+  venueName = "Kiddy Land",
+  logoUrl?: string | null,
+) {
   const pdfImageFromLogo = (url?: string | null) => {
     if (!url || !url.startsWith("data:image/")) return null;
     const comma = url.indexOf(",");
@@ -68,10 +184,27 @@ export function reportPdf(report: { kind: string; filters: unknown; timezone: st
     try {
       const buf = Buffer.from(url.slice(comma + 1), "base64");
       if (mime === "image/jpeg" || mime === "image/jpg") {
-        let i=2; let w=120,h=120;
-        while(i < buf.length-9){ if(buf[i]!==0xff) break; const m=buf[i+1]; const len=buf.readUInt16BE(i+2); if((m>=0xc0&&m<=0xc3)||m===0xc5||m===0xc6||m===0xc7){h=buf.readUInt16BE(i+5);w=buf.readUInt16BE(i+7);break;} i+=2+len; }
-        const obj=`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${buf.length} >>`;
-        return { image:{obj, data:buf}, w, h };
+        let i = 2;
+        let w = 120,
+          h = 120;
+        while (i < buf.length - 9) {
+          if (buf[i] !== 0xff) break;
+          const m = buf[i + 1];
+          const len = buf.readUInt16BE(i + 2);
+          if (
+            (m >= 0xc0 && m <= 0xc3) ||
+            m === 0xc5 ||
+            m === 0xc6 ||
+            m === 0xc7
+          ) {
+            h = buf.readUInt16BE(i + 5);
+            w = buf.readUInt16BE(i + 7);
+            break;
+          }
+          i += 2 + len;
+        }
+        const obj = `<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${buf.length} >>`;
+        return { image: { obj, data: buf }, w, h };
       }
     } catch {}
     return null;
@@ -84,36 +217,77 @@ export function reportPdf(report: { kind: string; filters: unknown; timezone: st
   const right = W - margin;
   let y = H - 38;
   let stream = "";
-  const font = (name: "F1" | "F2", size: number, x: number, yPos: number, txt: string) => {
+  const font = (
+    name: "F1" | "F2",
+    size: number,
+    x: number,
+    yPos: number,
+    txt: string,
+  ) => {
     const safe = pdfText(txt).slice(0, 130);
     stream += `BT /${name} ${size} Tf ${x} ${yPos} Td (${safe}) Tj ET\n`;
   };
-  const text = (value: unknown, size: number, x = margin, yPos = y, fName: "F1" | "F2" = "F1") => {
+  const text = (
+    value: unknown,
+    size: number,
+    x = margin,
+    yPos = y,
+    fName: "F1" | "F2" = "F1",
+  ) => {
     const safe = pdfText(value == null ? "" : String(value)).slice(0, 130);
     stream += `BT /${fName} ${size} Tf ${x} ${yPos} Td (${safe}) Tj ET\n`;
   };
   const line = (x1: number, y1: number, x2: number, y2: number, w = 0.7) => {
     stream += `${w} w ${x1} ${y1} m ${x2} ${y2} l S\n`;
   };
-  const rectFill = (x: number, yy: number, w: number, h: number, gray = 0.95) => {
+  const rectFill = (
+    x: number,
+    yy: number,
+    w: number,
+    h: number,
+    gray = 0.95,
+  ) => {
     stream += `${gray} g ${x} ${yy} ${w} ${h} re f 0 g\n`;
   };
   // Header
-  if (logo?.image) { stream += `q 18 0 0 18 ${margin} ${y - 8} cm /Im0 Do Q\n`; text(venueName, 9, margin + 22, y, "F1"); } else { text(venueName, 9, margin, y, "F1"); }
+  if (logo?.image) {
+    stream += `q 18 0 0 18 ${margin} ${y - 8} cm /Im0 Do Q\n`;
+    text(venueName, 9, margin + 22, y, "F1");
+  } else {
+    text(venueName, 9, margin, y, "F1");
+  }
   stream += `0.55 g\n`;
   text("FINANCIAL REPORT", 7, right - 95, y, "F1");
   stream += `0 g\n`;
   y -= 16;
-  font("F2", 18, margin, y, report.kind.charAt(0).toUpperCase() + report.kind.slice(1) + " Report");
+  font(
+    "F2",
+    18,
+    margin,
+    y,
+    report.kind.charAt(0).toUpperCase() + report.kind.slice(1) + " Report",
+  );
   y -= 20;
   line(margin, y + 12, right, y + 12, 1);
   y -= 2;
   text(`Period  ${f.from} - ${f.to}`, 8, margin, y, "F1");
   y -= 12;
-  text(`Timezone  ${report.timezone}  |  Generated  ${new Date(report.generatedAt).toLocaleString("id-ID", { timeZone: report.timezone, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`, 7, margin, y, "F1");
+  text(
+    `Timezone  ${report.timezone}  |  Generated  ${new Date(report.generatedAt).toLocaleString("id-ID", { timeZone: report.timezone, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`,
+    7,
+    margin,
+    y,
+    "F1",
+  );
   y -= 18;
   const data = report.data as any;
-  if (report.kind === "financial" && data.rows && data.totals && Array.isArray(data.rows) && (data.rows[0] as any)?.saleId) {
+  if (
+    report.kind === "financial" &&
+    data.rows &&
+    data.totals &&
+    Array.isArray(data.rows) &&
+    (data.rows[0] as any)?.saleId
+  ) {
     // Summary card
     const t = data.totals as any;
     const cardY = y;
@@ -138,7 +312,6 @@ export function reportPdf(report: { kind: string; filters: unknown; timezone: st
     ];
     const col1X = margin + 8;
     const col1W = 160;
-    const col2X = margin + 170;
     const col3X = right - 110;
     y -= 2;
     // Use two columns for summary to save space
@@ -150,7 +323,7 @@ export function reportPdf(report: { kind: string; filters: unknown; timezone: st
         // right column
         const [k, v] = rows[i]!;
         text(k, 7, col3X - 70, baseY, "F1");
-        const vx = right - 8 - (v.length * 5.2);
+        const vx = right - 8 - v.length * 5.2;
         text(v, 7, Math.max(col3X + 20, vx), baseY, rows[i]![2] ? "F2" : "F1");
       } else {
         const [k, v] = rows[i]!;
@@ -182,7 +355,16 @@ export function reportPdf(report: { kind: string; filters: unknown; timezone: st
       y -= 10;
       line(margin, y + 6, right, y + 6, 0.5);
       y -= 6;
-      for (const row of data.rows as Array<{ saleId: string; operatingDate: string; cashierId: string; paymentMethod: string; ticketRevenue: number; productRevenue: number; total: number; status: string }>) {
+      for (const row of data.rows as Array<{
+        saleId: string;
+        operatingDate: string;
+        cashierId: string;
+        paymentMethod: string;
+        ticketRevenue: number;
+        productRevenue: number;
+        total: number;
+        status: string;
+      }>) {
         if (y < 52) break;
         text(row.operatingDate, 7, cols[0]!.x, y, "F1");
         text(shortId(row.saleId), 7, cols[1]!.x, y, "F1");
@@ -208,7 +390,13 @@ export function reportPdf(report: { kind: string; filters: unknown; timezone: st
       y -= 4;
     }
     // footer
-    text("Kiddy Land | Confidential | " + new Date().getFullYear(), 6, margin, 28, "F1");
+    text(
+      "Kiddy Land | Confidential | " + new Date().getFullYear(),
+      6,
+      margin,
+      28,
+      "F1",
+    );
     text(`Page 1 of 1 | ${data.rows.length} sales`, 6, right - 110, 28, "F1");
   } else if (report.kind === "inventory" && data.products) {
     text("Inventory", 10, margin, y, "F2");
@@ -216,11 +404,19 @@ export function reportPdf(report: { kind: string; filters: unknown; timezone: st
     rectFill(margin, y - 4, right - margin, 14, 0.94);
     const headers = ["SKU", "Name", "Stock", "Price"];
     const xs = [margin + 4, margin + 90, margin + 310, margin + 400];
-    for (let i = 0; i < headers.length; i++) text(headers[i]!, 6, xs[i]!, y, "F2");
+    for (let i = 0; i < headers.length; i++)
+      text(headers[i]!, 6, xs[i]!, y, "F2");
     y -= 10;
     line(margin, y + 6, right, y + 6, 0.5);
     y -= 6;
-    for (const p of (data.products as Array<{ sku: string; name: string; stock: number; price: number }>).slice(0, 42)) {
+    for (const p of (
+      data.products as Array<{
+        sku: string;
+        name: string;
+        stock: number;
+        price: number;
+      }>
+    ).slice(0, 42)) {
       if (y < 52) break;
       text(p.sku.slice(0, 16), 7, xs[0]!, y, "F1");
       text(p.name.slice(0, 36), 7, xs[1]!, y, "F1");

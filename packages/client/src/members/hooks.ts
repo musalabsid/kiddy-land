@@ -1,17 +1,162 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import type { ChildRecord, MemberRecord } from "../api/types";
 import { useClient } from "../client-context";
 import { canMutate, useConnectionStore } from "../connection/store";
 import { clientQueryKeys } from "../query/query-client";
-import type { ChildRecord, MemberRecord } from "../api/types";
 export type MemberResult = { member: MemberRecord; child: ChildRecord };
-export function useMemberByCode(code?: string) { const client = useClient(); return useQuery({ queryKey: [...clientQueryKeys.members, code], enabled: Boolean(code), queryFn: () => client.get<MemberResult>(`/members/${encodeURIComponent(code!)}`) }); }
-export function useMembers() { const client = useClient(); return useQuery({ queryKey: clientQueryKeys.members, queryFn: () => client.get<MemberResult[]>("/members") }); }
-export function useSearchMembers(query: string) { const client = useClient(); return useQuery({ queryKey: [...clientQueryKeys.members, "search", query], enabled: query.trim().length > 0, queryFn: () => client.get<MemberResult[]>(`/members/search?q=${encodeURIComponent(query.trim())}`) }); }
-function mutation<T>(path: string) { const client = useClient(); const connection = useConnectionStore(); const queryClient = useQueryClient(); return useMutation({ mutationFn: (body: unknown) => { if (!canMutate(connection.state, connection.synchronized)) throw new Error("Connection is not synchronized"); return client.post<T>(path, body); }, onSuccess: () => { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.members }); } }); }
-export function useRegisterMember() { return mutation<MemberResult>("/members"); }
-export function useReissueMemberCode() { const client = useClient(); const connection = useConnectionStore(); const queryClient = useQueryClient(); return useMutation({ mutationFn: ({ id, reason }: { id: string; reason: string }) => { if (!canMutate(connection.state, connection.synchronized)) throw new Error("Connection is not synchronized"); return client.post<MemberResult>(`/members/${id}/reissue`, { reason }); }, onSuccess: (updated, variables) => { queryClient.setQueryData<MemberResult[]>(clientQueryKeys.members, (current) => current?.map((item) => item.member.id === updated.member.id ? updated : item)); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.members }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.memberHistory(variables.id) }); } }); }
-export function useDeactivateMember() { const client = useClient(); const connection = useConnectionStore(); const queryClient = useQueryClient(); return useMutation({ mutationFn: ({ id, reason }: { id: string; reason: string }) => { if (!canMutate(connection.state, connection.synchronized)) throw new Error("Connection is not synchronized"); return client.post<MemberResult>(`/members/${id}/deactivate`, { reason }); }, onSuccess: (_, variables) => { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.members }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.memberHistory(variables.id) }); } }); }
-export function useReactivateMember() { const client = useClient(); const connection = useConnectionStore(); const queryClient = useQueryClient(); return useMutation({ mutationFn: ({ id, reason }: { id: string; reason: string }) => { if (!canMutate(connection.state, connection.synchronized)) throw new Error("Connection is not synchronized"); return client.post<MemberResult>(`/members/${id}/reactivate`, { reason }); }, onSuccess: (_, variables) => { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.members }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.memberHistory(variables.id) }); } }); }
-export function useMemberHistory(id?: string, enabled = true) { const client = useClient(); return useQuery<Array<{ id: string; type: string; amount?: number }>>({ queryKey: id ? clientQueryKeys.memberHistory(id) : [...clientQueryKeys.members, "none"], enabled: Boolean(id) && enabled, retry: 0, queryFn: () => client.get<Array<{ id: string; type: string; amount?: number }>>(`/members/${id}/history`) }); }
-export function useMembershipDiscounts() { const client = useClient(); return useQuery<{ ticketPackages: Record<string, number>; products: Record<string, number> }>({ queryKey: clientQueryKeys.membershipDiscounts, queryFn: () => client.get("/membership/discounts") }); }
-export function useConfigureMembershipDiscount() { const client = useClient(); const connection = useConnectionStore(); const queryClient = useQueryClient(); return useMutation({ mutationFn: ({ kind, id, amount }: { kind: "products" | "ticketPackages"; id: string; amount: number }) => { if (!canMutate(connection.state, connection.synchronized)) throw new Error("Connection is not synchronized"); return client.put(`/membership/discounts/${kind}/${id}`, { amount }); }, onSuccess: () => { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.membershipDiscounts }); } }); }
+export function useMemberByCode(code?: string) {
+  const client = useClient();
+  return useQuery({
+    queryKey: [...clientQueryKeys.members, code],
+    enabled: Boolean(code),
+    queryFn: () =>
+      client.get<MemberResult>(`/members/${encodeURIComponent(code!)}`),
+  });
+}
+export function useMembers() {
+  const client = useClient();
+  return useQuery({
+    queryKey: clientQueryKeys.members,
+    queryFn: () => client.get<MemberResult[]>("/members"),
+  });
+}
+export function useSearchMembers(query: string) {
+  const client = useClient();
+  return useQuery({
+    queryKey: [...clientQueryKeys.members, "search", query],
+    enabled: query.trim().length > 0,
+    queryFn: () =>
+      client.get<MemberResult[]>(
+        `/members/search?q=${encodeURIComponent(query.trim())}`,
+      ),
+  });
+}
+function mutation<T>(path: string) {
+  const client = useClient();
+  const connection = useConnectionStore();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: unknown) => {
+      if (!canMutate(connection.state, connection.synchronized))
+        throw new Error("Connection is not synchronized");
+      return client.post<T>(path, body);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: clientQueryKeys.members });
+    },
+  });
+}
+export function useRegisterMember() {
+  return mutation<MemberResult>("/members");
+}
+export function useReissueMemberCode() {
+  const client = useClient();
+  const connection = useConnectionStore();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => {
+      if (!canMutate(connection.state, connection.synchronized))
+        throw new Error("Connection is not synchronized");
+      return client.post<MemberResult>(`/members/${id}/reissue`, { reason });
+    },
+    onSuccess: (updated, variables) => {
+      queryClient.setQueryData<MemberResult[]>(
+        clientQueryKeys.members,
+        (current) =>
+          current?.map((item) =>
+            item.member.id === updated.member.id ? updated : item,
+          ),
+      );
+      void queryClient.invalidateQueries({ queryKey: clientQueryKeys.members });
+      void queryClient.invalidateQueries({
+        queryKey: clientQueryKeys.memberHistory(variables.id),
+      });
+    },
+  });
+}
+export function useDeactivateMember() {
+  const client = useClient();
+  const connection = useConnectionStore();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => {
+      if (!canMutate(connection.state, connection.synchronized))
+        throw new Error("Connection is not synchronized");
+      return client.post<MemberResult>(`/members/${id}/deactivate`, { reason });
+    },
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({ queryKey: clientQueryKeys.members });
+      void queryClient.invalidateQueries({
+        queryKey: clientQueryKeys.memberHistory(variables.id),
+      });
+    },
+  });
+}
+export function useReactivateMember() {
+  const client = useClient();
+  const connection = useConnectionStore();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => {
+      if (!canMutate(connection.state, connection.synchronized))
+        throw new Error("Connection is not synchronized");
+      return client.post<MemberResult>(`/members/${id}/reactivate`, { reason });
+    },
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({ queryKey: clientQueryKeys.members });
+      void queryClient.invalidateQueries({
+        queryKey: clientQueryKeys.memberHistory(variables.id),
+      });
+    },
+  });
+}
+export function useMemberHistory(id?: string, enabled = true) {
+  const client = useClient();
+  return useQuery<Array<{ id: string; type: string; amount?: number }>>({
+    queryKey: id
+      ? clientQueryKeys.memberHistory(id)
+      : [...clientQueryKeys.members, "none"],
+    enabled: Boolean(id) && enabled,
+    retry: 0,
+    queryFn: () =>
+      client.get<Array<{ id: string; type: string; amount?: number }>>(
+        `/members/${id}/history`,
+      ),
+  });
+}
+export function useMembershipDiscounts() {
+  const client = useClient();
+  return useQuery<{
+    ticketPackages: Record<string, number>;
+    products: Record<string, number>;
+  }>({
+    queryKey: clientQueryKeys.membershipDiscounts,
+    queryFn: () => client.get("/membership/discounts"),
+  });
+}
+export function useConfigureMembershipDiscount() {
+  const client = useClient();
+  const connection = useConnectionStore();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      kind,
+      id,
+      amount,
+    }: {
+      kind: "products" | "ticketPackages";
+      id: string;
+      amount: number;
+    }) => {
+      if (!canMutate(connection.state, connection.synchronized))
+        throw new Error("Connection is not synchronized");
+      return client.put(`/membership/discounts/${kind}/${id}`, { amount });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: clientQueryKeys.membershipDiscounts,
+      });
+    },
+  });
+}

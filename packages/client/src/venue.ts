@@ -1,9 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
 import { useClient } from "./client-context";
 import { useLogout } from "./query/hooks";
 
 export type BackupInterval = "off" | "6h" | "12h" | "daily" | "weekly";
-export type VenueTheme = "monochrome" | "emerald" | "pastel" | "violet" | "ocean";
+export type VenueTheme =
+  | "monochrome"
+  | "emerald"
+  | "pastel"
+  | "violet"
+  | "ocean";
 export type VenueSettings = {
   venueName: string;
   logoUrl: string | null;
@@ -11,9 +17,12 @@ export type VenueSettings = {
   theme: VenueTheme;
   alertEnabled: boolean;
   alertThreshold: number;
-  alertDevices: Array<"Owner"|"Cashier"|"Kiosk">;
+  alertDevices: Array<"Owner" | "Cashier" | "Kiosk">;
 };
-export type PublicVenue = Pick<VenueSettings, "venueName" | "logoUrl" | "theme">;
+export type PublicVenue = Pick<
+  VenueSettings,
+  "venueName" | "logoUrl" | "theme"
+>;
 
 export function useVenueSettings() {
   const client = useClient();
@@ -24,7 +33,12 @@ export function useVenueSettings() {
       try {
         return await client.get<VenueSettings>("/venue/settings");
       } catch (e) {
-        if (e instanceof Error && "status" in e && (e as { status: number }).status === 401) logout();
+        if (
+          e instanceof Error &&
+          "status" in e &&
+          (e as { status: number }).status === 401
+        )
+          logout();
         throw e;
       }
     },
@@ -42,10 +56,15 @@ export function useUpdateVenueSettings() {
   const client = useClient();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (patch: Partial<VenueSettings>) => client.put<VenueSettings>("/venue/settings", patch),
+    mutationFn: (patch: Partial<VenueSettings>) =>
+      client.put<VenueSettings>("/venue/settings", patch),
     onSuccess: (data) => {
       qc.setQueryData(["venue-settings"], data);
-      qc.setQueryData(["public-venue"], { venueName: data.venueName, logoUrl: data.logoUrl, theme: data.theme });
+      qc.setQueryData(["public-venue"], {
+        venueName: data.venueName,
+        logoUrl: data.logoUrl,
+        theme: data.theme,
+      });
     },
   });
 }

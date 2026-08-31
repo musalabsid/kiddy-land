@@ -37,20 +37,20 @@ The server + devices pair over the LAN — see [Pairing](apps/docs/guide/pairing
 
 ## Scripts
 
-| Command                | Description                            |
-| ---------------------- | -------------------------------------- |
-| `bun dev`              | Start all dev servers                  |
-| `bun build`            | Build all apps and packages            |
-| `bun check-types`      | Type-check all workspaces              |
-| `bun lint`             | Lint the whole repo                    |
-| `bun lint:fix`         | Lint and autofix                       |
-| `bun format`           | Check formatting                       |
-| `bun format:fix`       | Format everything                      |
-| `bun quality`          | Run lint + format checks               |
-| `bun quality:fix`      | Autofix lint and format                |
-| `bun docs:dev`         | Run docs site locally                  |
-| `bun docs:build`       | Build docs site                        |
-| `bun build:desktop`    | Build standalone + Tauri desktop bundle |
+| Command             | Description                             |
+| ------------------- | --------------------------------------- |
+| `bun dev`           | Start all dev servers                   |
+| `bun build`         | Build all apps and packages             |
+| `bun check-types`   | Type-check all workspaces               |
+| `bun lint`          | Lint the whole repo                     |
+| `bun lint:fix`      | Lint and autofix                        |
+| `bun format`        | Check formatting                        |
+| `bun format:fix`    | Format everything                       |
+| `bun quality`       | Run lint + format checks                |
+| `bun quality:fix`   | Autofix lint and format                 |
+| `bun docs:dev`      | Run docs site locally                   |
+| `bun docs:build`    | Build docs site                         |
+| `bun build:desktop` | Build standalone + Tauri desktop bundle |
 
 Target a single workspace with a [Turbo filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
 

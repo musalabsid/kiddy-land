@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { VenueCustomization } from "@workspace/ui/components/venue-customization";
 import { RouteAccessGate } from "@workspace/ui/components/route-access-guard";
+import { VenueCustomization } from "@workspace/ui/components/venue-customization";
 
 export const Route = createFileRoute("/_authenticated/_shell/owner/settings")({
   component: CustomizationPage,

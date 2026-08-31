@@ -12,22 +12,43 @@ export type HostStatus = {
 
 const defaultOrigin = DEFAULT_ORIGIN;
 
-export async function fetchHostStatus(origin = defaultOrigin, signal?: AbortSignal): Promise<HostStatus> {
+export async function fetchHostStatus(
+  origin = defaultOrigin,
+  signal?: AbortSignal,
+): Promise<HostStatus> {
   try {
     const response = await fetch(`${origin}/ready`, { signal });
-    const report = (await response.json()) as { status?: HostState; database?: HostStatus["database"]; uptimeMs?: number };
+    const report = (await response.json()) as {
+      status?: HostState;
+      database?: HostStatus["database"];
+      uptimeMs?: number;
+    };
     const state = report.status ?? (response.ok ? "ready" : "unhealthy");
-    return { state, message: messageFor(state), origin, database: report.database, uptimeMs: report.uptimeMs };
+    return {
+      state,
+      message: messageFor(state),
+      origin,
+      database: report.database,
+      uptimeMs: report.uptimeMs,
+    };
   } catch {
-    return { state: "unhealthy", message: "Local Server is unavailable", origin };
+    return {
+      state: "unhealthy",
+      message: "Local Server is unavailable",
+      origin,
+    };
   }
 }
 
 function messageFor(state: HostState) {
   switch (state) {
-    case "starting": return "Local Server is starting";
-    case "ready": return "Local Server ready for local operation";
-    case "fatal": return "Local Server failed to start";
-    default: return "Local Server is unavailable";
+    case "starting":
+      return "Local Server is starting";
+    case "ready":
+      return "Local Server ready for local operation";
+    case "fatal":
+      return "Local Server failed to start";
+    default:
+      return "Local Server is unavailable";
   }
 }

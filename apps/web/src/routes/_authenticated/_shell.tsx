@@ -1,6 +1,15 @@
-import { createFileRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "@tanstack/react-router";
 import { AppShell } from "@workspace/ui/components/app-shell";
-import { modeDefaultRoutes, RouteAccessGate, useRouteAccess } from "@workspace/ui/components/route-access-guard";
+import {
+  modeDefaultRoutes,
+  RouteAccessGate,
+  useRouteAccess,
+} from "@workspace/ui/components/route-access-guard";
 import { useEffect } from "react";
 
 export const Route = createFileRoute("/_authenticated/_shell")({
@@ -20,7 +29,11 @@ function ShellLayout() {
       void navigate({ to: modeDefaultRoutes[mode] as never, replace: true });
     }
   }, [isKiosk, location.pathname, mode, navigate]);
-  if (isKiosk || (location.pathname === "/" && mode && mode !== "Owner Dashboard")) return null;
+  if (
+    isKiosk ||
+    (location.pathname === "/" && mode && mode !== "Owner Dashboard")
+  )
+    return null;
   return (
     <RouteAccessGate>
       <AppShell>

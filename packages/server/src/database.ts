@@ -1,7 +1,8 @@
-import { mkdirSync } from "node:fs";
 import { Database } from "bun:sqlite";
-import { drizzle, type BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
 import { sql } from "drizzle-orm";
+import { drizzle, type BunSQLiteDatabase } from "drizzle-orm/bun-sqlite";
+import { mkdirSync } from "node:fs";
+
 import * as schema from "./database-schema.ts";
 
 export type LocalDatabase = {
@@ -19,9 +20,20 @@ export function openLocalDatabase(path: string): LocalDatabase {
   const db = new Database(path, { create: true, strict: true });
   db.run("PRAGMA journal_mode = WAL");
   db.run("PRAGMA foreign_keys = ON");
-  db.run("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)");
-  const version = Number((db.query("SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations").get() as { version: number }).version);
-  if (version > 9) throw new Error(`Unsupported database schema version ${version}`);
+  db.run(
+    "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)",
+  );
+  const version = Number(
+    (
+      db
+        .query(
+          "SELECT COALESCE(MAX(version), 0) AS version FROM schema_migrations",
+        )
+        .get() as { version: number }
+    ).version,
+  );
+  if (version > 9)
+    throw new Error(`Unsupported database schema version ${version}`);
   if (version < 1) {
     db.run(`CREATE TABLE IF NOT EXISTS calendar_state (
       id INTEGER PRIMARY KEY CHECK (id = 1), timezone TEXT NOT NULL,
@@ -29,66 +41,212 @@ export function openLocalDatabase(path: string): LocalDatabase {
       packages_json TEXT NOT NULL, audit_json TEXT NOT NULL,
       updated_at INTEGER NOT NULL
     )`);
-    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (1, ?)", [Date.now()]);
+    db.run(
+      "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (1, ?)",
+      [Date.now()],
+    );
   }
   if (version < 2) {
-    db.run(`CREATE TABLE IF NOT EXISTS sales_state (id INTEGER PRIMARY KEY CHECK (id = 1), sales_json TEXT NOT NULL, print_attempts_json TEXT NOT NULL, receipt_sequence INTEGER NOT NULL, updated_at INTEGER NOT NULL)`);
-    db.run("INSERT OR IGNORE INTO sales_state(id, sales_json, print_attempts_json, receipt_sequence, updated_at) VALUES (1, '[]', '[]', 0, ?)", [Date.now()]);
-    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, ?)", [Date.now()]);
+    db.run(
+      `CREATE TABLE IF NOT EXISTS sales_state (id INTEGER PRIMARY KEY CHECK (id = 1), sales_json TEXT NOT NULL, print_attempts_json TEXT NOT NULL, receipt_sequence INTEGER NOT NULL, updated_at INTEGER NOT NULL)`,
+    );
+    db.run(
+      "INSERT OR IGNORE INTO sales_state(id, sales_json, print_attempts_json, receipt_sequence, updated_at) VALUES (1, '[]', '[]', 0, ?)",
+      [Date.now()],
+    );
+    db.run(
+      "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, ?)",
+      [Date.now()],
+    );
   }
   if (version < 3) {
-    db.run(`CREATE TABLE IF NOT EXISTS lifecycle_state (id INTEGER PRIMARY KEY CHECK (id = 1), sessions_json TEXT NOT NULL, events_json TEXT NOT NULL, recovery_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`);
-    db.run("INSERT OR IGNORE INTO lifecycle_state(id, sessions_json, events_json, recovery_json, updated_at) VALUES (1, '{}', '[]', '{}', ?)", [Date.now()]);
-    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (3, ?)", [Date.now()]);
+    db.run(
+      `CREATE TABLE IF NOT EXISTS lifecycle_state (id INTEGER PRIMARY KEY CHECK (id = 1), sessions_json TEXT NOT NULL, events_json TEXT NOT NULL, recovery_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`,
+    );
+    db.run(
+      "INSERT OR IGNORE INTO lifecycle_state(id, sessions_json, events_json, recovery_json, updated_at) VALUES (1, '{}', '[]', '{}', ?)",
+      [Date.now()],
+    );
+    db.run(
+      "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (3, ?)",
+      [Date.now()],
+    );
   }
   if (version < 4) {
-    db.run(`CREATE TABLE IF NOT EXISTS inventory_state (id INTEGER PRIMARY KEY CHECK (id = 1), state_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`);
-    db.run("INSERT OR IGNORE INTO inventory_state(id, state_json, updated_at) VALUES (1, ?, ?)", [JSON.stringify({ products: [], movements: [], counts: [], exceptions: [], refunds: [] }), Date.now()]);
-    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (4, ?)", [Date.now()]);
+    db.run(
+      `CREATE TABLE IF NOT EXISTS inventory_state (id INTEGER PRIMARY KEY CHECK (id = 1), state_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`,
+    );
+    db.run(
+      "INSERT OR IGNORE INTO inventory_state(id, state_json, updated_at) VALUES (1, ?, ?)",
+      [
+        JSON.stringify({
+          products: [],
+          movements: [],
+          counts: [],
+          exceptions: [],
+          refunds: [],
+        }),
+        Date.now(),
+      ],
+    );
+    db.run(
+      "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (4, ?)",
+      [Date.now()],
+    );
   }
   if (version < 5) {
-    db.run(`CREATE TABLE IF NOT EXISTS membership_state (id INTEGER PRIMARY KEY CHECK (id = 1), state_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`);
-    db.run("INSERT OR IGNORE INTO membership_state(id, state_json, updated_at) VALUES (1, ?, ?)", [JSON.stringify({ children: [], members: [], discounts: { ticketPackages: {}, products: {} }, events: [] }), Date.now()]);
-    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (5, ?)", [Date.now()]);
+    db.run(
+      `CREATE TABLE IF NOT EXISTS membership_state (id INTEGER PRIMARY KEY CHECK (id = 1), state_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`,
+    );
+    db.run(
+      "INSERT OR IGNORE INTO membership_state(id, state_json, updated_at) VALUES (1, ?, ?)",
+      [
+        JSON.stringify({
+          children: [],
+          members: [],
+          discounts: { ticketPackages: {}, products: {} },
+          events: [],
+        }),
+        Date.now(),
+      ],
+    );
+    db.run(
+      "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (5, ?)",
+      [Date.now()],
+    );
   }
   if (version < 6) {
-    db.run(`CREATE TABLE IF NOT EXISTS staff_users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, role TEXT NOT NULL, password_hash TEXT NOT NULL, created_at INTEGER NOT NULL)`);
-    db.run(`CREATE TABLE IF NOT EXISTS paired_devices (id TEXT PRIMARY KEY, mode TEXT NOT NULL, kind TEXT NOT NULL, revoked_at INTEGER, created_at INTEGER NOT NULL, employee_name TEXT)`);
-    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (6, ?)", [Date.now()]);
+    db.run(
+      `CREATE TABLE IF NOT EXISTS staff_users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, role TEXT NOT NULL, password_hash TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+    );
+    db.run(
+      `CREATE TABLE IF NOT EXISTS paired_devices (id TEXT PRIMARY KEY, mode TEXT NOT NULL, kind TEXT NOT NULL, revoked_at INTEGER, created_at INTEGER NOT NULL, employee_name TEXT)`,
+    );
+    db.run(
+      "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (6, ?)",
+      [Date.now()],
+    );
   }
   if (version < 7) {
-    db.run(`CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, device_id TEXT NOT NULL, user_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)`);
-    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (7, ?)", [Date.now()]);
+    db.run(
+      `CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, device_id TEXT NOT NULL, user_id TEXT, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)`,
+    );
+    db.run(
+      "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (7, ?)",
+      [Date.now()],
+    );
   }
   if (version < 8) {
-    db.run(`CREATE TABLE IF NOT EXISTS venue_settings (id INTEGER PRIMARY KEY CHECK (id = 1), state_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`);
-    db.run("INSERT OR IGNORE INTO venue_settings(id, state_json, updated_at) VALUES (1, ?, ?)", [JSON.stringify({ venueName: "Kiddy Land", logoUrl: null, backupInterval: "daily", theme: "monochrome" }), Date.now()]);
-    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (8, ?)", [Date.now()]);
+    db.run(
+      `CREATE TABLE IF NOT EXISTS venue_settings (id INTEGER PRIMARY KEY CHECK (id = 1), state_json TEXT NOT NULL, updated_at INTEGER NOT NULL)`,
+    );
+    db.run(
+      "INSERT OR IGNORE INTO venue_settings(id, state_json, updated_at) VALUES (1, ?, ?)",
+      [
+        JSON.stringify({
+          venueName: "Kiddy Land",
+          logoUrl: null,
+          backupInterval: "daily",
+          theme: "monochrome",
+        }),
+        Date.now(),
+      ],
+    );
+    db.run(
+      "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (8, ?)",
+      [Date.now()],
+    );
   }
   if (version < 9) {
-    db.run(`CREATE TABLE IF NOT EXISTS ticket_daily_seq (operating_date TEXT PRIMARY KEY, seq INTEGER NOT NULL)`);
-    db.run("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (9, ?)", [Date.now()]);
+    db.run(
+      `CREATE TABLE IF NOT EXISTS ticket_daily_seq (operating_date TEXT PRIMARY KEY, seq INTEGER NOT NULL)`,
+    );
+    db.run(
+      "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (9, ?)",
+      [Date.now()],
+    );
   }
   const orm = drizzle(db, { schema });
-  const transaction = <T,>(work: () => T): T => { db.run("BEGIN IMMEDIATE"); try { const result = work(); db.run("COMMIT"); return result; } catch (error) { db.run("ROLLBACK"); throw error; } };
-  return { path, db, orm, close: () => db.close(), integrityCheck: () => (db.query("PRAGMA integrity_check").get() as { integrity_check: string }).integrity_check === "ok", transaction };
+  const transaction = <T>(work: () => T): T => {
+    db.run("BEGIN IMMEDIATE");
+    try {
+      const result = work();
+      db.run("COMMIT");
+      return result;
+    } catch (error) {
+      db.run("ROLLBACK");
+      throw error;
+    }
+  };
+  return {
+    path,
+    db,
+    orm,
+    close: () => db.close(),
+    integrityCheck: () =>
+      (db.query("PRAGMA integrity_check").get() as { integrity_check: string })
+        .integrity_check === "ok",
+    transaction,
+  };
 }
 
 export function readCalendarState(database: LocalDatabase) {
-  return database.orm.all<{ timezone: string; weekly: string; overrides: string; packages: string; audit: string }>(sql`SELECT timezone, weekly_json AS weekly, overrides_json AS overrides, packages_json AS packages, audit_json AS audit FROM calendar_state WHERE id = 1`)[0] ?? null;
+  return (
+    database.orm.all<{
+      timezone: string;
+      weekly: string;
+      overrides: string;
+      packages: string;
+      audit: string;
+    }>(
+      sql`SELECT timezone, weekly_json AS weekly, overrides_json AS overrides, packages_json AS packages, audit_json AS audit FROM calendar_state WHERE id = 1`,
+    )[0] ?? null
+  );
 }
 
 export function readVenueSettings(database: LocalDatabase) {
-  const row = database.db.query("SELECT state_json AS state FROM venue_settings WHERE id = 1").get() as { state: string } | undefined;
+  const row = database.db
+    .query("SELECT state_json AS state FROM venue_settings WHERE id = 1")
+    .get() as { state: string } | undefined;
   if (!row) return null;
-  try { return JSON.parse(row.state) as { venueName: string; logoUrl: string | null; backupInterval: string; theme: string }; } catch { return null; }
+  try {
+    return JSON.parse(row.state) as {
+      venueName: string;
+      logoUrl: string | null;
+      backupInterval: string;
+      theme: string;
+    };
+  } catch {
+    return null;
+  }
 }
-export function writeVenueSettings(database: LocalDatabase, state: { venueName: string; logoUrl: string | null; backupInterval: string; theme: string }) {
-  database.db.run("INSERT INTO venue_settings(id, state_json, updated_at) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET state_json=excluded.state_json, updated_at=excluded.updated_at", [JSON.stringify(state), Date.now()]);
+export function writeVenueSettings(
+  database: LocalDatabase,
+  state: {
+    venueName: string;
+    logoUrl: string | null;
+    backupInterval: string;
+    theme: string;
+  },
+) {
+  database.db.run(
+    "INSERT INTO venue_settings(id, state_json, updated_at) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET state_json=excluded.state_json, updated_at=excluded.updated_at",
+    [JSON.stringify(state), Date.now()],
+  );
 }
 
-export function writeCalendarState(database: LocalDatabase, state: { timezone: string; weekly: unknown; overrides: unknown; packages: unknown; audit: unknown }) {
-  database.orm.run(sql`INSERT INTO calendar_state(id, timezone, weekly_json, overrides_json, packages_json, audit_json, updated_at)
+export function writeCalendarState(
+  database: LocalDatabase,
+  state: {
+    timezone: string;
+    weekly: unknown;
+    overrides: unknown;
+    packages: unknown;
+    audit: unknown;
+  },
+) {
+  database.orm
+    .run(sql`INSERT INTO calendar_state(id, timezone, weekly_json, overrides_json, packages_json, audit_json, updated_at)
     VALUES (1, ${state.timezone}, ${JSON.stringify(state.weekly)}, ${JSON.stringify(state.overrides)}, ${JSON.stringify(state.packages)}, ${JSON.stringify(state.audit)}, ${Date.now()})
     ON CONFLICT(id) DO UPDATE SET timezone=excluded.timezone, weekly_json=excluded.weekly_json,
       overrides_json=excluded.overrides_json, packages_json=excluded.packages_json,

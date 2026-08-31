@@ -55,7 +55,13 @@ export function RouteAccessGate({
 }) {
   const { session, hydrated, mode, isOwner } = useRouteAccess();
   if (!hydrated || !session) return null;
-  if (requireRole === "Owner" && !isOwner && !(allowCashier && mode === "Cashier")) return <RouteAccessDenied />;
-  if (requireMode && mode !== requireMode && !(allowOwner && isOwner)) return <RouteAccessDenied />;
+  if (
+    requireRole === "Owner" &&
+    !isOwner &&
+    !(allowCashier && mode === "Cashier")
+  )
+    return <RouteAccessDenied />;
+  if (requireMode && mode !== requireMode && !(allowOwner && isOwner))
+    return <RouteAccessDenied />;
   return <>{children}</>;
 }

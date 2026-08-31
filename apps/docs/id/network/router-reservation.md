@@ -14,4 +14,4 @@
 
 5. Verifikasi: disconnect/reconnect Host → `ipconfig` harus tetap `192.168.1.50`.
 
-Anda hanya perlu **salah satu**: IP Statis Windows *atau* Reservasi Router.
+Anda hanya perlu **salah satu**: IP Statis Windows _atau_ Reservasi Router.

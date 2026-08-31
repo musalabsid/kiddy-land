@@ -13,15 +13,15 @@ import {
   OwnerLoginScreen,
 } from "@workspace/ui/components/auth-screen";
 import { BackupDashboard } from "@workspace/ui/components/backup-dashboard";
-import { VenueCustomization } from "@workspace/ui/components/venue-customization";
+import { Button } from "@workspace/ui/components/button";
 import { CalendarSettings } from "@workspace/ui/components/calendar-settings";
 import { CashierSale } from "@workspace/ui/components/cashier-sale";
 import { CashierTodaySales } from "@workspace/ui/components/cashier-today-sales";
 import { DeviceManagement } from "@workspace/ui/components/device-management";
 import { HostOverviewPage } from "@workspace/ui/components/host-overview-page";
 import { InventoryDashboard } from "@workspace/ui/components/inventory-dashboard";
-import { MembershipDashboard } from "@workspace/ui/components/membership-dashboard";
 import { MemberCardPrint } from "@workspace/ui/components/member-card-print";
+import { MembershipDashboard } from "@workspace/ui/components/membership-dashboard";
 import { MembershipDiscountSettings } from "@workspace/ui/components/membership-discount-settings";
 import { ProductCatalog } from "@workspace/ui/components/product-catalog";
 import { PublicKiosk } from "@workspace/ui/components/public-kiosk";
@@ -30,13 +30,13 @@ import {
   RouteAccessGate,
   useRouteAccess,
 } from "@workspace/ui/components/route-access-guard";
-import { TicketScanner } from "@workspace/ui/components/ticket-scanner";
-import { useState } from "react";
-import { Button } from "@workspace/ui/components/button";
-import { useLocale } from "@workspace/ui/lib/i18n";
 import { TicketPackageSettings } from "@workspace/ui/components/ticket-package-settings";
+import { TicketScanner } from "@workspace/ui/components/ticket-scanner";
+import { VenueCustomization } from "@workspace/ui/components/venue-customization";
 import { createHttpHostSource } from "@workspace/ui/lib/host";
+import { useLocale } from "@workspace/ui/lib/i18n";
 import { ThemeProvider } from "@workspace/ui/providers/theme-provider";
+import { useState } from "react";
 import { useEffect } from "react";
 import "@workspace/ui/globals.css";
 
@@ -45,11 +45,23 @@ const origin =
 const source = createHttpHostSource(origin);
 const stop = async () => {
   console.log("[DEBUG-host] invoke stop_host");
-  try { await invoke("stop_host"); console.log("[DEBUG-host] stop_host ok"); } catch(e){ console.log("[DEBUG-host] stop_host failed", e); throw e; }
+  try {
+    await invoke("stop_host");
+    console.log("[DEBUG-host] stop_host ok");
+  } catch (e) {
+    console.log("[DEBUG-host] stop_host failed", e);
+    throw e;
+  }
 };
 const start = async () => {
   console.log("[DEBUG-host] invoke start_host");
-  try { await invoke("start_host"); console.log("[DEBUG-host] start_host ok"); } catch(e){ console.log("[DEBUG-host] start_host failed", e); throw e; }
+  try {
+    await invoke("start_host");
+    console.log("[DEBUG-host] start_host ok");
+  } catch (e) {
+    console.log("[DEBUG-host] start_host failed", e);
+    throw e;
+  }
 };
 
 const rootRoute = createRootRoute({
@@ -92,7 +104,13 @@ const memberCardPrintRoute = createRoute({
   path: "/member-card/print",
   component: () => {
     const search = new URLSearchParams(window.location.search);
-    return <MemberCardPrint name={search.get("name") ?? "Member"} code={search.get("code") ?? ""} phone={search.get("phone") || undefined} />;
+    return (
+      <MemberCardPrint
+        name={search.get("name") ?? "Member"}
+        code={search.get("code") ?? ""}
+        phone={search.get("phone") || undefined}
+      />
+    );
   },
 });
 
@@ -107,7 +125,12 @@ const indexRoute = createRoute({
   path: "/",
   component: () => (
     <RouteAccessGate requireRole="Owner">
-      <HostOverviewPage source={source} origin={origin} onStop={stop} onStart={start} />
+      <HostOverviewPage
+        source={source}
+        origin={origin}
+        onStop={stop}
+        onStart={start}
+      />
     </RouteAccessGate>
   ),
 });
@@ -151,7 +174,9 @@ const inventoryRoute = createRoute({
   path: "/inventory",
   component: () => {
     const navigate = useNavigate();
-    useEffect(() => { void navigate({ to: "/owner/inventory" }); }, [navigate]);
+    useEffect(() => {
+      void navigate({ to: "/owner/inventory" });
+    }, [navigate]);
     return null;
   },
 });
@@ -167,14 +192,24 @@ const scannerRoute = createRoute({
         <div className="w-full max-w-6xl px-5 py-8 sm:px-8">
           <div className="grid gap-4">
             <div className="flex gap-2">
-              <Button variant={tab === "entry" ? "default" : "outline"} onClick={() => setTab("entry")}>
+              <Button
+                variant={tab === "entry" ? "default" : "outline"}
+                onClick={() => setTab("entry")}
+              >
                 {t("scanner.entryTitle")}
               </Button>
-              <Button variant={tab === "exit" ? "default" : "outline"} onClick={() => setTab("exit")}>
+              <Button
+                variant={tab === "exit" ? "default" : "outline"}
+                onClick={() => setTab("exit")}
+              >
                 {t("scanner.exitTitle")}
               </Button>
             </div>
-            {tab === "entry" ? <TicketScanner key="entry" kind="entry" /> : <TicketScanner key="exit" kind="exit" />}
+            {tab === "entry" ? (
+              <TicketScanner key="entry" kind="entry" />
+            ) : (
+              <TicketScanner key="exit" kind="exit" />
+            )}
           </div>
         </div>
       </RouteAccessGate>
@@ -195,7 +230,11 @@ const ownerDevicesRoute = createRoute({
 const ownerPackagesRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: "/owner/packages",
-  component: () => <RouteAccessGate requireRole="Owner"><TicketPackageSettings /></RouteAccessGate>,
+  component: () => (
+    <RouteAccessGate requireRole="Owner">
+      <TicketPackageSettings />
+    </RouteAccessGate>
+  ),
 });
 
 const ownerCalendarRoute = createRoute({
@@ -227,8 +266,6 @@ const ownerCatalogRoute = createRoute({
     </RouteAccessGate>
   ),
 });
-
-
 
 const ownerMembershipsRoute = createRoute({
   getParentRoute: () => shellRoute,

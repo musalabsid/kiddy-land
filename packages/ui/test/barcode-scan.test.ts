@@ -6,7 +6,11 @@ import {
   nativeQrSupported,
 } from "../src/lib/barcode-scan.ts";
 
-const frame = { readyState: 2, videoWidth: 640, videoHeight: 480 } as unknown as HTMLVideoElement;
+const frame = {
+  readyState: 2,
+  videoWidth: 640,
+  videoHeight: 480,
+} as unknown as HTMLVideoElement;
 
 const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
@@ -15,7 +19,9 @@ describe("createScanLoop", () => {
     let calls = 0;
     const loop = createScanLoop({
       decode: async () => "value",
-      onPayload: () => { calls += 1; },
+      onPayload: () => {
+        calls += 1;
+      },
       intervalMs: 10,
       getFrame: () => frame,
     });
@@ -31,7 +37,10 @@ describe("createScanLoop", () => {
     const values: string[] = [];
     const loop = createScanLoop({
       decode: async () => "raw-1",
-      onPayload: (value) => { calls += 1; values.push(value); },
+      onPayload: (value) => {
+        calls += 1;
+        values.push(value);
+      },
       intervalMs: 10,
       getFrame: () => frame,
     });
@@ -47,7 +56,9 @@ describe("createScanLoop", () => {
     let calls = 0;
     const loop = createScanLoop({
       decode: async () => undefined,
-      onPayload: () => { calls += 1; },
+      onPayload: () => {
+        calls += 1;
+      },
       intervalMs: 10,
       getFrame: () => frame,
     });

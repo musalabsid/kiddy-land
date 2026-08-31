@@ -12,9 +12,9 @@
 ```bash
 sudo apt install ./kiddy-land_0.1.0_amd64.deb
 ```
+
 Then open from app launcher.
 
 ## After install — do Network Setup next!
 
 > If phones show "untrusted cert", tap **Advanced → Proceed** once. The cert is self-signed for your local network and is safe.
-

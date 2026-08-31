@@ -7,5 +7,9 @@ export const Route = createFileRoute("/_authenticated/_shell/members")({
 });
 
 function MembersPage() {
-  return <RouteAccessGate requireRole="Owner" allowCashier><MembershipDashboard /></RouteAccessGate>;
+  return (
+    <RouteAccessGate requireRole="Owner" allowCashier>
+      <MembershipDashboard />
+    </RouteAccessGate>
+  );
 }

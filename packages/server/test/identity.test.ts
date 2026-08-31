@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import { createIdentityStore } from "../src/identity.ts";
 
 describe("identity and pairing", () => {
@@ -7,14 +8,19 @@ describe("identity and pairing", () => {
     expect(identity.isBootstrapped()).toBe(false);
     const result = identity.bootstrap("secure-password");
     expect(result.device.mode).toBe("Owner Dashboard");
-    expect(identity.authenticate(result.session.token)?.user?.role).toBe("Owner");
+    expect(identity.authenticate(result.session.token)?.user?.role).toBe(
+      "Owner",
+    );
     expect(identity.isBootstrapped()).toBe(true);
     expect(() => identity.bootstrap("another-password")).toThrow();
   });
 
   test("redeems a private invitation exactly once and requires login", () => {
     const identity = createIdentityStore({ ownerPassword: "secret" });
-    const invitation = identity.createEnrollment("https://kiddy.local", "private");
+    const invitation = identity.createEnrollment(
+      "https://kiddy.local",
+      "private",
+    );
     const paired = identity.pair(invitation.token, "Cashier");
     expect(paired.session).toBeUndefined();
     expect(identity.authenticate(undefined)).toBeUndefined();
@@ -25,7 +31,10 @@ describe("identity and pairing", () => {
 
   test("public kiosk gets restricted session and capability", () => {
     const identity = createIdentityStore();
-    const invitation = identity.createEnrollment("https://kiddy.local", "public-kiosk");
+    const invitation = identity.createEnrollment(
+      "https://kiddy.local",
+      "public-kiosk",
+    );
     const paired = identity.pair(invitation.token, "Public Kiosk");
     expect(paired.session).toBeDefined();
     const current = identity.authenticate(paired.session?.token);

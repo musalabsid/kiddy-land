@@ -6,7 +6,7 @@
 //   In GitHub Actions: just run `bun run build:standalone --tauri`
 
 import { $ } from "bun";
-import { existsSync, mkdirSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const TAURI = process.argv.includes("--tauri");
@@ -14,18 +14,17 @@ const isWin = process.platform === "win32";
 const triple = isWin ? "x86_64-pc-windows-msvc" : "x86_64-unknown-linux-gnu";
 const ext = isWin ? ".exe" : "";
 
-async function run(cmd, opts = {}) {
-  console.log(`\n▶ ${cmd}`);
-  await $`${{ raw: cmd }}`.nothrow();
-}
-
 console.log("=== Kiddy Land standalone build ===");
-console.log(`platform: ${process.platform}  triple: ${triple}  tauri: ${TAURI}`);
+console.log(
+  `platform: ${process.platform}  triple: ${triple}  tauri: ${TAURI}`,
+);
 
 console.log("\n[1/3] Building web (apps/web)...");
 await $`bun --cwd apps/web build`;
 
-console.log("\n[2/3] Compiling server (packages/server/src/host.ts) -> Tauri sidecar...");
+console.log(
+  "\n[2/3] Compiling server (packages/server/src/host.ts) -> Tauri sidecar...",
+);
 const binDir = "apps/desktop/src-tauri/binaries";
 mkdirSync(binDir, { recursive: true });
 const outBase = join(binDir, `kiddy-land-server-${triple}${ext}`);
@@ -45,14 +44,20 @@ console.log(`  ✓ ${outBase} (${sz} bytes)`);
 
 if (!TAURI) {
   console.log("\n[3/3] Skipped Tauri bundle (use --tauri to build installer)");
-  console.log("  Prepare done. Run `bun --cwd apps/desktop tauri build` or `bun run build:standalone --tauri` to produce installer.");
+  console.log(
+    "  Prepare done. Run `bun --cwd apps/desktop tauri build` or `bun run build:standalone --tauri` to produce installer.",
+  );
   process.exit(0);
 }
 
-console.log("\n[3/3] Building Tauri bundle (cargo tauri build) — this takes ~3-6 min ...");
+console.log(
+  "\n[3/3] Building Tauri bundle (cargo tauri build) — this takes ~3-6 min ...",
+);
 await $`bun --cwd apps/desktop tauri build`;
 
 console.log("\n=== Done ===");
-console.log(isWin
-  ? "  Windows installer: apps/desktop/src-tauri/target/release/bundle/msi/*.msi"
-  : "  Linux bundle: apps/desktop/src-tauri/target/release/bundle/deb/*.deb , AppImage/*.AppImage");
+console.log(
+  isWin
+    ? "  Windows installer: apps/desktop/src-tauri/target/release/bundle/msi/*.msi"
+    : "  Linux bundle: apps/desktop/src-tauri/target/release/bundle/deb/*.deb , AppImage/*.AppImage",
+);

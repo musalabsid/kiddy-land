@@ -1,5 +1,5 @@
-import * as React from "react";
 import { cn } from "@workspace/ui/lib/utils";
+import * as React from "react";
 
 /**
  * Shared form field wrapper: visible label with required (*) indicator,
@@ -27,30 +27,50 @@ export function FormField({
 }) {
   const showOptional = !required && optional;
   return (
-    <div className={cn("grid gap-1.5", className)} data-invalid={error ? "" : undefined}>
+    <div
+      className={cn("grid gap-1.5", className)}
+      data-invalid={error ? "" : undefined}
+    >
       <label
         htmlFor={htmlFor}
         className="flex items-baseline gap-1 text-sm font-medium text-foreground"
       >
         <span>{label}</span>
         {required ? (
-          <span aria-hidden="true" className="text-destructive">*</span>
+          <span aria-hidden="true" className="text-destructive">
+            *
+          </span>
         ) : null}
         {showOptional ? (
-          <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+          <span className="text-xs font-normal text-muted-foreground">
+            (optional)
+          </span>
         ) : null}
       </label>
       {React.isValidElement(children)
-        ? React.cloneElement(children as React.ReactElement<{ "aria-describedby"?: string; "aria-invalid"?: boolean }>, {
-            "aria-invalid": error ? true : undefined,
-            "aria-describedby": error && htmlFor ? `${htmlFor}-error` : undefined,
-          })
+        ? React.cloneElement(
+            children as React.ReactElement<{
+              "aria-describedby"?: string;
+              "aria-invalid"?: boolean;
+            }>,
+            {
+              "aria-invalid": error ? true : undefined,
+              "aria-describedby":
+                error && htmlFor ? `${htmlFor}-error` : undefined,
+            },
+          )
         : children}
       {hint && !error ? (
         <p className="text-xs text-muted-foreground">{hint}</p>
       ) : null}
       {error ? (
-        <p id={htmlFor ? `${htmlFor}-error` : undefined} role="alert" className="text-xs text-destructive">{error}</p>
+        <p
+          id={htmlFor ? `${htmlFor}-error` : undefined}
+          role="alert"
+          className="text-xs text-destructive"
+        >
+          {error}
+        </p>
       ) : null}
     </div>
   );

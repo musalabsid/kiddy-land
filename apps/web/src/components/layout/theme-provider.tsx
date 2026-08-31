@@ -1,1 +1,4 @@
-export { ThemeProvider, useTheme } from "@workspace/ui/providers/theme-provider";
+export {
+  ThemeProvider,
+  useTheme,
+} from "@workspace/ui/providers/theme-provider";

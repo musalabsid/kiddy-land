@@ -1,5 +1,5 @@
-import { parsePairingQr } from "@workspace/ui/lib/pairing-qr";
 import { BarcodeScanner } from "@workspace/ui/components/barcode-scanner";
+import { parsePairingQr } from "@workspace/ui/lib/pairing-qr";
 
 /**
  * Camera-first QR pairing scanner. Decodes the DeviceManagement QR payload

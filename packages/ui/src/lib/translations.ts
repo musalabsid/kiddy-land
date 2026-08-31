@@ -5,12 +5,15 @@ export const messages = {
   id: {
     "host.eyebrow": "KIDDY LAND / HOST",
     "host.title": "Pusat operasi lokal",
-    "host.subtitle": "Satu host venue. Satu Local Server sebagai sumber kebenaran. Tanpa Internet.",
+    "host.subtitle":
+      "Satu host venue. Satu Local Server sebagai sumber kebenaran. Tanpa Internet.",
     "host.readiness": "Kesiapan host",
-    "host.readinessDescription": "Status diagnostik yang aman untuk petugas venue",
+    "host.readinessDescription":
+      "Status diagnostik yang aman untuk petugas venue",
     "host.ready": "Local Server siap untuk operasi lokal",
     "host.readyDescription": "Host dapat menerima koneksi klien lokal.",
-    "host.notReadyDescription": "Perubahan dinonaktifkan sampai kesiapan dikonfirmasi.",
+    "host.notReadyDescription":
+      "Perubahan dinonaktifkan sampai kesiapan dikonfirmasi.",
     "host.starting": "Local Server sedang dimulai",
     "host.unhealthy": "Local Server tidak tersedia",
     "host.fatal": "Local Server gagal dimulai",
@@ -18,11 +21,14 @@ export const messages = {
     "host.unhealthyAction": "Mulai ulang host atau hubungi administrator.",
     "host.check": "Periksa lagi",
     "host.localFirst": "Lokal terlebih dahulu",
-    "host.localFirstDescription": "Data operasional tetap berada di host venue.",
+    "host.localFirstDescription":
+      "Data operasional tetap berada di host venue.",
     "host.offline": "Siap offline",
-    "host.offlineDescription": "Kehilangan Internet tidak membuat transaksi mengantre.",
+    "host.offlineDescription":
+      "Kehilangan Internet tidak membuat transaksi mengantre.",
     "host.authoritative": "Sumber kebenaran",
-    "host.authoritativeDescription": "Setiap klien membaca status server sebelum menulis.",
+    "host.authoritativeDescription":
+      "Setiap klien membaca status server sebelum menulis.",
     "host.serverOrigin": "Origin server",
     "host.database": "Database",
     "host.unknown": "tidak diketahui",
@@ -35,12 +41,14 @@ export const messages = {
   en: {
     "host.eyebrow": "KIDDY LAND / HOST",
     "host.title": "Local operation center",
-    "host.subtitle": "One venue host. One authoritative Local Server. No Internet required.",
+    "host.subtitle":
+      "One venue host. One authoritative Local Server. No Internet required.",
     "host.readiness": "Host readiness",
     "host.readinessDescription": "Safe diagnostic state for venue staff",
     "host.ready": "Local Server ready for local operation",
     "host.readyDescription": "The host can accept local client connections.",
-    "host.notReadyDescription": "Mutations remain unavailable until readiness is confirmed.",
+    "host.notReadyDescription":
+      "Mutations remain unavailable until readiness is confirmed.",
     "host.starting": "Local Server is starting",
     "host.unhealthy": "Local Server is unavailable",
     "host.fatal": "Local Server failed to start",
@@ -52,7 +60,8 @@ export const messages = {
     "host.offline": "Offline ready",
     "host.offlineDescription": "Internet loss does not queue transactions.",
     "host.authoritative": "Authoritative",
-    "host.authoritativeDescription": "Every client reads server readiness first.",
+    "host.authoritativeDescription":
+      "Every client reads server readiness first.",
     "host.serverOrigin": "Server origin",
     "host.database": "Database",
     "host.unknown": "unknown",
@@ -66,13 +75,24 @@ export const messages = {
 
 export type MessageKey = keyof typeof messages.en;
 export type Translate = (key: MessageKey) => string;
-export function isLocale(value: string | null): value is Locale { return value === "id" || value === "en"; }
-export function translate(locale: Locale, key: MessageKey) { return messages[locale][key]; }
+export function isLocale(value: string | null): value is Locale {
+  return value === "id" || value === "en";
+}
+export function translate(locale: Locale, key: MessageKey) {
+  return messages[locale][key];
+}
 
 export function formatIdr(amount: number, locale: Locale) {
-  return new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(amount);
+  return new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(amount);
 }
 
 export function formatDate(value: Date | number | string, locale: Locale) {
-  return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-ID", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }

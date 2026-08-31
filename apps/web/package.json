@@ -13,13 +13,13 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "lucide-react": "^1.28.0",
+    "@kiddy-land/client": "workspace:*",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-devtools": "latest",
     "@tanstack/react-router": "1.170.29",
     "@tanstack/react-router-devtools": "latest",
     "@workspace/ui": "workspace:*",
-    "@kiddy-land/client": "workspace:*",
+    "lucide-react": "^1.28.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwindcss": "^4.1.18"

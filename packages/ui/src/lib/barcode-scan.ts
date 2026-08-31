@@ -29,21 +29,33 @@ export function isSecureContextAvailable(): boolean {
 
 /** @hidden exposed for tests */
 export function hasMediaDevices(): boolean {
-  return typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+  return (
+    typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia
+  );
 }
 
 type BarcodeDetectorCtor = new (options?: { formats?: string[] }) => {
-  detect(source: HTMLVideoElement | HTMLCanvasElement | ImageBitmap): Promise<Array<{ rawValue: string }>>;
+  detect(
+    source: HTMLVideoElement | HTMLCanvasElement | ImageBitmap,
+  ): Promise<Array<{ rawValue: string }>>;
   getSupportedFormats?: () => Promise<string[]>;
 };
 
 function nativeBarcodeDetector(): BarcodeDetectorCtor | undefined {
   if (typeof window === "undefined") return undefined;
-  return (window as Window & { BarcodeDetector?: BarcodeDetectorCtor }).BarcodeDetector;
+  return (window as Window & { BarcodeDetector?: BarcodeDetectorCtor })
+    .BarcodeDetector;
 }
 
 /** True only when BarcodeDetector can actually decode qr_code (constructor + formats). */
-export const SCAN_FORMATS = ["qr_code", "ean_13", "ean_8", "code_128", "upc_a", "upc_e"] as const;
+export const SCAN_FORMATS = [
+  "qr_code",
+  "ean_13",
+  "ean_8",
+  "code_128",
+  "upc_a",
+  "upc_e",
+] as const;
 export async function nativeQrSupported(): Promise<boolean> {
   const Ctor = nativeBarcodeDetector();
   if (!Ctor) return false;
@@ -52,7 +64,9 @@ export async function nativeQrSupported(): Promise<boolean> {
     if (!probe || typeof probe.detect !== "function") return false;
     if (typeof probe.getSupportedFormats === "function") {
       const formats = await probe.getSupportedFormats();
-      return Array.isArray(formats) && SCAN_FORMATS.some(f => formats.includes(f));
+      return (
+        Array.isArray(formats) && SCAN_FORMATS.some((f) => formats.includes(f))
+      );
     }
     return true;
   } catch {
@@ -69,13 +83,21 @@ export async function detectCapability(): Promise<ScannerCapability> {
   if (native) {
     try {
       const Ctor = nativeBarcodeDetector();
-      if (Ctor && typeof (new Ctor({formats:["ean_13"]}) as any).getSupportedFormats === 'function') {
-        const fmts = await new Ctor({formats:["ean_13"]}).getSupportedFormats?.();
+      if (
+        Ctor &&
+        typeof (new Ctor({ formats: ["ean_13"] }) as any)
+          .getSupportedFormats === "function"
+      ) {
+        const fmts = await new Ctor({
+          formats: ["ean_13"],
+        }).getSupportedFormats?.();
         supportsBarcode = Array.isArray(fmts) && fmts.includes("ean_13");
       } else {
         supportsBarcode = true; // native exists but no getSupportedFormats -> assume supports all
       }
-    } catch { supportsBarcode = true; }
+    } catch {
+      supportsBarcode = true;
+    }
   }
   return {
     decoder: native ? "native" : camera ? "jsqr" : "none",
@@ -154,14 +176,19 @@ export function createScanLoop(options: {
   return { start, stop, isRunning: () => running || fired };
 }
 
-export function createNativeDecoder(detector: { detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>> }) {
+export function createNativeDecoder(detector: {
+  detect(source: HTMLVideoElement): Promise<Array<{ rawValue: string }>>;
+}) {
   return async (frame: HTMLVideoElement) => {
     const codes = await detector.detect(frame);
     return codes.find((code) => code.rawValue)?.rawValue;
   };
 }
 
-export function createJsqrDecoder(canvas: HTMLCanvasElement, context: CanvasRenderingContext2D | null) {
+export function createJsqrDecoder(
+  canvas: HTMLCanvasElement,
+  context: CanvasRenderingContext2D | null,
+) {
   return async (frame: HTMLVideoElement) => {
     if (!context || frame.readyState < 2 || !frame.videoWidth) return undefined;
     canvas.width = frame.videoWidth;
@@ -173,16 +200,24 @@ export function createJsqrDecoder(canvas: HTMLCanvasElement, context: CanvasRend
   };
 }
 
-export function barcodeErrorMessage(capability?: ScannerCapability): string | undefined {
-  if (capability && !capability.supportsBarcode) return "Product barcode scanning needs Chrome/Edge with native BarcodeDetector (EAN). This browser only decodes QR — ticket QR still works, use manual input for product EAN.";
+export function barcodeErrorMessage(
+  capability?: ScannerCapability,
+): string | undefined {
+  if (capability && !capability.supportsBarcode)
+    return "Product barcode scanning needs Chrome/Edge with native BarcodeDetector (EAN). This browser only decodes QR — ticket QR still works, use manual input for product EAN.";
   return undefined;
 }
 export function errorMessage(kind: ScannerErrorKind): string {
   switch (kind) {
-    case "insecure": return "Camera access requires HTTPS (or localhost). This page is served over plain HTTP.";
-    case "unsupported": return "This browser does not support camera scanning. Use the input field below instead.";
-    case "permission-denied": return "Camera permission was denied. Allow camera access, or use the input field below.";
-    case "no-camera": return "No camera is available on this device. Use the input field below instead.";
-    case "decode-unavailable": return "QR decoding is unavailable in this browser. Use the input field below instead.";
+    case "insecure":
+      return "Camera access requires HTTPS (or localhost). This page is served over plain HTTP.";
+    case "unsupported":
+      return "This browser does not support camera scanning. Use the input field below instead.";
+    case "permission-denied":
+      return "Camera permission was denied. Allow camera access, or use the input field below.";
+    case "no-camera":
+      return "No camera is available on this device. Use the input field below instead.";
+    case "decode-unavailable":
+      return "QR decoding is unavailable in this browser. Use the input field below instead.";
   }
 }

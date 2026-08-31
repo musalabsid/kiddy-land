@@ -1,40 +1,507 @@
 import type { CalendarStore } from "./calendar.ts";
-import type { SaleStore } from "./sale.ts";
-import type { LifecycleStore } from "./lifecycle.ts";
-import type { InventoryStore } from "./inventory.ts";
-import type { MembershipStore } from "./membership.ts";
 import type { IdentityStore } from "./identity.ts";
+import type { InventoryStore } from "./inventory.ts";
+import type { LifecycleStore } from "./lifecycle.ts";
+import type { MembershipStore } from "./membership.ts";
+import type { SaleStore } from "./sale.ts";
 
-export type ReportFilters = { from: string; to: string; cashierId?: string; paymentMethod?: string; packageId?: string; productId?: string; memberId?: string };
-export type ReportEnvelope<T> = { kind: string; filters: ReportFilters; timezone: string; generatedAt: string; data: T };
-function inRange(date: string, filters: ReportFilters) { return date >= filters.from && date <= filters.to; }
-function validDate(value: string) { return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T12:00:00Z`)); }
-function filterDefaults(calendar: CalendarStore, input: Partial<ReportFilters>): ReportFilters { const today = calendar.operatingDate(new Date()); const from = input.from ?? today; const to = input.to ?? from; if (!validDate(from) || !validDate(to) || from > to) throw new Error("Invalid report date range"); return { from, to, cashierId: input.cashierId, paymentMethod: input.paymentMethod, packageId: input.packageId, productId: input.productId, memberId: input.memberId }; }
+export type ReportFilters = {
+  from: string;
+  to: string;
+  cashierId?: string;
+  paymentMethod?: string;
+  packageId?: string;
+  productId?: string;
+  memberId?: string;
+};
+export type ReportEnvelope<T> = {
+  kind: string;
+  filters: ReportFilters;
+  timezone: string;
+  generatedAt: string;
+  data: T;
+};
+function inRange(date: string, filters: ReportFilters) {
+  return date >= filters.from && date <= filters.to;
+}
+function validDate(value: string) {
+  return (
+    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    !Number.isNaN(Date.parse(`${value}T12:00:00Z`))
+  );
+}
+function filterDefaults(
+  calendar: CalendarStore,
+  input: Partial<ReportFilters>,
+): ReportFilters {
+  const today = calendar.operatingDate(new Date());
+  const from = input.from ?? today;
+  const to = input.to ?? from;
+  if (!validDate(from) || !validDate(to) || from > to)
+    throw new Error("Invalid report date range");
+  return {
+    from,
+    to,
+    cashierId: input.cashierId,
+    paymentMethod: input.paymentMethod,
+    packageId: input.packageId,
+    productId: input.productId,
+    memberId: input.memberId,
+  };
+}
 
-export function createReportService(calendar: CalendarStore, sales: SaleStore, lifecycle: LifecycleStore, inventory: InventoryStore, membership: MembershipStore, identity?: IdentityStore) {
-  function filters(input: Partial<ReportFilters>) { return filterDefaults(calendar, input); }
-  function saleMatches(sale: (typeof sales.sales extends Map<string, infer V> ? V : never), f: ReportFilters) { return inRange(sale.operatingDate, f) && (!f.cashierId || sale.cashierId === f.cashierId) && (!f.paymentMethod || sale.paymentMethod === f.paymentMethod); }
-  function ticketMatches(sale: any, line: any, f: ReportFilters) { const ticket = sale.tickets.find((candidate: any) => candidate.id === line.ticketId); return Boolean(ticket && (!f.packageId || ticket.package.id === f.packageId) && (!f.memberId || line.memberId === f.memberId)); }
-  function financial(input: Partial<ReportFilters>): ReportEnvelope<unknown> {
-    const f = filters(input); const allRows = [...sales.sales.values()].filter((sale) => saleMatches(sale, f)); const selectedTicketIds = new Set(allRows.flatMap((sale) => sale.tickets.filter((ticket) => (!f.packageId || ticket.package.id === f.packageId) && (!f.memberId || sale.lines.some((line) => line.kind === "ticket" && line.ticketId === ticket.id && line.memberId === f.memberId))).map((ticket) => ticket.id)));
-    const rows = allRows.map((sale) => { const tickets = sale.lines.filter((line) => line.kind === "ticket" && ticketMatches(sale, line, f)); const products = sale.lines.filter((line) => line.kind === "product" && (!f.productId || line.productId === f.productId) && (!f.memberId || line.memberId === f.memberId)); const ticketRevenue = sale.status === "completed" ? tickets.reduce((n, line) => n + (line.kind === "ticket" ? line.price : 0), 0) : 0; const productRevenue = sale.status === "completed" ? products.reduce((n, line) => n + (line.kind === "product" ? line.total : 0), 0) : 0; const selectedTicketIds = new Set(tickets.flatMap((line) => line.kind === "ticket" ? [line.ticketId] : [])); const deposits = sale.deposits.filter((deposit) => selectedTicketIds.has(deposit.ticketId)); return { saleId: sale.id, operatingDate: sale.operatingDate, cashierId: sale.cashierId, paymentMethod: sale.paymentMethod, ticketRevenue, productRevenue, total: ticketRevenue + productRevenue, depositReceived: deposits.reduce((n, deposit) => n + deposit.amount, 0), status: sale.status }; });
-    const ticketRevenue = rows.reduce((n, row) => n + row.ticketRevenue, 0); const productRevenue = rows.reduce((n, row) => n + row.productRevenue, 0); const overtimeEvents = lifecycle.events.filter((event) => event.type === "charge-collected" && inRange(calendar.operatingDate(new Date(event.at)), f) && selectedTicketIds.has(event.ticketId) && (!f.cashierId || event.actorId === f.cashierId) && (!f.paymentMethod || (event.details as { paymentMethod?: string })?.paymentMethod === f.paymentMethod)); const overtime = overtimeEvents.reduce((n, event) => n + Number((event.details as { amount?: number })?.amount ?? 0), 0); const filteredSaleIds = new Set(rows.map((row) => row.saleId)); const selectedLineIds = new Set(allRows.flatMap((sale) => sale.lines.filter((line) => line.kind === "ticket" ? ticketMatches(sale, line, f) : (!f.productId || line.productId === f.productId) && (!f.memberId || line.memberId === f.memberId)).map((line) => line.kind === "ticket" ? line.ticketId : line.lineId))); const refunds = inventory.refunds.filter((refund) => inRange(calendar.operatingDate(new Date(refund.at)), f) && filteredSaleIds.has(refund.saleId) && selectedLineIds.has(refund.lineId) && (sales.get(refund.saleId)?.status === "completed")).reduce((n, refund) => {  const sale = sales.get(refund.saleId); const line = sale?.lines.find((candidate) => candidate.kind === "product" && candidate.lineId === refund.lineId); return n + (line?.kind === "product" ? line.total / line.quantity * refund.quantity : 0); }, 0); const corrections = allRows.flatMap((sale) => (sale.corrections ?? []).filter((correction) => inRange(correction.correctionDate, f) && (!correction.lineId || selectedLineIds.has(correction.lineId)))); const correctionNet = corrections.filter((correction) => correction.kind !== "void").reduce((n, correction) => n + correction.correctedAmount - correction.originalAmount, 0); const selectedDeposits = allRows.flatMap((sale) => sale.deposits.filter((deposit) => selectedTicketIds.has(deposit.ticketId))); const deposits = { received: selectedDeposits.reduce((n, item) => n + item.amount, 0), applied: selectedDeposits.reduce((n, item) => n + (item.appliedAmount ?? 0), 0), refunded: selectedDeposits.reduce((n, item) => n + (item.refundedAmount ?? 0), 0), forfeited: selectedDeposits.filter((item) => item.status === "forfeited").reduce((n, item) => n + item.amount, 0), held: selectedDeposits.filter((item) => item.status === "held").reduce((n, item) => n + Math.max(0, item.amount - (item.appliedAmount ?? 0)), 0) }; const paymentMethods = Object.fromEntries([...new Set(rows.map((row) => row.paymentMethod))].map((method) => [method, rows.filter((row) => row.paymentMethod === method).reduce((n, row) => n + row.total, 0)])); const cashiers = Object.fromEntries([...new Set(rows.map((row) => row.cashierId))].map((cashier) => {
-      const user = identity?.users.get(cashier);
-      const name = user?.displayName || user?.username || cashier;
-      return [name, rows.filter((row) => row.cashierId === cashier).reduce((n, row) => n + row.total, 0)];
-    })); return { kind: "financial", filters: f, timezone: calendar.timezone, generatedAt: new Date().toISOString(), data: { rows, totals: { ticketRevenue, productRevenue, overtimeRevenue: overtime, grossRevenue: ticketRevenue + productRevenue + overtime, netRevenue: ticketRevenue + productRevenue + overtime - refunds + correctionNet, correctionNet, corrections, priceOverrides: corrections.filter((item) => item.kind === "price-override"), depositsReceived: deposits.received, deposits, refunds, voids: allRows.filter((row) => row.status === "void").length, paymentMethods, cashiers } } };
+export function createReportService(
+  calendar: CalendarStore,
+  sales: SaleStore,
+  lifecycle: LifecycleStore,
+  inventory: InventoryStore,
+  membership: MembershipStore,
+  identity?: IdentityStore,
+) {
+  function filters(input: Partial<ReportFilters>) {
+    return filterDefaults(calendar, input);
   }
-  function playground(input: Partial<ReportFilters>): ReportEnvelope<unknown> { const f = filters(input); const ticketFor = (ticketId: string) => [...sales.sales.values()].find((sale) => sale.tickets.some((ticket) => ticket.id === ticketId)); const events = lifecycle.events.filter((event) => inRange(calendar.operatingDate(new Date(event.at)), f) && (() => { const sale = ticketFor(event.ticketId); const ticket = sale?.tickets.find((candidate) => candidate.id === event.ticketId); return Boolean(sale && ticket && saleMatches(sale, f) && (!f.packageId || ticket.package.id === f.packageId) && (!f.memberId || sale.lines.some((line) => line.kind === "ticket" && (line.kind === "ticket" ? line.ticketId : "") === ticket.id && line.memberId === f.memberId))); })()); const sessions = [...lifecycle.sessions.values()]; const selectedSessions = sessions.filter((session) => events.some((event) => event.ticketId === session.ticketId)); return { kind: "playground", filters: f, timezone: calendar.timezone, generatedAt: new Date().toISOString(), data: { occupancy: selectedSessions.filter((session) => session.status === "active").length, entries: events.filter((e) => e.type === "admitted").length, exits: events.filter((e) => e.type === "exited").length, autoClosed: events.filter((e) => e.type === "auto-closed").length, overtimeMinutes: selectedSessions.reduce((n, s) => n + s.overtimeMinutes, 0), events, packageActivity: selectedSessions.map((session) => { const sale = ticketFor(session.ticketId); const ticket = sale?.tickets.find((candidate) => candidate.id === session.ticketId); return { ticketId: session.ticketId, status: session.status, enteredAt: new Date(session.enteredAt).toISOString(), exitedAt: session.exitedAt ? new Date(session.exitedAt).toISOString() : undefined, packageId: ticket?.package.id, packageName: ticket?.package.name }; }) } }; }
-  function inventoryReport(input: Partial<ReportFilters>): ReportEnvelope<unknown> { const f = filters(input); const movements = inventory.movements.filter((movement) => inRange(calendar.operatingDate(new Date(movement.at)), f) && (!f.productId || movement.productId === f.productId)); const products = [...inventory.products.values()].filter((product) => !f.productId || product.id === f.productId); const counts = inventory.counts.filter((count) => inRange(calendar.operatingDate(new Date(count.at)), f) && (!f.productId || count.productId === f.productId)); return { kind: "inventory", filters: f, timezone: calendar.timezone, generatedAt: new Date().toISOString(), data: { products, movements, approvedCounts: counts.filter((count) => count.status === "approved"), pendingCounts: counts.filter((count) => count.status === "pending"), lowStock: products.filter((product) => !product.archived && product.stock <= product.lowStockThreshold) } }; }
-  function membershipReport(input: Partial<ReportFilters>): ReportEnvelope<unknown> { const f = filters(input); const relevantSales = [...sales.sales.values()].filter((sale) => saleMatches(sale, f)); const members = membership.list().filter((item) => !f.memberId || item.member.id === f.memberId); const events = membership.state.events.filter((event) => inRange(calendar.operatingDate(new Date(event.at)), f) && (!f.memberId || event.memberId === f.memberId)); const visits = relevantSales.flatMap((sale) => sale.lines.filter((line) => line.kind === "ticket" && Boolean(line.memberId) && (!f.memberId || line.memberId === f.memberId) && (!f.packageId || sale.tickets.find((ticket) => ticket.id === (line.kind === "ticket" ? line.ticketId : ""))?.package.id === f.packageId)).map((line) => line.kind === "ticket" ? ({ saleId: sale.id, ticketId: line.ticketId, memberId: line.memberId, operatingDate: sale.operatingDate }) : null).filter((visit): visit is { saleId: string; ticketId: string; memberId: string | undefined; operatingDate: string } => Boolean(visit))); return { kind: "membership", filters: f, timezone: calendar.timezone, generatedAt: new Date().toISOString(), data: { members, events, visits } }; }
+  function saleMatches(
+    sale: typeof sales.sales extends Map<string, infer V> ? V : never,
+    f: ReportFilters,
+  ) {
+    return (
+      inRange(sale.operatingDate, f) &&
+      (!f.cashierId || sale.cashierId === f.cashierId) &&
+      (!f.paymentMethod || sale.paymentMethod === f.paymentMethod)
+    );
+  }
+  function ticketMatches(sale: any, line: any, f: ReportFilters) {
+    const ticket = sale.tickets.find(
+      (candidate: any) => candidate.id === line.ticketId,
+    );
+    return Boolean(
+      ticket &&
+      (!f.packageId || ticket.package.id === f.packageId) &&
+      (!f.memberId || line.memberId === f.memberId),
+    );
+  }
+  function financial(input: Partial<ReportFilters>): ReportEnvelope<unknown> {
+    const f = filters(input);
+    const allRows = [...sales.sales.values()].filter((sale) =>
+      saleMatches(sale, f),
+    );
+    const selectedTicketIds = new Set(
+      allRows.flatMap((sale) =>
+        sale.tickets
+          .filter(
+            (ticket) =>
+              (!f.packageId || ticket.package.id === f.packageId) &&
+              (!f.memberId ||
+                sale.lines.some(
+                  (line) =>
+                    line.kind === "ticket" &&
+                    line.ticketId === ticket.id &&
+                    line.memberId === f.memberId,
+                )),
+          )
+          .map((ticket) => ticket.id),
+      ),
+    );
+    const rows = allRows.map((sale) => {
+      const tickets = sale.lines.filter(
+        (line) => line.kind === "ticket" && ticketMatches(sale, line, f),
+      );
+      const products = sale.lines.filter(
+        (line) =>
+          line.kind === "product" &&
+          (!f.productId || line.productId === f.productId) &&
+          (!f.memberId || line.memberId === f.memberId),
+      );
+      const ticketRevenue =
+        sale.status === "completed"
+          ? tickets.reduce(
+              (n, line) => n + (line.kind === "ticket" ? line.price : 0),
+              0,
+            )
+          : 0;
+      const productRevenue =
+        sale.status === "completed"
+          ? products.reduce(
+              (n, line) => n + (line.kind === "product" ? line.total : 0),
+              0,
+            )
+          : 0;
+      const selectedTicketIds = new Set(
+        tickets.flatMap((line) =>
+          line.kind === "ticket" ? [line.ticketId] : [],
+        ),
+      );
+      const deposits = sale.deposits.filter((deposit) =>
+        selectedTicketIds.has(deposit.ticketId),
+      );
+      return {
+        saleId: sale.id,
+        operatingDate: sale.operatingDate,
+        cashierId: sale.cashierId,
+        paymentMethod: sale.paymentMethod,
+        ticketRevenue,
+        productRevenue,
+        total: ticketRevenue + productRevenue,
+        depositReceived: deposits.reduce((n, deposit) => n + deposit.amount, 0),
+        status: sale.status,
+      };
+    });
+    const ticketRevenue = rows.reduce((n, row) => n + row.ticketRevenue, 0);
+    const productRevenue = rows.reduce((n, row) => n + row.productRevenue, 0);
+    const overtimeEvents = lifecycle.events.filter(
+      (event) =>
+        event.type === "charge-collected" &&
+        inRange(calendar.operatingDate(new Date(event.at)), f) &&
+        selectedTicketIds.has(event.ticketId) &&
+        (!f.cashierId || event.actorId === f.cashierId) &&
+        (!f.paymentMethod ||
+          (event.details as { paymentMethod?: string })?.paymentMethod ===
+            f.paymentMethod),
+    );
+    const overtime = overtimeEvents.reduce(
+      (n, event) =>
+        n + Number((event.details as { amount?: number })?.amount ?? 0),
+      0,
+    );
+    const filteredSaleIds = new Set(rows.map((row) => row.saleId));
+    const selectedLineIds = new Set(
+      allRows.flatMap((sale) =>
+        sale.lines
+          .filter((line) =>
+            line.kind === "ticket"
+              ? ticketMatches(sale, line, f)
+              : (!f.productId || line.productId === f.productId) &&
+                (!f.memberId || line.memberId === f.memberId),
+          )
+          .map((line) =>
+            line.kind === "ticket" ? line.ticketId : line.lineId,
+          ),
+      ),
+    );
+    const refunds = inventory.refunds
+      .filter(
+        (refund) =>
+          inRange(calendar.operatingDate(new Date(refund.at)), f) &&
+          filteredSaleIds.has(refund.saleId) &&
+          selectedLineIds.has(refund.lineId) &&
+          sales.get(refund.saleId)?.status === "completed",
+      )
+      .reduce((n, refund) => {
+        const sale = sales.get(refund.saleId);
+        const line = sale?.lines.find(
+          (candidate) =>
+            candidate.kind === "product" && candidate.lineId === refund.lineId,
+        );
+        return (
+          n +
+          (line?.kind === "product"
+            ? (line.total / line.quantity) * refund.quantity
+            : 0)
+        );
+      }, 0);
+    const corrections = allRows.flatMap((sale) =>
+      (sale.corrections ?? []).filter(
+        (correction) =>
+          inRange(correction.correctionDate, f) &&
+          (!correction.lineId || selectedLineIds.has(correction.lineId)),
+      ),
+    );
+    const correctionNet = corrections
+      .filter((correction) => correction.kind !== "void")
+      .reduce(
+        (n, correction) =>
+          n + correction.correctedAmount - correction.originalAmount,
+        0,
+      );
+    const selectedDeposits = allRows.flatMap((sale) =>
+      sale.deposits.filter((deposit) =>
+        selectedTicketIds.has(deposit.ticketId),
+      ),
+    );
+    const deposits = {
+      received: selectedDeposits.reduce((n, item) => n + item.amount, 0),
+      applied: selectedDeposits.reduce(
+        (n, item) => n + (item.appliedAmount ?? 0),
+        0,
+      ),
+      refunded: selectedDeposits.reduce(
+        (n, item) => n + (item.refundedAmount ?? 0),
+        0,
+      ),
+      forfeited: selectedDeposits
+        .filter((item) => item.status === "forfeited")
+        .reduce((n, item) => n + item.amount, 0),
+      held: selectedDeposits
+        .filter((item) => item.status === "held")
+        .reduce(
+          (n, item) => n + Math.max(0, item.amount - (item.appliedAmount ?? 0)),
+          0,
+        ),
+    };
+    const paymentMethods = Object.fromEntries(
+      [...new Set(rows.map((row) => row.paymentMethod))].map((method) => [
+        method,
+        rows
+          .filter((row) => row.paymentMethod === method)
+          .reduce((n, row) => n + row.total, 0),
+      ]),
+    );
+    const cashiers = Object.fromEntries(
+      [...new Set(rows.map((row) => row.cashierId))].map((cashier) => {
+        const user = identity?.users.get(cashier);
+        const name = user?.displayName || user?.username || cashier;
+        return [
+          name,
+          rows
+            .filter((row) => row.cashierId === cashier)
+            .reduce((n, row) => n + row.total, 0),
+        ];
+      }),
+    );
+    return {
+      kind: "financial",
+      filters: f,
+      timezone: calendar.timezone,
+      generatedAt: new Date().toISOString(),
+      data: {
+        rows,
+        totals: {
+          ticketRevenue,
+          productRevenue,
+          overtimeRevenue: overtime,
+          grossRevenue: ticketRevenue + productRevenue + overtime,
+          netRevenue:
+            ticketRevenue + productRevenue + overtime - refunds + correctionNet,
+          correctionNet,
+          corrections,
+          priceOverrides: corrections.filter(
+            (item) => item.kind === "price-override",
+          ),
+          depositsReceived: deposits.received,
+          deposits,
+          refunds,
+          voids: allRows.filter((row) => row.status === "void").length,
+          paymentMethods,
+          cashiers,
+        },
+      },
+    };
+  }
+  function playground(input: Partial<ReportFilters>): ReportEnvelope<unknown> {
+    const f = filters(input);
+    const ticketFor = (ticketId: string) =>
+      [...sales.sales.values()].find((sale) =>
+        sale.tickets.some((ticket) => ticket.id === ticketId),
+      );
+    const events = lifecycle.events.filter(
+      (event) =>
+        inRange(calendar.operatingDate(new Date(event.at)), f) &&
+        (() => {
+          const sale = ticketFor(event.ticketId);
+          const ticket = sale?.tickets.find(
+            (candidate) => candidate.id === event.ticketId,
+          );
+          return Boolean(
+            sale &&
+            ticket &&
+            saleMatches(sale, f) &&
+            (!f.packageId || ticket.package.id === f.packageId) &&
+            (!f.memberId ||
+              sale.lines.some(
+                (line) =>
+                  line.kind === "ticket" &&
+                  (line.kind === "ticket" ? line.ticketId : "") === ticket.id &&
+                  line.memberId === f.memberId,
+              )),
+          );
+        })(),
+    );
+    const sessions = [...lifecycle.sessions.values()];
+    const selectedSessions = sessions.filter((session) =>
+      events.some((event) => event.ticketId === session.ticketId),
+    );
+    return {
+      kind: "playground",
+      filters: f,
+      timezone: calendar.timezone,
+      generatedAt: new Date().toISOString(),
+      data: {
+        occupancy: selectedSessions.filter(
+          (session) => session.status === "active",
+        ).length,
+        entries: events.filter((e) => e.type === "admitted").length,
+        exits: events.filter((e) => e.type === "exited").length,
+        autoClosed: events.filter((e) => e.type === "auto-closed").length,
+        overtimeMinutes: selectedSessions.reduce(
+          (n, s) => n + s.overtimeMinutes,
+          0,
+        ),
+        events,
+        packageActivity: selectedSessions.map((session) => {
+          const sale = ticketFor(session.ticketId);
+          const ticket = sale?.tickets.find(
+            (candidate) => candidate.id === session.ticketId,
+          );
+          return {
+            ticketId: session.ticketId,
+            status: session.status,
+            enteredAt: new Date(session.enteredAt).toISOString(),
+            exitedAt: session.exitedAt
+              ? new Date(session.exitedAt).toISOString()
+              : undefined,
+            packageId: ticket?.package.id,
+            packageName: ticket?.package.name,
+          };
+        }),
+      },
+    };
+  }
+  function inventoryReport(
+    input: Partial<ReportFilters>,
+  ): ReportEnvelope<unknown> {
+    const f = filters(input);
+    const movements = inventory.movements.filter(
+      (movement) =>
+        inRange(calendar.operatingDate(new Date(movement.at)), f) &&
+        (!f.productId || movement.productId === f.productId),
+    );
+    const products = [...inventory.products.values()].filter(
+      (product) => !f.productId || product.id === f.productId,
+    );
+    const counts = inventory.counts.filter(
+      (count) =>
+        inRange(calendar.operatingDate(new Date(count.at)), f) &&
+        (!f.productId || count.productId === f.productId),
+    );
+    return {
+      kind: "inventory",
+      filters: f,
+      timezone: calendar.timezone,
+      generatedAt: new Date().toISOString(),
+      data: {
+        products,
+        movements,
+        approvedCounts: counts.filter((count) => count.status === "approved"),
+        pendingCounts: counts.filter((count) => count.status === "pending"),
+        lowStock: products.filter(
+          (product) =>
+            !product.archived && product.stock <= product.lowStockThreshold,
+        ),
+      },
+    };
+  }
+  function membershipReport(
+    input: Partial<ReportFilters>,
+  ): ReportEnvelope<unknown> {
+    const f = filters(input);
+    const relevantSales = [...sales.sales.values()].filter((sale) =>
+      saleMatches(sale, f),
+    );
+    const members = membership
+      .list()
+      .filter((item) => !f.memberId || item.member.id === f.memberId);
+    const events = membership.state.events.filter(
+      (event) =>
+        inRange(calendar.operatingDate(new Date(event.at)), f) &&
+        (!f.memberId || event.memberId === f.memberId),
+    );
+    const visits = relevantSales.flatMap((sale) =>
+      sale.lines
+        .filter(
+          (line) =>
+            line.kind === "ticket" &&
+            Boolean(line.memberId) &&
+            (!f.memberId || line.memberId === f.memberId) &&
+            (!f.packageId ||
+              sale.tickets.find(
+                (ticket) =>
+                  ticket.id === (line.kind === "ticket" ? line.ticketId : ""),
+              )?.package.id === f.packageId),
+        )
+        .map((line) =>
+          line.kind === "ticket"
+            ? {
+                saleId: sale.id,
+                ticketId: line.ticketId,
+                memberId: line.memberId,
+                operatingDate: sale.operatingDate,
+              }
+            : null,
+        )
+        .filter(
+          (
+            visit,
+          ): visit is {
+            saleId: string;
+            ticketId: string;
+            memberId: string | undefined;
+            operatingDate: string;
+          } => Boolean(visit),
+        ),
+    );
+    return {
+      kind: "membership",
+      filters: f,
+      timezone: calendar.timezone,
+      generatedAt: new Date().toISOString(),
+      data: { members, events, visits },
+    };
+  }
   function live() {
     const today = calendar.operatingDate(new Date());
-    const todaySales = [...sales.sales.values()].filter((sale) => sale.operatingDate === today && sale.status === "completed");
-    const salesTodayTotal = todaySales.reduce((sum, sale) => sum + sale.total, 0);
-    const ticketTodayTotal = todaySales.reduce((sum, sale) => sum + sale.lines.filter((l:any)=>l.kind==="ticket").reduce((a:number,l:any)=>a+l.price,0), 0);
-    const productTodayTotal = todaySales.reduce((sum, sale) => sum + sale.lines.filter((l:any)=>l.kind==="product").reduce((a:number,l:any)=>a+l.total,0), 0);
-    return { kind: "live", timezone: calendar.timezone, generatedAt: new Date().toISOString(), data: { occupancy: [...lifecycle.sessions.values()].filter((s) => s.status === "active").length, activeMembers: membership.state.members.filter((m) => m.status === "active").length, lowStock: inventory.list(undefined, false).filter((p) => p.stock <= p.lowStockThreshold).length, products: inventory.products.size, sales: todaySales.length, salesTodayTotal, ticketTodayTotal, productTodayTotal } };
+    const todaySales = [...sales.sales.values()].filter(
+      (sale) => sale.operatingDate === today && sale.status === "completed",
+    );
+    const salesTodayTotal = todaySales.reduce(
+      (sum, sale) => sum + sale.total,
+      0,
+    );
+    const ticketTodayTotal = todaySales.reduce(
+      (sum, sale) =>
+        sum +
+        sale.lines
+          .filter((l: any) => l.kind === "ticket")
+          .reduce((a: number, l: any) => a + l.price, 0),
+      0,
+    );
+    const productTodayTotal = todaySales.reduce(
+      (sum, sale) =>
+        sum +
+        sale.lines
+          .filter((l: any) => l.kind === "product")
+          .reduce((a: number, l: any) => a + l.total, 0),
+      0,
+    );
+    return {
+      kind: "live",
+      timezone: calendar.timezone,
+      generatedAt: new Date().toISOString(),
+      data: {
+        occupancy: [...lifecycle.sessions.values()].filter(
+          (s) => s.status === "active",
+        ).length,
+        activeMembers: membership.state.members.filter(
+          (m) => m.status === "active",
+        ).length,
+        lowStock: inventory
+          .list(undefined, false)
+          .filter((p) => p.stock <= p.lowStockThreshold).length,
+        products: inventory.products.size,
+        sales: todaySales.length,
+        salesTodayTotal,
+        ticketTodayTotal,
+        productTodayTotal,
+      },
+    };
   }
-  return { filters, financial, playground, inventory: inventoryReport, membership: membershipReport, live };
+  return {
+    filters,
+    financial,
+    playground,
+    inventory: inventoryReport,
+    membership: membershipReport,
+    live,
+  };
 }
 export type ReportService = ReturnType<typeof createReportService>;

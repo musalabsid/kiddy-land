@@ -18,4 +18,4 @@
 Add for each router brand: `public/network/router-tplink.png`, `router-indihome.png`.
 :::
 
-**You only need ONE of:** Windows Static IP *or* Router Reservation. Pick one.
+**You only need ONE of:** Windows Static IP _or_ Router Reservation. Pick one.

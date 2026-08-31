@@ -12,6 +12,6 @@
       "@workspace/ui/*": ["./src/*"]
     }
   },
-  "include": ["."],
+  "include": [".", "../client/src/assets.d.ts"],
   "exclude": ["node_modules", "dist", "test"]
 }

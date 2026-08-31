@@ -10,12 +10,19 @@ export function detectLanIpv4(): string | undefined {
   const interfaces = networkInterfaces();
   for (const name of Object.keys(interfaces)) {
     const normalized = name.toLowerCase();
-    if (normalized.startsWith("docker") || normalized.startsWith("veth") || normalized.includes("vmware") || normalized.includes("virtual")) continue;
+    if (
+      normalized.startsWith("docker") ||
+      normalized.startsWith("veth") ||
+      normalized.includes("vmware") ||
+      normalized.includes("virtual")
+    )
+      continue;
     const addresses = interfaces[name] ?? [];
     for (const entry of addresses) {
       if (entry.family !== "IPv4" || entry.internal) continue;
       if (entry.address.startsWith("169.254.")) continue; // link-local
-      if (entry.address.startsWith("127.") || entry.address === "0.0.0.0") continue;
+      if (entry.address.startsWith("127.") || entry.address === "0.0.0.0")
+        continue;
       return entry.address;
     }
   }

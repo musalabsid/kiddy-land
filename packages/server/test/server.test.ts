@@ -1,7 +1,8 @@
+import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, test } from "bun:test";
+
 import { createHostRuntime } from "../src/supervisor.ts";
 
 const runtimes: Array<Awaited<ReturnType<typeof createHostRuntime>>> = [];
@@ -31,7 +32,9 @@ describe("Local Server contract", () => {
     await runtime.stop(50);
     expect(runtime.diagnostics().state).toBe("unhealthy");
     expect(runtime.server.health().database).toBe("unhealthy");
-    const response = await fetch(runtime.server.url + "/ready").catch(() => undefined);
+    const response = await fetch(runtime.server.url + "/ready").catch(
+      () => undefined,
+    );
     expect(response).toBeUndefined();
     await rm(dataDir, { recursive: true, force: true });
   });

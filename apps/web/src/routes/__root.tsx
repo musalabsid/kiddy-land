@@ -6,6 +6,7 @@ import { LocaleProvider } from "@workspace/ui/lib/i18n";
 
 import "../styles.css";
 import { ThemeProvider } from "@workspace/ui/providers/theme-provider";
+
 import { DEFAULT_ORIGIN } from "../lib/origin";
 
 export const Route = createRootRoute({
@@ -15,9 +16,7 @@ export const Route = createRootRoute({
 function RootComponent() {
   return (
     <>
-      <ClientProvider
-        origin={DEFAULT_ORIGIN}
-      >
+      <ClientProvider origin={DEFAULT_ORIGIN}>
         <LocaleProvider>
           <ThemeProvider>
             <SessionRefresh />
