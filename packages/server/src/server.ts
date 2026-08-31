@@ -146,8 +146,17 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const calendar = options.calendar ?? createCalendarStore({ database });
   const inventory = options.inventory ?? createInventoryStore(database);
   const membership = options.membership ?? createMembershipStore(database);
+  const venueSettings =
+    options.venueSettings ?? createVenueSettingsStore(database);
   const sales =
-    options.sales ?? createSaleStore(calendar, database, inventory, membership);
+    options.sales ??
+    createSaleStore(
+      calendar,
+      database,
+      inventory,
+      membership,
+      () => venueSettings.get().maxTicketsPerSale,
+    );
   const lifecycle =
     options.lifecycle ?? createLifecycleStore(sales, calendar, database);
   const reports =
@@ -160,8 +169,6 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       membership,
       identity,
     );
-  const venueSettings =
-    options.venueSettings ?? createVenueSettingsStore(database);
   const notifications =
     options.notifications ??
     createNotificationService(
@@ -272,6 +279,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
             (globalThis as any).__alertQueue ?? [];
           (globalThis as any).__alertQueue.push({
             dailyNumber: (ticket as any).dailyNumber ?? ticket.code,
+            childName: (ticket as any).childName,
             threshold,
             ticketId: ticket.id,
             allowedModes,
@@ -283,6 +291,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
         threshold: number;
         ticketId: string;
         allowedModes: Set<string>;
+        childName?: string;
       }> = (globalThis as any).__alertQueue ?? [];
       (globalThis as any).__alertQueue = [];
       queue.forEach((item) => {
@@ -293,6 +302,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
             type: "alert",
             kind: "5min",
             dailyNumber: item.dailyNumber,
+            childName: item.childName,
+            nameCalling: cfg.nameCalling,
             threshold: item.threshold,
             ticketId: item.ticketId,
           };

@@ -18,10 +18,21 @@ export type VenueSettings = {
   alertEnabled: boolean;
   alertThreshold: number;
   alertDevices: Array<"Owner" | "Cashier" | "Kiosk">;
+  nameCalling: boolean;
+  bulkTicketEnabled: boolean;
+  maxTicketsPerSale: number;
 };
 export type PublicVenue = Pick<
   VenueSettings,
-  "venueName" | "logoUrl" | "theme"
+  | "venueName"
+  | "logoUrl"
+  | "theme"
+  | "alertEnabled"
+  | "alertThreshold"
+  | "alertDevices"
+  | "nameCalling"
+  | "bulkTicketEnabled"
+  | "maxTicketsPerSale"
 >;
 
 export function useVenueSettings() {
@@ -64,6 +75,12 @@ export function useUpdateVenueSettings() {
         venueName: data.venueName,
         logoUrl: data.logoUrl,
         theme: data.theme,
+        alertEnabled: data.alertEnabled,
+        alertThreshold: data.alertThreshold,
+        alertDevices: data.alertDevices,
+        nameCalling: data.nameCalling,
+        bulkTicketEnabled: data.bulkTicketEnabled,
+        maxTicketsPerSale: data.maxTicketsPerSale,
       });
     },
   });

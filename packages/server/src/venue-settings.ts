@@ -16,6 +16,9 @@ export type VenueSettings = {
   alertEnabled: boolean;
   alertThreshold: number; // 3-10 default 5
   alertDevices: Array<"Owner" | "Cashier" | "Kiosk">;
+  nameCalling: boolean;
+  bulkTicketEnabled: boolean;
+  maxTicketsPerSale: number; // 2-12 default 12
 };
 
 const DEFAULTS: VenueSettings = {
@@ -26,6 +29,9 @@ const DEFAULTS: VenueSettings = {
   alertEnabled: false,
   alertThreshold: 5,
   alertDevices: ["Cashier", "Kiosk"],
+  nameCalling: false,
+  bulkTicketEnabled: true,
+  maxTicketsPerSale: 12,
 };
 
 const VALID_INTERVALS: BackupInterval[] = [
@@ -82,6 +88,20 @@ export function createVenueSettingsStore(database: LocalDatabase) {
       alertDevices: rawAlertDevices.length
         ? rawAlertDevices
         : DEFAULTS.alertDevices,
+      nameCalling:
+        typeof (raw as any).nameCalling === "boolean"
+          ? (raw as any).nameCalling
+          : DEFAULTS.nameCalling,
+      bulkTicketEnabled:
+        typeof (raw as any).bulkTicketEnabled === "boolean"
+          ? (raw as any).bulkTicketEnabled
+          : DEFAULTS.bulkTicketEnabled,
+      maxTicketsPerSale:
+        Number.isInteger((raw as any).maxTicketsPerSale) &&
+        (raw as any).maxTicketsPerSale >= 2 &&
+        (raw as any).maxTicketsPerSale <= 12
+          ? (raw as any).maxTicketsPerSale
+          : DEFAULTS.maxTicketsPerSale,
     };
   };
   const update = (patch: Partial<VenueSettings>): VenueSettings => {
@@ -104,6 +124,16 @@ export function createVenueSettingsStore(database: LocalDatabase) {
             ) as VenueSettings["alertDevices"])
           : current.alertDevices
         : current.alertDevices;
+    const maxTicketsPerSale =
+      patch.maxTicketsPerSale !== undefined
+        ? Number.isInteger(patch.maxTicketsPerSale) &&
+          patch.maxTicketsPerSale >= 2 &&
+          patch.maxTicketsPerSale <= 12
+          ? patch.maxTicketsPerSale
+          : (() => {
+              throw new Error("Max tickets per sale must be 2-12");
+            })()
+        : current.maxTicketsPerSale;
     const next: VenueSettings = {
       venueName:
         patch.venueName !== undefined
@@ -136,6 +166,15 @@ export function createVenueSettingsStore(database: LocalDatabase) {
           : current.alertEnabled,
       alertThreshold: alertThreshold,
       alertDevices: alertDevices.length ? alertDevices : current.alertDevices,
+      nameCalling:
+        patch.nameCalling !== undefined
+          ? Boolean(patch.nameCalling)
+          : current.nameCalling,
+      bulkTicketEnabled:
+        patch.bulkTicketEnabled !== undefined
+          ? Boolean(patch.bulkTicketEnabled)
+          : current.bulkTicketEnabled,
+      maxTicketsPerSale: maxTicketsPerSale,
     };
     if (!next.venueName.trim()) throw new Error("Venue name is required");
     writeVenueSettings(database, next);

@@ -13,6 +13,7 @@ import {
   useProducts,
   useMembershipDiscounts,
   useSchedule,
+  usePublicVenue,
 } from "@kiddy-land/client/react";
 import { formatIdr } from "@kiddy-land/localization";
 import {
@@ -67,7 +68,8 @@ function translateSaleError(raw: string): string {
   if (v.includes("insufficient stock")) return "sale.errorStock";
   if (v.includes("product unavailable")) return "sale.errorProductUnavailable";
   if (v.includes("member unavailable")) return "sale.errorMemberUnavailable";
-  if (v.includes("more than 12 tickets")) return "sale.errorTicketLimit";
+  if (v.includes("more than 12 tickets") || /more than \d+ tickets/.test(v))
+    return "sale.errorTicketLimit";
   if (v.includes("1 to 24")) return "sale.errorProductQuantity";
   return "sale.error";
 }
@@ -84,6 +86,10 @@ export function CashierSale({
   const complete = useCompleteSale();
   const print = usePrintAttempt();
   const draft = useCashierDraftStore();
+  const venueSettings = usePublicVenue();
+  const maxTicketsPerSale = venueSettings.data?.maxTicketsPerSale ?? 12;
+  const bulkTicketEnabled = venueSettings.data?.bulkTicketEnabled ?? true;
+  const nameCalling = venueSettings.data?.nameCalling ?? false;
   const {
     packageId,
     ticketCount,
@@ -110,6 +116,13 @@ export function CashierSale({
   const packages = config.data?.packages.filter((item) => item.active) ?? [];
   const selected = packages.find((item) => item.id === packageId);
   const displayLines = React.useMemo<DisplayLine[]>(() => {
+    if (nameCalling) {
+      // name calling: render each ticket line individually so names can be edited per ticket
+      return lines.map((line, index) => {
+        const key = `idx:${index}`;
+        return { key, line, count: 1 };
+      });
+    }
     const grouped = new Map<string, DisplayLine>();
     lines.forEach((line) => {
       const key =
@@ -121,12 +134,16 @@ export function CashierSale({
       else grouped.set(key, { key, line, count: 1 });
     });
     return [...grouped.values()];
-  }, [lines]);
+  }, [lines, nameCalling]);
   const ticketLines = lines.filter((line) => line.kind !== "product").length;
   const validTicketCount =
-    Number.isInteger(ticketCount) && ticketCount >= 1 && ticketCount <= 12;
+    Number.isInteger(ticketCount) &&
+    ticketCount >= 1 &&
+    ticketCount <= maxTicketsPerSale;
   const canAddTickets =
-    Boolean(selected) && validTicketCount && ticketLines + ticketCount <= 12;
+    Boolean(selected) &&
+    validTicketCount &&
+    ticketLines + (bulkTicketEnabled ? ticketCount : 1) <= maxTicketsPerSale;
   const operatingDate = config.data
     ? new Intl.DateTimeFormat("en-CA", {
         timeZone: config.data.timezone,
@@ -222,14 +239,16 @@ export function CashierSale({
   );
   const addLine = () => {
     if (!selected || !canAddTickets) return;
+    const count = bulkTicketEnabled ? ticketCount : 1;
     setDraft({
       lines: [
         ...lines,
         ...Array.from(
-          { length: ticketCount },
+          { length: count },
           () =>
             ({
               childId: member?.childId ?? `child_${safeId()}`,
+              childName: member?.name,
               memberId: member?.id,
               packageId: selected.id,
               paymentConfirmed: paymentMethod === "cash",
@@ -274,7 +293,12 @@ export function CashierSale({
       lines: lines.map((line) =>
         line.kind === "product"
           ? { ...line, memberId: next.id }
-          : { ...line, memberId: next.id, childId: next.childId },
+          : {
+              ...line,
+              memberId: next.id,
+              childId: next.childId,
+              childName: next.name,
+            },
       ),
     });
   };
@@ -289,13 +313,20 @@ export function CashierSale({
     });
   const removeGroup = (groupKey: string) =>
     setDraft({
-      lines: lines.filter((line) => {
+      lines: lines.filter((line, index) => {
+        if (nameCalling) return `idx:${index}` !== groupKey;
         const key =
           line.kind === "product"
             ? `product:${line.productId}:${line.quantity}`
             : `ticket:${line.packageId}:${line.memberId ?? "guest"}:${line.childName ?? ""}`;
         return key !== groupKey;
       }),
+    });
+  const setTicketName = (index: number, name: string) =>
+    setDraft({
+      lines: lines.map((line, i) =>
+        i === index ? { ...line, childName: name } : line,
+      ),
     });
   const clearLines = () =>
     setDraft({
@@ -329,6 +360,16 @@ export function CashierSale({
     if (!config.data) {
       setError(t("sale.errorConfig"));
       return;
+    }
+    if (nameCalling) {
+      const missing = lines.some(
+        (line) =>
+          line.kind !== "product" && !String(line.childName ?? "").trim(),
+      );
+      if (missing) {
+        setError(t("sale.errorNameRequired"));
+        return;
+      }
     }
     setError("");
     try {
@@ -584,7 +625,7 @@ export function CashierSale({
             selectMember(selectedMember);
           }}
         />
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_auto] sm:items-end">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
           <FormField
             label={t("sale.choosePackage")}
             required
@@ -604,25 +645,27 @@ export function CashierSale({
               ))}
             </Select>
           </FormField>
-          <FormField
-            label={t("sale.ticketCount")}
-            required
-            htmlFor="sale-ticket-count"
-          >
-            <input
-              id="sale-ticket-count"
-              className="h-10 w-full border border-input bg-background px-3"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              max={Math.max(1, 12 - ticketLines)}
-              step="1"
-              value={ticketCount}
-              onChange={(event) =>
-                setDraft({ ticketCount: Number(event.target.value) })
-              }
-            />
-          </FormField>
+          {bulkTicketEnabled ? (
+            <FormField
+              label={t("sale.ticketCount")}
+              required
+              htmlFor="sale-ticket-count"
+            >
+              <input
+                id="sale-ticket-count"
+                className="h-10 w-full border border-input bg-background px-3"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max={Math.max(1, maxTicketsPerSale - ticketLines)}
+                step="1"
+                value={ticketCount}
+                onChange={(event) =>
+                  setDraft({ ticketCount: Number(event.target.value) })
+                }
+              />
+            </FormField>
+          ) : null}
           <Button
             className="h-10 self-end"
             type="button"
@@ -632,7 +675,7 @@ export function CashierSale({
             {t("sale.addLine")}
           </Button>
           <p className="text-xs text-muted-foreground sm:col-span-3">
-            {t("sale.ticketLimit")}
+            {t("sale.ticketLimit").replace("{n}", String(maxTicketsPerSale))}
           </p>
         </div>
         <div className="grid gap-3 border-t pt-4">
@@ -697,119 +740,144 @@ export function CashierSale({
               </Button>
             ) : null}
           </div>
-          {displayLines.map(({ key, line, count }) => {
-            const item =
-              line.kind === "product" ? productFor(line.productId) : undefined;
-            const original =
-              line.kind === "product"
-                ? (item?.price ?? 0) * line.quantity
-                : (() => {
-                    const pkg = packages.find(
-                      (candidate) => candidate.id === line.packageId,
-                    );
-                    return pkg
-                      ? (pkg.overridePrices[operatingDate] ??
-                          (isWeekend ? pkg.weekendPrice : pkg.weekdayPrice))
-                      : 0;
-                  })() * count;
-            const discount =
-              line.kind === "product"
-                ? line.memberId
-                  ? Math.min(
-                      discounts.data?.products[line.productId] ?? 0,
-                      original,
-                    )
-                  : 0
-                : line.memberId
-                  ? Math.min(
-                      discounts.data?.ticketPackages[line.packageId] ?? 0,
-                      original / count,
-                    ) * count
+          {(() => {
+            let ticketIndex = 0;
+            return displayLines.map(({ key, line, count }, lineIndex) => {
+              const isTicket = line.kind !== "product";
+              const ticketNo = isTicket ? ++ticketIndex : 0;
+              const item = isTicket ? undefined : productFor(line.productId);
+              const original =
+                line.kind === "product"
+                  ? (item?.price ?? 0) * line.quantity
+                  : (() => {
+                      const pkg = packages.find(
+                        (candidate) => candidate.id === line.packageId,
+                      );
+                      return pkg
+                        ? (pkg.overridePrices[operatingDate] ??
+                            (isWeekend ? pkg.weekendPrice : pkg.weekdayPrice))
+                        : 0;
+                    })() * count;
+              const discount =
+                line.kind === "product"
+                  ? line.memberId
+                    ? Math.min(
+                        discounts.data?.products[line.productId] ?? 0,
+                        original,
+                      )
+                    : 0
+                  : line.memberId
+                    ? Math.min(
+                        discounts.data?.ticketPackages[line.packageId] ?? 0,
+                        original / count,
+                      ) * count
+                    : 0;
+              const depositPerGroup =
+                line.kind !== "product"
+                  ? (() => {
+                      const pkg = packages.find(
+                        (candidate) => candidate.id === line.packageId,
+                      );
+                      return (pkg?.deposit ?? 0) * count;
+                    })()
                   : 0;
-            const depositPerGroup =
-              line.kind !== "product"
-                ? (() => {
-                    const pkg = packages.find(
-                      (candidate) => candidate.id === line.packageId,
-                    );
-                    return (pkg?.deposit ?? 0) * count;
-                  })()
-                : 0;
-            const final = original - discount;
-            return (
-              <div
-                className="flex items-center justify-between gap-4 border-b py-3 text-sm"
-                key={key}
-              >
-                <div>
-                  <p className="font-medium">
-                    {line.kind === "product"
-                      ? (item?.name ?? line.productId)
-                      : (packages.find(
-                          (candidate) => candidate.id === line.packageId,
-                        )?.name ?? t("sale.ticket"))}
-                    {count > 1 ? ` × ${count}` : ""}
-                    {line.kind === "product" && line.quantity > 1
-                      ? ` × ${line.quantity}`
-                      : ""}
-                  </p>
-                  {discount > 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      {t("sale.memberDiscountApplied")}
-                    </p>
-                  ) : null}
-                  {depositPerGroup > 0 && line.kind !== "product"
-                    ? (() => {
-                        const pkg = packages.find(
-                          (c) => c.id === (line as TicketLineInput).packageId,
-                        );
-                        const unit = pkg?.deposit ?? 0;
-                        return (
-                          <div className="flex justify-between gap-4 text-xs text-muted-foreground">
-                            <span>
-                              {t("sale.deposit")}:{" "}
-                              {count > 1
-                                ? `${formatIdr(unit, locale)} × ${count}`
-                                : ""}
-                            </span>
-                            <span className="font-mono text-foreground tabular-nums">
-                              {formatIdr(depositPerGroup, locale)}
-                            </span>
-                          </div>
-                        );
-                      })()
-                    : null}
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
+              const final = original - discount;
+              const pkgName = isTicket
+                ? (packages.find((candidate) => candidate.id === line.packageId)
+                    ?.name ?? t("sale.ticket"))
+                : undefined;
+              return (
+                <div
+                  className="grid gap-2 border-b py-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto]"
+                  key={key}
+                >
+                  <div className="min-w-0">
+                    {nameCalling && isTicket ? (
+                      <div className="grid gap-1">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          {t("sale.childNameLabel")
+                            .replace("{n}", String(ticketNo))
+                            .replace("{p}", pkgName ?? "")}
+                        </label>
+                        <input
+                          className="h-9 w-full max-w-[320px] border border-input bg-background px-3"
+                          value={String(line.childName ?? "")}
+                          maxLength={30}
+                          placeholder={"Nama anak"}
+                          onChange={(e) =>
+                            setTicketName(lineIndex, e.target.value)
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <p className="font-medium">
+                        {line.kind === "product"
+                          ? (item?.name ?? line.productId)
+                          : pkgName}
+                        {count > 1 ? ` × ${count}` : ""}
+                        {line.kind === "product" && line.quantity > 1
+                          ? ` × ${line.quantity}`
+                          : ""}
+                      </p>
+                    )}
                     {discount > 0 ? (
-                      <>
-                        <div className="text-xs text-muted-foreground line-through">
-                          {formatIdr(original, locale)}
-                        </div>
-                        <div className="font-semibold text-[var(--state-success)]">
+                      <p className="text-xs text-muted-foreground">
+                        {t("sale.memberDiscountApplied")}
+                      </p>
+                    ) : null}
+                    {depositPerGroup > 0 && line.kind !== "product"
+                      ? (() => {
+                          const pkg = packages.find(
+                            (c) => c.id === (line as TicketLineInput).packageId,
+                          );
+                          const unit = pkg?.deposit ?? 0;
+                          return (
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              <span>
+                                {t("sale.deposit")}:{" "}
+                                {count > 1
+                                  ? `${formatIdr(unit, locale)} × ${count}`
+                                  : ""}
+                              </span>
+                              <span className="font-mono text-foreground tabular-nums">
+                                {formatIdr(depositPerGroup, locale)}
+                              </span>
+                            </div>
+                          );
+                        })()
+                      : null}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      {discount > 0 ? (
+                        <>
+                          <div className="text-xs text-muted-foreground line-through">
+                            {formatIdr(original, locale)}
+                          </div>
+                          <div className="font-semibold text-[var(--state-success)]">
+                            {formatIdr(final, locale)}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="font-medium">
                           {formatIdr(final, locale)}
                         </div>
-                      </>
-                    ) : (
-                      <div className="font-medium">
-                        {formatIdr(final, locale)}
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={t("sale.removeLine")}
+                      onClick={() => removeGroup(key)}
+                    >
+                      <Trash2 />
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={t("sale.removeLine")}
-                    onClick={() => removeGroup(key)}
-                  >
-                    <Trash2 />
-                  </Button>
                 </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
         <div className="grid gap-3 border-t pt-4">
           <div className="flex justify-between gap-4 text-sm">

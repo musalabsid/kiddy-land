@@ -187,6 +187,7 @@ export {
   useRefundDeposit,
 } from "./lifecycle/hooks";
 export * from "./inventory/hooks";
+export * from "./venue";
 export * from "./kiosk";
 export * from "./members/hooks";
 export * from "./reports/hooks";

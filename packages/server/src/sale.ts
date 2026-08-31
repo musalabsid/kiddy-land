@@ -469,6 +469,7 @@ export function createSaleStore(
   database?: LocalDatabase,
   inventory?: InventoryStore,
   membership?: MembershipStore,
+  getMaxTicketsPerSale: () => number = () => 12,
 ) {
   const sales = new Map<string, SaleRecord>();
   const idempotency = new Map<string, SaleRecord>();
@@ -567,8 +568,9 @@ export function createSaleStore(
     const productLines = input.lines.filter(
       (line): line is ProductLineInput => line.kind === "product",
     );
-    if (ticketLines.length > 12)
-      throw new Error("A sale cannot contain more than 12 tickets");
+    const maxTickets = getMaxTicketsPerSale();
+    if (ticketLines.length > maxTickets)
+      throw new Error(`A sale cannot contain more than ${maxTickets} tickets`);
     const snapshots = ticketLines.map((line) => {
       if (!line.childId || !line.packageId)
         throw new Error("Ticket Line requires child and package");

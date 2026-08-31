@@ -217,8 +217,25 @@ export function createApp(
             venueName: current.venueName,
             logoUrl: current.logoUrl,
             theme: current.theme,
+            // operational flags any authenticated device (cashier/kiosk) needs
+            alertEnabled: current.alertEnabled,
+            alertThreshold: current.alertThreshold,
+            alertDevices: current.alertDevices,
+            nameCalling: current.nameCalling,
+            bulkTicketEnabled: current.bulkTicketEnabled,
+            maxTicketsPerSale: current.maxTicketsPerSale,
           }
-        : { venueName: "Kiddy Land", logoUrl: null, theme: "monochrome" },
+        : {
+            venueName: "Kiddy Land",
+            logoUrl: null,
+            theme: "monochrome",
+            alertEnabled: false,
+            alertThreshold: 5,
+            alertDevices: ["Cashier", "Kiosk"],
+            nameCalling: false,
+            bulkTicketEnabled: true,
+            maxTicketsPerSale: 12,
+          },
     );
   });
 

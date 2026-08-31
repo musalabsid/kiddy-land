@@ -131,25 +131,47 @@ export function useAlertSound(enabled?: boolean) {
       }, 300);
     };
     // Server sends type:"alert" with dailyNumber/threshold (5-min timer) — bridged by RealtimeSync
+    // Server sends type:"alert" with dailyNumber/threshold (5-min timer) — bridged by RealtimeSync
     const handler = (ev: Event) => {
       const detail = (ev as CustomEvent).detail as any;
       if (!detail || detail.type !== "alert") return;
       if (detail.sound === false) return;
       const daily = String(detail.dailyNumber ?? "");
-      if (!daily) return;
-      const n = Number(daily);
-      const human = Number.isNaN(n) ? daily : toIndonesianWords(n);
       const thr = Number(detail.threshold ?? 5);
       const thrWord = toIndonesianWords(Math.max(1, thr));
-      const text =
-        "Tiket nomor " +
-        human +
-        ", waktu bermain tinggal " +
-        thrWord +
-        " menit lagi.";
+      // name calling: read child name ("Anak {name} ..."); fallback to dailyNumber when missing
+      let subject = "";
+      const rawName = detail.nameCalling ? String(detail.childName ?? "") : "";
+      const isName = rawName.trim().length > 0;
+      if (isName) {
+        subject = rawName
+          .trim()
+          .slice(0, 30)
+          .replace(/[""“”'‘’]/g, "");
+      } else {
+        const n = Number(daily);
+        subject = Number.isNaN(n) ? daily : toIndonesianWords(n);
+      }
+      const text = isName
+        ? "Anak " +
+          subject +
+          ", waktu bermain tinggal " +
+          thrWord +
+          " menit lagi."
+        : "Tiket nomor " +
+          subject +
+          ", waktu bermain tinggal " +
+          thrWord +
+          " menit lagi.";
       const safeSpeak = () => {
         try {
           safeSpeakText(text);
+          // repeat once more (default) — sentence spoken twice
+          setTimeout(() => {
+            try {
+              safeSpeakText(text);
+            } catch {}
+          }, 900);
         } catch {}
       };
       playBell()

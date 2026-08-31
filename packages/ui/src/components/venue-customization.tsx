@@ -25,6 +25,7 @@ import {
   Image as ImageIcon,
   Bell,
   KeyRound,
+  ShoppingCart,
 } from "lucide-react";
 import * as React from "react";
 import { toast } from "sonner";
@@ -90,13 +91,21 @@ export function VenueCustomization() {
   const [alertDevices, setAlertDevices] = React.useState<
     Array<"Owner" | "Cashier" | "Kiosk">
   >(["Cashier", "Kiosk"]);
+  const [nameCalling, setNameCalling] = React.useState(false);
+  const [bulkTicketEnabled, setBulkTicketEnabled] = React.useState(true);
+  const [maxTicketsPerSale, setMaxTicketsPerSale] = React.useState(12);
   const [currentPassword, setCurrentPassword] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const changePassword = useChangePasswordMutation();
+  const loadedRef = React.useRef(false);
 
   React.useEffect(() => {
     if (!data) return;
+    // Sync from server only once on first load; subsequent refetches must not
+    // stomp unsaved edits (refetchOnWindowFocus, background invalidation).
+    if (loadedRef.current) return;
+    loadedRef.current = true;
     setVenueName(data.venueName);
     setBackupInterval(data.backupInterval);
     setTheme(data.theme);
@@ -105,6 +114,9 @@ export function VenueCustomization() {
     setAlertEnabled((data as any).alertEnabled ?? false);
     setAlertThreshold((data as any).alertThreshold ?? 5);
     setAlertDevices((data as any).alertDevices ?? ["Cashier", "Kiosk"]);
+    setNameCalling((data as any).nameCalling ?? false);
+    setBulkTicketEnabled((data as any).bulkTicketEnabled ?? true);
+    setMaxTicketsPerSale((data as any).maxTicketsPerSale ?? 12);
   }, [data]);
 
   const onLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,6 +146,9 @@ export function VenueCustomization() {
         alertEnabled,
         alertThreshold,
         alertDevices,
+        nameCalling,
+        bulkTicketEnabled,
+        maxTicketsPerSale,
       } as any);
       setVenueTheme(next.theme as VenueTheme);
     } catch (err) {
@@ -156,7 +171,10 @@ export function VenueCustomization() {
       (data as any).alertEnabled !== alertEnabled ||
       (data as any).alertThreshold !== alertThreshold ||
       JSON.stringify((data as any).alertDevices) !==
-        JSON.stringify(alertDevices)
+        JSON.stringify(alertDevices) ||
+      (data as any).nameCalling !== nameCalling ||
+      (data as any).bulkTicketEnabled !== bulkTicketEnabled ||
+      (data as any).maxTicketsPerSale !== maxTicketsPerSale
     : true;
 
   return (
@@ -291,19 +309,20 @@ export function VenueCustomization() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Bell className="size-4" /> Sound alert
+              <Bell className="size-4" /> {t("customization.alertTitle")}
             </CardTitle>
             <CardDescription>
-              Putar peringatan suara "Tiket nomor 4, waktu bermain tinggal 5
-              menit lagi" dalam bahasa Indonesia
+              {t("customization.alertDescription")}
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-medium">Enable alert</p>
+                <p className="text-sm font-medium">
+                  {t("customization.enableAlert")}
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  Aktifkan peringatan suara
+                  {t("customization.enableAlertDescription")}
                 </p>
               </div>
               <Switch
@@ -313,7 +332,10 @@ export function VenueCustomization() {
             </div>
             <div className="grid gap-2">
               <label className="text-sm font-medium">
-                Threshold: {alertThreshold} menit (3-10)
+                {t("customization.threshold").replace(
+                  "{n}",
+                  String(alertThreshold),
+                )}
               </label>
               <Slider
                 value={[alertThreshold]}
@@ -325,7 +347,9 @@ export function VenueCustomization() {
               />
             </div>
             <div className="grid gap-2">
-              <label className="text-sm font-medium">Play on devices</label>
+              <label className="text-sm font-medium">
+                {t("customization.alertDevices")}
+              </label>
               <div className="flex flex-wrap gap-2">
                 {(["Owner", "Cashier", "Kiosk"] as const).map((dev) => (
                   <label
@@ -349,9 +373,63 @@ export function VenueCustomization() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                Default: Cashier + Kiosk on, Owner off. Browser SpeechSynthesis
-                id-ID, "0004" → "empat".
+                {t("customization.alertDevicesHint")}
               </p>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">
+                  {t("customization.nameCalling")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("customization.nameCallingDescription")}
+                </p>
+              </div>
+              <Switch checked={nameCalling} onCheckedChange={setNameCalling} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShoppingCart className="size-4" />
+              {t("customization.bulkTitle")}
+            </CardTitle>
+            <CardDescription>
+              {t("customization.bulkDescription")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium">
+                  {t("customization.bulkEnable")}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("customization.bulkEnableDescription")}
+                </p>
+              </div>
+              <Switch
+                checked={bulkTicketEnabled}
+                onCheckedChange={setBulkTicketEnabled}
+              />
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">
+                {t("customization.maxTickets").replace(
+                  "{n}",
+                  String(maxTicketsPerSale),
+                )}
+              </label>
+              <Slider
+                value={[maxTicketsPerSale]}
+                min={2}
+                max={12}
+                step={1}
+                onValueChange={(v: any) => setMaxTicketsPerSale(v[0] ?? 12)}
+                disabled={!bulkTicketEnabled}
+              />
             </div>
           </CardContent>
         </Card>
