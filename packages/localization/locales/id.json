@@ -597,5 +597,6 @@
   "settings.passwordMismatch": "Password tidak cocok",
   "common.close": "Tutup",
   "scanner.refundDeposit": "Kembalikan deposit",
-  "scanner.depositHeld": "Deposit ditahan"
+  "scanner.depositHeld": "Deposit ditahan",
+  "scanner.refundRequired": "Kembalikan deposit dulu sebelum scan berikutnya"
 }

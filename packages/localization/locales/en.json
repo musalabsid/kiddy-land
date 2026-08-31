@@ -597,5 +597,6 @@
   "settings.passwordMismatch": "Passwords do not match",
   "common.close": "Close",
   "scanner.refundDeposit": "Refund deposit",
-  "scanner.depositHeld": "Deposit held"
+  "scanner.depositHeld": "Deposit held",
+  "scanner.refundRequired": "Refund deposit first before next scan"
 }

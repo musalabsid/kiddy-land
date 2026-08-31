@@ -104,7 +104,7 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
     return { ticketId, amount: collected, paymentMethod, collectedAt: at, session };
   }
   function refundDeposit(ticketId: string, actorRole: string, at = Date.now()) {
-    if (actorRole !== "Cashier" && actorRole !== "Owner") throw new Error("Cashier authorization required");
+    if (!["Cashier", "Owner", "Staff"].includes(actorRole)) throw new Error("Cashier authorization required");
     const session = sessions.get(ticketId); if (!session || session.status === "active") throw new Error("Ticket must be settled before refund");
     const sale = [...sales.sales.values()].find((item) => item.tickets.some((candidate) => candidate.id === ticketId));
     const deposit = sale?.deposits.find((item) => item.ticketId === ticketId);

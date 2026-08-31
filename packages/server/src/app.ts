@@ -319,7 +319,7 @@ export function createApp(
     });
     app.post("/tickets/:id/refund-deposit", async (c) => {
       const current = identity?.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
-      if (!current || !["Cashier", "Owner"].includes(current.device.mode) || !identity?.can(current, "write")) return c.json({ error: "Forbidden" }, 403);
+      if (!current || (!identity?.can(current, "write") && !identity?.can(current, "ticket:exit"))) return c.json({ error: "Forbidden" }, 403);
       try { const result = lifecycle.refundDeposit(c.req.param("id"), current.user?.role ?? "Cashier"); if (realtime) publishReportEvent(realtime.registry, { type: "report-changed", source: "deposit" }); return c.json(result); } catch { return c.json({ error: "Deposit cannot be refunded" }, 409); }
     });
     app.post("/tickets/recover", async (c) => {
