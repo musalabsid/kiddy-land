@@ -153,7 +153,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   }, 60_000);
   // Sound alert: check active tickets remaining == threshold (default 5) every 15s, broadcast to alertDevices
   const alertNotified = new Map<string, number>();
-  let alertSequence = 0; // global stagger offset across ticks
+  let lastAlertAt = 0; // stagger only for back-to-back alerts; gap long enough -> next fires immediately
   const alertTimer = setInterval(() => {
     try {
       const cfg = venueSettings.get();
@@ -184,18 +184,18 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       const queue: Array<{dailyNumber:string;threshold:number;ticketId:string;allowedModes:Set<string>}> = (globalThis as any).__alertQueue ?? [];
       (globalThis as any).__alertQueue = [];
       queue.forEach((item) => {
-        const delay = alertSequence++ * 15_000;
+        const delay = Math.max(0, lastAlertAt + 15_000 - Date.now());
+        lastAlertAt = Date.now() + delay;
         setTimeout(() => {
           const payload = { type: "alert", kind: "5min", dailyNumber: item.dailyNumber, threshold: item.threshold, ticketId: item.ticketId };
+          let sent = false;
           for (const [deviceId, info] of (identity as any).devices?.entries?.() ?? []) {
             const mode = (info as any).mode as string;
             const allowed = item.allowedModes.has(mode) || (mode==="Public Kiosk" && item.allowedModes.has("Public Kiosk"));
             if (!allowed) continue;
-            const conn = (registry as any)?.get?.(deviceId);
-            if (conn) try { conn.send(JSON.stringify(payload)); } catch {}
+            try { (registry as any)?.sendDevice?.(deviceId, payload); sent = true; } catch {}
           }
-          try { (registry as any)?.broadcast?.(JSON.stringify(payload)); } catch {}
-          console.log(`[alert] ticket ${item.dailyNumber} ${item.threshold}m left (staggered ${delay/1000}s)`);
+          if (sent) console.log(`[alert] ticket ${item.dailyNumber} ${item.threshold}m left (staggered ${delay/1000}s)`);
         }, delay);
       });
       // cleanup old keys (>24h)

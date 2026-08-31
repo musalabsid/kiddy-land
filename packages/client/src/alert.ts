@@ -1,4 +1,6 @@
+/// <reference path="./assets.d.ts" />
 import * as React from "react";
+import bellUrl from "../bell-intro.mp3";
 
 function toIndonesianWords(n: number): string {
   if (n === 0) return "nol";
@@ -13,7 +15,45 @@ function toIndonesianWords(n: number): string {
   if (n < 1000) return (units[Math.floor(n/100)] as string) + " ratus" + (n%100 ? " " + toIndonesianWords(n%100) : "");
   return String(n);
 }
+
+// Cached Audio element (reuse across alerts; Vite serves /bell-intro.mp3 from client package)
+let bell: HTMLAudioElement | null = null;
+function playBell(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  try {
+    if (!bell) {
+      bell = new Audio(bellUrl);
+      bell.preload = "auto";
+    }
+    bell.currentTime = 0;
+    return bell.play();
+  } catch {
+    return Promise.reject(new Error("bell-play-failed"));
+  }
+}
+
+// Autoplay policy: WS alerts are not user gestures — unlock audio after first interaction
+const unlockAudio = () => {
+  try {
+    const ctx = new AudioContext();
+    void ctx.resume();
+    void ctx.close();
+    window.removeEventListener("pointerdown", unlockAudio);
+    window.removeEventListener("keydown", unlockAudio);
+  } catch {}
+};
+
 export function useAlertSound(enabled?: boolean) {
+  React.useEffect(() => {
+    if (enabled === false) return;
+    window.addEventListener("pointerdown", unlockAudio, { once: true });
+    window.addEventListener("keydown", unlockAudio, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+    };
+  }, [enabled]);
+
   React.useEffect(() => {
     if (enabled === false) return;
     const speak =
@@ -42,7 +82,9 @@ export function useAlertSound(enabled?: boolean) {
       const human = Number.isNaN(n) ? daily : toIndonesianWords(n);
       const thr = Number(detail.threshold ?? 5);
       const thrWord = toIndonesianWords(Math.max(1, thr));
-      speak("Tiket nomor " + human + ", waktu bermain tinggal " + thrWord + " menit lagi.");
+      const text = "Tiket nomor " + human + ", waktu bermain tinggal " + thrWord + " menit lagi.";
+      const safeSpeak = () => { try { speak(text); } catch {} };
+      playBell().then(() => setTimeout(safeSpeak, 800)).catch(safeSpeak);
     };
     window.addEventListener("kiddy-land-alert", handler as any);
     return () => window.removeEventListener("kiddy-land-alert", handler as any);
