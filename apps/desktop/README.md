@@ -1,7 +1,20 @@
-# Tauri + React + Typescript
+# Desktop (Tauri)
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+Tauri desktop shell for cashier/scanner/owner devices — same UI as `apps/web` via the shared
+`@workspace/ui` components, run inside a native WebKitGTK window.
 
-## Recommended IDE Setup
+See the [root README](../README.md) for setup and the [docs](../apps/docs) for device pairing and roles.
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+## Dev
+
+```sh
+bun install
+bun --cwd apps/desktop dev        # Vite on http://localhost:1420
+bun --cwd apps/desktop tauri dev  # native window (requires Rust toolchain)
+```
+
+## Build
+
+```sh
+bun build:desktop                 # standalone bundle + Tauri package
+```
