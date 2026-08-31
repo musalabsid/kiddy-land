@@ -25,8 +25,16 @@ export function createLifecycleStore(sales: SaleStore, calendar: CalendarStore, 
 
   function findTicket(codeOrToken: string) {
     const recoveredId = recoveryCodes.get(codeOrToken);
+    const today = calendar.operatingDate(new Date());
+    // dailyNumber repeats every day — only match within today's sales (typing "0010" should hit today's ticket #10, not an old settled one)
     for (const sale of sales.sales.values()) {
-      const ticket = sale.tickets.find((candidate) => candidate.id === recoveredId || candidate.code === codeOrToken || (candidate as any).dailyNumber === codeOrToken || candidate.qrToken === codeOrToken);
+      const isDailyNumber = /^\d{1,8}$/.test(codeOrToken);
+      const ticket = sale.tickets.find((candidate) =>
+        candidate.id === recoveredId ||
+        candidate.code === codeOrToken ||
+        (isDailyNumber && sale.operatingDate === today && (candidate as any).dailyNumber === codeOrToken) ||
+        candidate.qrToken === codeOrToken
+      );
       if (ticket) return ticket;
     }
     return undefined;

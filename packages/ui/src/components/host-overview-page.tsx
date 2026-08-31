@@ -31,6 +31,8 @@ export function HostOverviewPage({
   const [stopOpen, setStopOpen] = React.useState(false);
   const [startOpen, setStartOpen] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
+  const [depositInfoOpen, setDepositInfoOpen] = React.useState(false);
+  React.useEffect(()=>{ (window as any).__depositInfo = () => setDepositInfoOpen(true); return ()=>{ delete (window as any).__depositInfo; }; }, []);
   const prevLanIp = React.useRef<string | undefined>(undefined);
   const [lanIpChanged, setLanIpChanged] = React.useState<{ old?: string; cur?: string } | null>(null);
   React.useEffect(() => {
@@ -153,7 +155,7 @@ export function HostOverviewPage({
                 <p className="text-muted-foreground">
                   {ready ? "Cashier, scanner and kiosk are connected to this origin. No internet needed." : "Devices are offline. Start the host to reconnect cashier, scanner and kiosk on this LAN."}
                 </p>
-                <p className="font-mono text-[11px] break-all">{status.origin ?? origin ?? t("host.stopUnavailable")}</p>
+                <p className="font-mono text-[11px] break-all">{(status as any).httpsUrl ?? status.origin ?? origin ?? t("host.stopUnavailable")}</p>
               </div>
             </div>
           </div>
@@ -264,7 +266,7 @@ export function HostOverviewPage({
                           <th className="text-right">{t("overview.remaining")}</th>
                           <th className="text-right">{t("overview.overtime")}</th>
                           <th className="text-right">{t("overview.grace")}</th>
-                          <th className="text-right">{t("overview.deposit")}</th>
+                          <th className="text-right"><span className="inline-flex items-center gap-1">{t("overview.deposit")} <button type="button" onClick={()=> (window as any).__depositInfo?.()} className="inline-flex size-4 items-center justify-center rounded-full border text-[10px] leading-none hover:bg-muted" aria-label="info">!</button></span></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -292,6 +294,20 @@ export function HostOverviewPage({
           </Card>
         </div>
 
+        <AlertDialog open={depositInfoOpen} onOpenChange={setDepositInfoOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("overview.depositInfoTitle")}</AlertDialogTitle>
+              <AlertDialogDescription className="grid gap-2 text-left">
+                <span><b>{t("overview.depositHeld")}:</b> {t("overview.depositHeldDesc")}</span>
+                <span><b>{t("overview.depositApplied")}:</b> {t("overview.depositAppliedDesc")}</span>
+                <span><b>{t("overview.depositRefunded")}:</b> {t("overview.depositRefundedDesc")}</span>
+                <span><b>{t("overview.depositForfeited")}:</b> {t("overview.depositForfeitedDesc")}</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter><AlertDialogAction onClick={()=> setDepositInfoOpen(false)}>{t("common.close")}</AlertDialogAction></AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <AlertDialog open={stopOpen} onOpenChange={setStopOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -411,8 +427,14 @@ function TicketRow({ ticket, locale, t }: { ticket: OverviewTicket; locale: "id"
   const remainingTone = ticket.remainingMinutes === null ? "text-muted-foreground" : ticket.remainingMinutes === 0 ? "text-destructive font-medium" : ticket.remainingMinutes <= 10 ? "text-[var(--state-warning)] font-medium" : "text-foreground font-medium tabular-nums";
   const overtimeTone = ticket.overtimeMinutes > 0 ? "text-destructive font-medium tabular-nums" : "text-muted-foreground tabular-nums";
   const outstanding = ticket.outstandingCharge ?? 0;
+  const isThreshold = ticket.remainingMinutes !== null && ticket.remainingMinutes <= 5 && ticket.remainingMinutes >= 0 && ticket.status === "active"; // threshold 5m and below yellow
+  const isOvertimeActive = ticket.overtimeMinutes > 0 && ticket.status === "active";
   return (
-    <tr className="hover:bg-muted/20">
+    <tr className={cn(
+      "hover:bg-muted/20",
+      isOvertimeActive && "bg-destructive/10",
+      isThreshold && !isOvertimeActive && "bg-[var(--state-warning-bg)]/40"
+    )}>
       <td className="px-3 py-2.5">
         <div className="font-mono text-xs font-bold leading-tight">{ticket.dailyNumber}</div>
         <div className="font-mono text-[11px] leading-tight text-muted-foreground">{ticket.code}</div>

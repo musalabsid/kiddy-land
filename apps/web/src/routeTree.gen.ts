@@ -30,6 +30,7 @@ import { Route as AuthenticatedShellOwnerMembershipDiscountsRouteImport } from '
 import { Route as AuthenticatedShellOwnerMembershipsRouteImport } from './routes/_authenticated/_shell/owner/memberships'
 import { Route as AuthenticatedShellOwnerPackagesRouteImport } from './routes/_authenticated/_shell/owner/packages'
 import { Route as AuthenticatedShellOwnerReportsRouteImport } from './routes/_authenticated/_shell/owner/reports'
+import { Route as AuthenticatedShellOwnerSettingsRouteImport } from './routes/_authenticated/_shell/owner/settings'
 
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
   id: '/_authenticated',
@@ -149,6 +150,12 @@ const AuthenticatedShellOwnerReportsRoute =
     path: '/owner/reports',
     getParentRoute: () => AuthenticatedShellRoute,
   } as any)
+const AuthenticatedShellOwnerSettingsRoute =
+  AuthenticatedShellOwnerSettingsRouteImport.update({
+    id: '/owner/settings',
+    path: '/owner/settings',
+    getParentRoute: () => AuthenticatedShellRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedShellIndexRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/owner/memberships': typeof AuthenticatedShellOwnerMembershipsRoute
   '/owner/packages': typeof AuthenticatedShellOwnerPackagesRoute
   '/owner/reports': typeof AuthenticatedShellOwnerReportsRoute
+  '/owner/settings': typeof AuthenticatedShellOwnerSettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthenticatedShellIndexRoute
@@ -191,6 +199,7 @@ export interface FileRoutesByTo {
   '/owner/memberships': typeof AuthenticatedShellOwnerMembershipsRoute
   '/owner/packages': typeof AuthenticatedShellOwnerPackagesRoute
   '/owner/reports': typeof AuthenticatedShellOwnerReportsRoute
+  '/owner/settings': typeof AuthenticatedShellOwnerSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -215,6 +224,7 @@ export interface FileRoutesById {
   '/_authenticated/_shell/owner/memberships': typeof AuthenticatedShellOwnerMembershipsRoute
   '/_authenticated/_shell/owner/packages': typeof AuthenticatedShellOwnerPackagesRoute
   '/_authenticated/_shell/owner/reports': typeof AuthenticatedShellOwnerReportsRoute
+  '/_authenticated/_shell/owner/settings': typeof AuthenticatedShellOwnerSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -238,6 +248,7 @@ export interface FileRouteTypes {
     | '/owner/memberships'
     | '/owner/packages'
     | '/owner/reports'
+    | '/owner/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -259,6 +270,7 @@ export interface FileRouteTypes {
     | '/owner/memberships'
     | '/owner/packages'
     | '/owner/reports'
+    | '/owner/settings'
   id:
     | '__root__'
     | '/_authenticated'
@@ -282,6 +294,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_shell/owner/memberships'
     | '/_authenticated/_shell/owner/packages'
     | '/_authenticated/_shell/owner/reports'
+    | '/_authenticated/_shell/owner/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -438,6 +451,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedShellOwnerReportsRouteImport
       parentRoute: typeof AuthenticatedShellRoute
     }
+    '/_authenticated/_shell/owner/settings': {
+      id: '/_authenticated/_shell/owner/settings'
+      path: '/owner/settings'
+      fullPath: '/owner/settings'
+      preLoaderRoute: typeof AuthenticatedShellOwnerSettingsRouteImport
+      parentRoute: typeof AuthenticatedShellRoute
+    }
   }
 }
 
@@ -458,6 +478,7 @@ interface AuthenticatedShellRouteChildren {
   AuthenticatedShellOwnerMembershipsRoute: typeof AuthenticatedShellOwnerMembershipsRoute
   AuthenticatedShellOwnerPackagesRoute: typeof AuthenticatedShellOwnerPackagesRoute
   AuthenticatedShellOwnerReportsRoute: typeof AuthenticatedShellOwnerReportsRoute
+  AuthenticatedShellOwnerSettingsRoute: typeof AuthenticatedShellOwnerSettingsRoute
 }
 
 const AuthenticatedShellRouteChildren: AuthenticatedShellRouteChildren = {
@@ -480,6 +501,7 @@ const AuthenticatedShellRouteChildren: AuthenticatedShellRouteChildren = {
     AuthenticatedShellOwnerMembershipsRoute,
   AuthenticatedShellOwnerPackagesRoute: AuthenticatedShellOwnerPackagesRoute,
   AuthenticatedShellOwnerReportsRoute: AuthenticatedShellOwnerReportsRoute,
+  AuthenticatedShellOwnerSettingsRoute: AuthenticatedShellOwnerSettingsRoute,
 }
 
 const AuthenticatedShellRouteWithChildren =

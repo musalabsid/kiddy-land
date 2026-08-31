@@ -113,3 +113,8 @@ export function useLoginMutation() {
   const pairedDevice = useAuthStore((state) => state.pairedDevice);
   return useMutation({ mutationFn: ({ deviceId, username, password }: { deviceId: string; username: string; password: string }) => new AuthService(client).login(deviceId, username, password), onSuccess: async (result) => { if (!pairedDevice) return; client.setToken(result.token); const current = await client.get<{ device: typeof pairedDevice; user?: SessionInfo["user"] }>("/auth/session"); const session = { token: result.token, deviceId: result.deviceId, device: current.device, user: current.user }; queueMicrotask(() => { setSession(session); writeStoredSession(session); queryClient.invalidateQueries({ queryKey: clientQueryKeys.session }); }); } });
 }
+
+export function useChangePasswordMutation() {
+  const client = useApiClient();
+  return useMutation({ mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) => new AuthService(client).changePassword(currentPassword, newPassword) });
+}

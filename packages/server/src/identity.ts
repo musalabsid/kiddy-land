@@ -163,6 +163,15 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     }
     return createSession(deviceId, user.id);
   }
+  function changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = users.get(userId);
+    if (!user) throw new Error("User not found");
+    if (!verifyPassword(currentPassword, user.passwordHash)) throw new Error("Current password is incorrect");
+    if (newPassword.trim().length < 8) throw new Error("New password must be at least 8 characters");
+    user.passwordHash = hashPassword(newPassword);
+    persistUser(user);
+    return { ok: true };
+  }
   function authenticate(sessionToken: string | undefined) {
     const session = sessionToken ? sessions.get(sessionToken) : undefined;
     const device = session && devices.get(session.deviceId);
@@ -203,7 +212,7 @@ export function createIdentityStore(initial?: { ownerPassword?: string; events?:
     initial?.events?.deviceRevoked?.(deviceId);
     return true;
   }
-  return { owner, users, devices, sessions, isBootstrapped, ownerDevice, bootstrap, createEnrollment, pair, login, authenticate, can, revokeDevice, deleteDevice };
+  return { owner, users, devices, sessions, isBootstrapped, ownerDevice, bootstrap, createEnrollment, pair, login, changePassword, authenticate, can, revokeDevice, deleteDevice };
 }
 
 export type Identity = NonNullable<ReturnType<IdentityStore["authenticate"]>>;

@@ -15,4 +15,8 @@ export function useCollectCharge() {
   const client = useClient(); const connection = useConnectionStore();
   return useMutation({ mutationFn: ({ ticketId, amount, paymentMethod }: { ticketId: string; amount: number; paymentMethod: "cash" | "QRIS" | "bank-transfer" }) => { if (!canMutate(connection.state, connection.synchronized)) throw new Error("Connection is not synchronized"); return client.post<{ ticketId: string; amount: number; paymentMethod: string; collectedAt: number; session: PlaySession }>(`/tickets/${ticketId}/collect-charge`, { amount, paymentMethod }); } });
 }
+export function useRefundDeposit() {
+  const client = useClient(); const connection = useConnectionStore();
+  return useMutation({ mutationFn: (ticketId: string) => { if (!canMutate(connection.state, connection.synchronized)) throw new Error("Connection is not synchronized"); return client.post<{ ticketId: string; amount: number; refundedAt: number }>(`/tickets/${ticketId}/refund-deposit`, {}); } });
+}
 export type { PlaySession, ScanResult };

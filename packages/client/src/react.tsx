@@ -26,7 +26,11 @@ function RealtimeSync() {
   React.useEffect(() => {
     if (!session) return undefined;
     const realtime = new RealtimeClient(`${client.origin.replace(/^http/, "ws")}/ws`, () => client.getToken());
-    const unsubscribe = realtime.subscribe((event) => { if (event.type === "revoked") { client.setToken(undefined); clear(); } else if (event.type === "connected") setState("connected"); else if (event.type === "disconnected") setState("read-only"); else if (event.type === "synchronized") { setState("synchronized", true); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.reports }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.liveReport }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.overview }); } else if (event.type === "report-changed") { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.reports }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.liveReport }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.overview }); } else if (event.type === "notification" && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("kiddy-land-notification", { detail: event })); });
+    const unsubscribe = realtime.subscribe((event) => { if (event.type === "revoked") { client.setToken(undefined); clear(); } else if (event.type === "connected") setState("connected"); else if (event.type === "disconnected") setState("read-only"); else if (event.type === "synchronized") { setState("synchronized", true); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.reports }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.liveReport }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.overview }); } else if (event.type === "report-changed") { void queryClient.invalidateQueries({ queryKey: clientQueryKeys.reports }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.liveReport }); void queryClient.invalidateQueries({ queryKey: clientQueryKeys.overview }); } else if (event.type === "notification" && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("kiddy-land-notification", { detail: event }));
+      // five-minute-remaining alerts also drive voice (kiddy-land-alert) with dailyNumber/threshold
+      if (event.kind === "five-minute-remaining" && event.dailyNumber) window.dispatchEvent(new CustomEvent("kiddy-land-alert", { detail: { ...event, type: "alert" } }));
+    } else if (event.type === "alert" && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("kiddy-land-alert", { detail: event })); });
     realtime.connect();
     return () => { unsubscribe(); realtime.close(); };
   }, [client, clear, session, setState]);
@@ -48,11 +52,11 @@ export function useClientConnection() { const state = useConnectionStore(); retu
 export function useSession() { return useAuthStore(); }
 export { ApiClient, ClientError } from "./api/client";
 export { AuthService } from "./auth/service";
-export { useLoginMutation, useOwnerLoginMutation, usePairingMutation, useSessionQuery, useDevicesQuery, useInvitationMutation, useRevokeDeviceMutation, useDeleteDeviceMutation, useBootstrapStatusQuery, useBootstrapMutation, useLogout } from "./query/hooks";
+export { useLoginMutation, useOwnerLoginMutation, usePairingMutation, useSessionQuery, useDevicesQuery, useInvitationMutation, useRevokeDeviceMutation, useDeleteDeviceMutation, useBootstrapStatusQuery, useBootstrapMutation, useLogout, useChangePasswordMutation } from "./query/hooks";
 export { useCalendarConfig, useConfigureCalendar, useDeleteCalendarOverride, useDeleteTicketPackage, useSchedule, usePackageSnapshot } from "./calendar/hooks";
 export { useCompleteSale, usePrintAttempt, useSale, useSales, useSaleArtifact, saleArtifactUrl, saleQrUrl } from "./sales/hooks";
 export { useCashierDraftStore } from "./sales/store";
-export { useTicketScan, useTicketRecovery, useCollectCharge } from "./lifecycle/hooks";
+export { useTicketScan, useTicketRecovery, useCollectCharge, useRefundDeposit } from "./lifecycle/hooks";
 export * from "./inventory/hooks";
 export * from "./kiosk";
 export * from "./members/hooks";

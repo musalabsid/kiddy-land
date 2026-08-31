@@ -70,7 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useAlertSound();
   const venue = usePublicVenue();
   const active = (path: string) => pathname === path;
-  const pageTitleKey = (pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/sales-history" ? "app.salesHistory" : pathname === "/members" ? "app.members" : pathname === "/inventory" || pathname === "/owner/inventory" ? "app.inventory" : pathname === "/scanner" ? "app.scanner" : pathname === "/kiosk" ? "app.kiosk" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : pathname === "/owner/customization" ? "app.customization" : "host.title") as MessageKey;
+  const pageTitleKey = (pathname === "/" ? "app.overview" : pathname === "/sales" ? "app.sales" : pathname === "/sales-history" ? "app.salesHistory" : pathname === "/members" ? "app.members" : pathname === "/inventory" || pathname === "/owner/inventory" ? "app.inventory" : pathname === "/scanner" ? "app.scanner" : pathname === "/kiosk" ? "app.kiosk" : pathname === "/owner/devices" ? "app.devices" : pathname === "/owner/calendar" ? "app.calendar" : pathname === "/owner/packages" ? "app.packages" : pathname === "/owner/catalog" ? "app.catalog" : pathname === "/owner/memberships" ? "app.memberships" : pathname === "/owner/membership-discounts" ? "app.membershipDiscounts" : pathname === "/owner/reports" ? "app.reports" : pathname === "/owner/backups" ? "app.backups" : pathname === "/owner/customization" || pathname === "/owner/settings" ? "app.settings" : "host.title") as MessageKey;
   if (!session) return null;
   const mode = session.device.mode;
   const isOwner = session.user?.role === "Owner";
@@ -223,9 +223,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
-                    <SidebarMenuButton render={<Link to="/owner/customization" />} isActive={active("/owner/customization")}>
+                    <SidebarMenuButton render={<Link to="/owner/settings" />} isActive={active("/owner/settings") || active("/owner/customization")}>
                       <Palette />
-                      {t("app.customization" as MessageKey)}
+                      {t("app.settings" as MessageKey)}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>

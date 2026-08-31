@@ -174,7 +174,7 @@ const scannerRoute = createRoute({
                 {t("scanner.exitTitle")}
               </Button>
             </div>
-            {tab === "entry" ? <TicketScanner kind="entry" /> : <TicketScanner kind="exit" />}
+            {tab === "entry" ? <TicketScanner key="entry" kind="entry" /> : <TicketScanner key="exit" kind="exit" />}
           </div>
         </div>
       </RouteAccessGate>
@@ -284,6 +284,16 @@ const ownerCustomizationRoute = createRoute({
   ),
 });
 
+const ownerSettingsRoute = createRoute({
+  getParentRoute: () => shellRoute,
+  path: "/owner/settings",
+  component: () => (
+    <RouteAccessGate requireRole="Owner">
+      <VenueCustomization />
+    </RouteAccessGate>
+  ),
+});
+
 function SessionRefresh() {
   useSession();
   return null;
@@ -346,6 +356,7 @@ export const routeTree = rootRoute.addChildren([
       ownerReportsRoute,
       ownerBackupsRoute,
       ownerCustomizationRoute,
+      ownerSettingsRoute,
     ]),
   ]),
 ]);

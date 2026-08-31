@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useVenueSettings, useUpdateVenueSettings, type BackupInterval, type VenueTheme } from "@kiddy-land/client";
+import { useChangePasswordMutation } from "@kiddy-land/client/react";
 import { useTheme } from "@workspace/ui/providers/theme-provider";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
@@ -7,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@work
 import { Select } from "@workspace/ui/components/select";
 import { Switch } from "@workspace/ui/components/switch";
 import { Slider } from "@workspace/ui/components/slider";
-import { LoaderCircle, Upload, Image as ImageIcon, Bell } from "lucide-react";
+import { LoaderCircle, Upload, Image as ImageIcon, Bell, KeyRound } from "lucide-react";
+import { toast } from "sonner";
 import { useLocale, type MessageKey } from "@workspace/ui/lib/i18n";
 
 const THEMES: { value: VenueTheme; labelKey: MessageKey; descKey: MessageKey; swatch: string }[] = [
@@ -38,6 +40,10 @@ export function VenueCustomization() {
   const [alertEnabled, setAlertEnabled] = React.useState(false);
   const [alertThreshold, setAlertThreshold] = React.useState(5);
   const [alertDevices, setAlertDevices] = React.useState<Array<"Owner"|"Cashier"|"Kiosk">>(["Cashier","Kiosk"]);
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [newPassword, setNewPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const changePassword = useChangePasswordMutation();
 
   React.useEffect(() => {
     if (!data) return;
@@ -81,9 +87,9 @@ export function VenueCustomization() {
   return (
     <div className="w-full max-w-6xl px-5 py-8 sm:px-8">
       <header className="mb-4">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">{t("customization.eyebrow")}</p>
-        <h2 className="text-2xl font-semibold tracking-tight">{t("customization.title")}</h2>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t("customization.subtitle")}</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-primary">{t("settings.eyebrow") ?? t("customization.eyebrow")}</p>
+        <h2 className="text-2xl font-semibold tracking-tight">{t("settings.title") ?? t("customization.title")}</h2>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t("settings.subtitle") ?? t("customization.subtitle")}</p>
       </header>
       <div className="space-y-6">
 
@@ -161,6 +167,29 @@ export function VenueCustomization() {
             </div>
             <p className="text-xs text-muted-foreground">Default: Cashier + Kiosk on, Owner off. Browser SpeechSynthesis id-ID, "0004" → "empat".</p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><KeyRound className="size-4" /> {t("settings.passwordTitle") ?? "Change owner password"}</CardTitle>
+          <CardDescription>{t("settings.passwordDescription") ?? "Update the owner login password (min 8 characters)"}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <div className="grid gap-2">
+            <label className="text-sm font-medium">{t("settings.currentPassword") ?? "Current password"}</label>
+            <Input type="password" value={currentPassword} onChange={(e)=> setCurrentPassword(e.target.value)} placeholder="••••••••" />
+          </div>
+          <div className="grid gap-2">
+            <label className="text-sm font-medium">{t("settings.newPassword") ?? "New password"}</label>
+            <Input type="password" value={newPassword} onChange={(e)=> setNewPassword(e.target.value)} placeholder="••••••••" />
+          </div>
+          <div className="grid gap-2">
+            <label className="text-sm font-medium">{t("settings.confirmPassword") ?? "Confirm new password"}</label>
+            <Input type="password" value={confirmPassword} onChange={(e)=> setConfirmPassword(e.target.value)} placeholder="••••••••" />
+          </div>
+          <Button disabled={!currentPassword || !newPassword || newPassword !== confirmPassword || changePassword.isPending} onClick={async ()=>{ try{ await changePassword.mutateAsync({ currentPassword, newPassword }); toast.success(t("settings.passwordChanged") ?? "Password changed"); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); } catch(e){ toast.error(e instanceof Error ? e.message : String(e)); } }}>{changePassword.isPending ? t("settings.changing") ?? "Changing..." : t("settings.changePassword") ?? "Change password"}</Button>
+          {newPassword && confirmPassword && newPassword !== confirmPassword ? <p className="text-xs text-destructive">{t("settings.passwordMismatch") ?? "Passwords do not match"}</p> : null}
         </CardContent>
       </Card>
 

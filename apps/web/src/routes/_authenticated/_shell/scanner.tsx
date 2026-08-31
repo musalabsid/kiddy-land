@@ -24,7 +24,7 @@ function ScannerPage() {
               {t("scanner.exitTitle")}
             </Button>
           </div>
-          {tab === "entry" ? <TicketScanner kind="entry" enableCamera /> : <TicketScanner kind="exit" enableCamera />}
+          {tab === "entry" ? <TicketScanner key="entry" kind="entry" enableCamera /> : <TicketScanner key="exit" kind="exit" enableCamera />}
         </div>
       </div>
     </RouteAccessGate>

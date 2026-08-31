@@ -606,6 +606,15 @@ export function createApp(
         return c.json({ error: "Invalid credentials" }, 401);
       }
     });
+    app.post("/auth/change-password", async (c) => {
+      if (!rateLimit(c, 5, 60_000)) return c.json({ error: "Too many attempts; try again later" }, 429);
+      const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
+      if (!current?.user) return c.json({ error: "Unauthorized" }, 401);
+      const body = await c.req.json<{ currentPassword?: string; newPassword?: string }>();
+      if (!body.currentPassword || !body.newPassword) return c.json({ error: "currentPassword and newPassword are required" }, 400);
+      try { return c.json(identity.changePassword(current.user.id, body.currentPassword, body.newPassword)); }
+      catch (e) { return c.json({ error: e instanceof Error ? e.message : "Password change failed" }, 400); }
+    });
     app.get("/auth/session", (c) => {
       const current = identity.authenticate(c.req.header("Authorization")?.replace(/^Bearer /, ""));
       return current ? c.json({ device: current.device, user: current.user ? { id: current.user.id, username: current.user.username, role: current.user.role } : undefined }) : c.json({ error: "Unauthorized" }, 401);

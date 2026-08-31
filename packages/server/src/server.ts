@@ -120,9 +120,9 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   const sales = options.sales ?? createSaleStore(calendar, database, inventory, membership);
   const lifecycle = options.lifecycle ?? createLifecycleStore(sales, calendar, database);
   const reports = options.reports ?? createReportService(calendar, sales, lifecycle, inventory, membership, identity);
-  const notifications = options.notifications ?? createNotificationService(identity, registry, lifecycle, inventory);
-  const backups = options.backups ?? createBackupService(database, `${options.dataDir}/backups`, schemaVersion);
   const venueSettings = options.venueSettings ?? createVenueSettingsStore(database);
+  const notifications = options.notifications ?? createNotificationService(identity, registry, lifecycle, inventory, venueSettings);
+  const backups = options.backups ?? createBackupService(database, `${options.dataDir}/backups`, schemaVersion);
   const notificationTimer = setInterval(() => notifications.check(), 30_000);
   const intervalMs = (v: string) => v === "6h" ? 6*60*60*1000 : v === "12h" ? 12*60*60*1000 : v === "daily" ? 24*60*60*1000 : v === "weekly" ? 7*24*60*60*1000 : 0;
   let backupTimer: ReturnType<typeof setInterval> | undefined;
@@ -153,6 +153,7 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   }, 60_000);
   // Sound alert: check active tickets remaining == threshold (default 5) every 15s, broadcast to alertDevices
   const alertNotified = new Map<string, number>();
+  let alertSequence = 0; // global stagger offset across ticks
   const alertTimer = setInterval(() => {
     try {
       const cfg = venueSettings.get();
@@ -182,7 +183,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       }
       const queue: Array<{dailyNumber:string;threshold:number;ticketId:string;allowedModes:Set<string>}> = (globalThis as any).__alertQueue ?? [];
       (globalThis as any).__alertQueue = [];
-      queue.forEach((item, i) => {
+      queue.forEach((item) => {
+        const delay = alertSequence++ * 15_000;
         setTimeout(() => {
           const payload = { type: "alert", kind: "5min", dailyNumber: item.dailyNumber, threshold: item.threshold, ticketId: item.ticketId };
           for (const [deviceId, info] of (identity as any).devices?.entries?.() ?? []) {
@@ -193,8 +195,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
             if (conn) try { conn.send(JSON.stringify(payload)); } catch {}
           }
           try { (registry as any)?.broadcast?.(JSON.stringify(payload)); } catch {}
-          console.log(`[alert] ticket ${item.dailyNumber} ${item.threshold}m left (staggered ${i*15}s)`);
-        }, i * 15_000);
+          console.log(`[alert] ticket ${item.dailyNumber} ${item.threshold}m left (staggered ${delay/1000}s)`);
+        }, delay);
       });
       // cleanup old keys (>24h)
       for (const [k,v] of alertNotified) if (now - v > 24*60*60*1000) alertNotified.delete(k);
