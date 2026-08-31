@@ -1,9 +1,14 @@
 # Quick Start (5 min)
 
-1. **Install** (see Install page) and open Host Overview.
-2. **Set Host IP stable** → go to Network → Windows Static IP _or_ Router Reservation (pick one). This prevents `192.168.1.x` from changing.
-3. **Create pairing**: Host Overview → Pair Device → choose Cashier/Scanner/Kiosk → Show QR.
-4. On phone/tablet: open `https://<host-ip>:43118` (accept the untrusted-cert warning once — see Pairing) or scan the QR from the Login screen → paired.
-5. Try a test sale: Cashier → New Sale → Scan ticket.
+1. **Install the Host app** on the Owner's PC — download from
+   [GitHub Releases](https://github.com/musalabsid/kiddy-land/releases) (see Install).
+2. **Launch** → create the Owner account → **Host Overview** opens.
+3. **Stabilize the Host IP** → see Network → Windows Static IP _or_ Router Reservation.
+   This prevents `192.168.1.x` from changing (phones would lose connection).
+4. **Pair devices**: Host Overview → Pair Device → choose Cashier/Scanner/Kiosk → Show QR.
+5. On a phone/tablet: open `https://<host-ip>:43118` (accept the untrusted-cert warning
+   once) or scan the QR from the Login screen → paired.
+6. **First sale**: Cashier → New Sale → pick package → Add → Complete → scan ticket
+   and hand it over.
 
 You're live.

@@ -128,7 +128,7 @@ export default defineConfig({
   },
   themeConfig: {
     socialLinks: [
-      { icon: "github", link: "https://github.com/muhsalaa/kiddy-land" },
+      { icon: "github", link: "https://github.com/musalabsid/kiddy-land" },
     ],
   },
 });
