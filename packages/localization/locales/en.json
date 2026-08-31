@@ -614,5 +614,11 @@
   "customization.enableAlertDescription": "Turn on the sound warning",
   "customization.threshold": "Threshold: {n} minutes (3-10)",
   "customization.alertDevices": "Play on devices",
-  "customization.alertDevicesHint": "Default: Cashier + Kiosk on, Owner off. Browser SpeechSynthesis id-ID, \"0004\" → \"empat\"."
+  "customization.alertDevicesHint": "Default: Cashier + Kiosk on, Owner off. Browser SpeechSynthesis id-ID, \"0004\" → \"empat\".",
+  "sale.childNamePlaceholder": "Child name (min 3 letters)",
+  "customization.alertTextDefaultLabel": "Default alert text",
+  "customization.alertTextNameLabel": "Name alert text",
+  "customization.alertTextHint": "Use {number} (converted to words), {name}, and {duration} placeholders.",
+  "customization.alertTextInvalidDefault": "Default text must contain {number} and {duration}",
+  "customization.alertTextInvalidName": "Name text must contain {name} and {duration}"
 }

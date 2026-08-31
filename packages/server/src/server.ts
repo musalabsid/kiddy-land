@@ -306,6 +306,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
             nameCalling: cfg.nameCalling,
             threshold: item.threshold,
             ticketId: item.ticketId,
+            textDefault: cfg.alertTextDefault,
+            textName: cfg.alertTextName,
           };
           let sent = false;
           for (const [deviceId, info] of (

@@ -614,5 +614,11 @@
   "customization.enableAlertDescription": "Aktifkan peringatan suara",
   "customization.threshold": "Ambang batas: {n} menit (3-10)",
   "customization.alertDevices": "Putar di perangkat",
-  "customization.alertDevicesHint": "Default: Cashier + Kiosk menyala, Owner mati. Browser SpeechSynthesis id-ID, \"0004\" → \"empat\"."
+  "customization.alertDevicesHint": "Default: Cashier + Kiosk menyala, Owner mati. Browser SpeechSynthesis id-ID, \"0004\" → \"empat\".",
+  "sale.childNamePlaceholder": "Nama anak (min 3 huruf)",
+  "customization.alertTextDefaultLabel": "Teks peringatan default",
+  "customization.alertTextNameLabel": "Teks peringatan nama",
+  "customization.alertTextHint": "Gunakan placeholder {number} (dikonversi ke kata), {name}, dan {duration}.",
+  "customization.alertTextInvalidDefault": "Teks default harus berisi {number} dan {duration}",
+  "customization.alertTextInvalidName": "Teks nama harus berisi {name} dan {duration}"
 }

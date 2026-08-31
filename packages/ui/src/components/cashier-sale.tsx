@@ -364,7 +364,8 @@ export function CashierSale({
     if (nameCalling) {
       const missing = lines.some(
         (line) =>
-          line.kind !== "product" && !String(line.childName ?? "").trim(),
+          line.kind !== "product" &&
+          String(line.childName ?? "").trim().length < 3,
       );
       if (missing) {
         setError(t("sale.errorNameRequired"));
@@ -802,8 +803,9 @@ export function CashierSale({
                         <input
                           className="h-9 w-full max-w-[320px] border border-input bg-background px-3"
                           value={String(line.childName ?? "")}
+                          minLength={3}
                           maxLength={30}
-                          placeholder={"Nama anak"}
+                          placeholder={t("sale.childNamePlaceholder")}
                           onChange={(e) =>
                             setTicketName(lineIndex, e.target.value)
                           }

@@ -94,6 +94,12 @@ export function VenueCustomization() {
   const [nameCalling, setNameCalling] = React.useState(false);
   const [bulkTicketEnabled, setBulkTicketEnabled] = React.useState(true);
   const [maxTicketsPerSale, setMaxTicketsPerSale] = React.useState(12);
+  const [alertTextDefault, setAlertTextDefault] = React.useState(
+    "Tiket nomor {number}, waktu bermain tinggal {duration} menit lagi.",
+  );
+  const [alertTextName, setAlertTextName] = React.useState(
+    "Anak {name}, waktu bermain tinggal {duration} menit lagi.",
+  );
   const [currentPassword, setCurrentPassword] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
@@ -117,6 +123,14 @@ export function VenueCustomization() {
     setNameCalling((data as any).nameCalling ?? false);
     setBulkTicketEnabled((data as any).bulkTicketEnabled ?? true);
     setMaxTicketsPerSale((data as any).maxTicketsPerSale ?? 12);
+    setAlertTextDefault(
+      (data as any).alertTextDefault ??
+        "Tiket nomor {number}, waktu bermain tinggal {duration} menit lagi.",
+    );
+    setAlertTextName(
+      (data as any).alertTextName ??
+        "Anak {name}, waktu bermain tinggal {duration} menit lagi.",
+    );
   }, [data]);
 
   const onLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -138,6 +152,16 @@ export function VenueCustomization() {
 
   const onSave = async () => {
     try {
+      const def = alertTextDefault.trim();
+      const name = alertTextName.trim();
+      if (!def.includes("{duration}") || !def.includes("{number}")) {
+        alert(t("customization.alertTextInvalidDefault"));
+        return;
+      }
+      if (!name.includes("{duration}") || !name.includes("{name}")) {
+        alert(t("customization.alertTextInvalidName"));
+        return;
+      }
       const next = await update.mutateAsync({
         venueName: venueName.trim() || "Kiddy Land",
         backupInterval,
@@ -149,6 +173,8 @@ export function VenueCustomization() {
         nameCalling,
         bulkTicketEnabled,
         maxTicketsPerSale,
+        alertTextDefault: def,
+        alertTextName: name,
       } as any);
       setVenueTheme(next.theme as VenueTheme);
     } catch (err) {
@@ -174,7 +200,9 @@ export function VenueCustomization() {
         JSON.stringify(alertDevices) ||
       (data as any).nameCalling !== nameCalling ||
       (data as any).bulkTicketEnabled !== bulkTicketEnabled ||
-      (data as any).maxTicketsPerSale !== maxTicketsPerSale
+      (data as any).maxTicketsPerSale !== maxTicketsPerSale ||
+      (data as any).alertTextDefault !== alertTextDefault ||
+      (data as any).alertTextName !== alertTextName
     : true;
 
   return (
@@ -342,7 +370,9 @@ export function VenueCustomization() {
                 min={3}
                 max={10}
                 step={1}
-                onValueChange={(v: any) => setAlertThreshold(v[0] ?? 5)}
+                onValueChange={(v: any) =>
+                  setAlertThreshold(Array.isArray(v) ? (v[0] ?? 5) : (v ?? 5))
+                }
                 disabled={!alertEnabled}
               />
             </div>
@@ -387,6 +417,38 @@ export function VenueCustomization() {
               </div>
               <Switch checked={nameCalling} onCheckedChange={setNameCalling} />
             </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">
+                {t("customization.alertTextDefaultLabel")}
+              </label>
+              <Input
+                value={alertTextDefault}
+                onChange={(e) => setAlertTextDefault(e.target.value)}
+                maxLength={200}
+                placeholder={
+                  "Tiket nomor {number}, waktu bermain tinggal {duration} menit lagi."
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("customization.alertTextHint")}
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">
+                {t("customization.alertTextNameLabel")}
+              </label>
+              <Input
+                value={alertTextName}
+                onChange={(e) => setAlertTextName(e.target.value)}
+                maxLength={200}
+                placeholder={
+                  "Anak {name}, waktu bermain tinggal {duration} menit lagi."
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("customization.alertTextHint")}
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -427,7 +489,11 @@ export function VenueCustomization() {
                 min={2}
                 max={12}
                 step={1}
-                onValueChange={(v: any) => setMaxTicketsPerSale(v[0] ?? 12)}
+                onValueChange={(v: any) =>
+                  setMaxTicketsPerSale(
+                    Array.isArray(v) ? (v[0] ?? 12) : (v ?? 12),
+                  )
+                }
                 disabled={!bulkTicketEnabled}
               />
             </div>

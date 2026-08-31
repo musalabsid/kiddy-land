@@ -131,7 +131,6 @@ export function useAlertSound(enabled?: boolean) {
       }, 300);
     };
     // Server sends type:"alert" with dailyNumber/threshold (5-min timer) — bridged by RealtimeSync
-    // Server sends type:"alert" with dailyNumber/threshold (5-min timer) — bridged by RealtimeSync
     const handler = (ev: Event) => {
       const detail = (ev as CustomEvent).detail as any;
       if (!detail || detail.type !== "alert") return;
@@ -152,7 +151,10 @@ export function useAlertSound(enabled?: boolean) {
         const n = Number(daily);
         subject = Number.isNaN(n) ? daily : toIndonesianWords(n);
       }
-      const text = isName
+      const template = isName
+        ? String(detail.textName ?? "")
+        : String(detail.textDefault ?? "");
+      const fallback = isName
         ? "Anak " +
           subject +
           ", waktu bermain tinggal " +
@@ -163,6 +165,12 @@ export function useAlertSound(enabled?: boolean) {
           ", waktu bermain tinggal " +
           thrWord +
           " menit lagi.";
+      const text = template.includes("{duration}")
+        ? template
+            .replace("{name}", subject)
+            .replace("{number}", subject)
+            .replace("{duration}", thrWord)
+        : fallback;
       const safeSpeak = () => {
         try {
           safeSpeakText(text);

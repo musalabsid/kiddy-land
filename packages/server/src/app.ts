@@ -224,6 +224,8 @@ export function createApp(
             nameCalling: current.nameCalling,
             bulkTicketEnabled: current.bulkTicketEnabled,
             maxTicketsPerSale: current.maxTicketsPerSale,
+            alertTextDefault: current.alertTextDefault,
+            alertTextName: current.alertTextName,
           }
         : {
             venueName: "Kiddy Land",
@@ -235,6 +237,10 @@ export function createApp(
             nameCalling: false,
             bulkTicketEnabled: true,
             maxTicketsPerSale: 12,
+            alertTextDefault:
+              "Tiket nomor {number}, waktu bermain tinggal {duration} menit lagi.",
+            alertTextName:
+              "Anak {name}, waktu bermain tinggal {duration} menit lagi.",
           },
     );
   });

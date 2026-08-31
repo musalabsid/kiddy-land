@@ -19,6 +19,8 @@ export type VenueSettings = {
   nameCalling: boolean;
   bulkTicketEnabled: boolean;
   maxTicketsPerSale: number; // 2-12 default 12
+  alertTextDefault: string; // template: {number} {duration}
+  alertTextName: string; // template: {name} {duration}
 };
 
 const DEFAULTS: VenueSettings = {
@@ -32,6 +34,9 @@ const DEFAULTS: VenueSettings = {
   nameCalling: false,
   bulkTicketEnabled: true,
   maxTicketsPerSale: 12,
+  alertTextDefault:
+    "Tiket nomor {number}, waktu bermain tinggal {duration} menit lagi.",
+  alertTextName: "Anak {name}, waktu bermain tinggal {duration} menit lagi.",
 };
 
 const VALID_INTERVALS: BackupInterval[] = [
@@ -102,6 +107,16 @@ export function createVenueSettingsStore(database: LocalDatabase) {
         (raw as any).maxTicketsPerSale <= 12
           ? (raw as any).maxTicketsPerSale
           : DEFAULTS.maxTicketsPerSale,
+      alertTextDefault:
+        typeof (raw as any).alertTextDefault === "string" &&
+        (raw as any).alertTextDefault.trim()
+          ? (raw as any).alertTextDefault.slice(0, 200)
+          : DEFAULTS.alertTextDefault,
+      alertTextName:
+        typeof (raw as any).alertTextName === "string" &&
+        (raw as any).alertTextName.trim()
+          ? (raw as any).alertTextName.slice(0, 200)
+          : DEFAULTS.alertTextName,
     };
   };
   const update = (patch: Partial<VenueSettings>): VenueSettings => {
@@ -175,6 +190,16 @@ export function createVenueSettingsStore(database: LocalDatabase) {
           ? Boolean(patch.bulkTicketEnabled)
           : current.bulkTicketEnabled,
       maxTicketsPerSale: maxTicketsPerSale,
+      alertTextDefault:
+        patch.alertTextDefault !== undefined
+          ? String(patch.alertTextDefault).trim().slice(0, 200) ||
+            current.alertTextDefault
+          : current.alertTextDefault,
+      alertTextName:
+        patch.alertTextName !== undefined
+          ? String(patch.alertTextName).trim().slice(0, 200) ||
+            current.alertTextName
+          : current.alertTextName,
     };
     if (!next.venueName.trim()) throw new Error("Venue name is required");
     writeVenueSettings(database, next);
