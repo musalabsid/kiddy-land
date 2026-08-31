@@ -13,15 +13,38 @@ Tap a palette to preview, **Save changes** to apply venue-wide. Press **D** anyw
 
 ## Sound alert
 
-Warn staff when a child's play time is almost over (default: 5 min left).
+Two alerts, both spoken (browser SpeechSynthesis, Indonesian) with a short **bell** before each.
+If several alerts fire at once they are **staggered 15s apart**; if the gap is longer the next
+alert fires immediately.
 
-- **Enable alert** — master switch. Off = no voice, no bell.
-- **Threshold** — number of minutes remaining that triggers the alert (3–10, default 5).
+**Global settings** (apply to both alerts):
+
 - **Play on devices** — which devices hear it: Owner, Cashier, Kiosk (default Owner off, Cashier + Kiosk on).
+- **Call child by name** — require a child name at cashier entry, and use it in the voice instead of the ticket number.
 
-When a ticket crosses the threshold, devices play a short **bell**, then a voice (browser
-SpeechSynthesis, Indonesian) announces _"Tiket nomor 4, waktu bermain tinggal 5 menit lagi"_.
-If several tickets cross at once, alerts are **staggered 15s apart**; if the gap is longer,
-the next alert fires immediately.
+**Almost done alert** — warn when play time is nearly over (default 5 min left).
+
+- **Enable** — master switch for this alert.
+- **Threshold** — minutes remaining that triggers it (3–10, default 5).
+- **Default text** — spoken without a name, e.g. `Tiket nomor {number}, waktu bermain tinggal {duration} menit lagi.`
+- **Name text** — spoken when a name is set, e.g. `Anak {name}, waktu bermain tinggal {duration} menit lagi.`
+
+**Session ended alert** — warn the moment play time is up (child still inside, no grace).
+
+- **Enable** — master switch for this alert.
+- **Default text** — e.g. `Waktu bermain habis untuk tiket {number}.`
+- **Name text** — e.g. `Waktu bermain habis untuk {name}.`
+
+**Placeholders:** `{number}` is converted to Indonesian words ("0004" → "empat"), `{name}` is the
+child's name, `{duration}` is the minutes left.
 
 > Voice requires a browser with TTS (Chrome/Android). Brave on Linux may return no voices — use Chrome for cashier/kiosk.
+
+## Bulk ticket buy
+
+Control how many tickets a cashier can add per sale.
+
+- **Allow bulk buy** — show the ticket count input at cashier.
+- **Max tickets per sale** — total per transaction (2–12, default 12). Server enforces it too.
+
+When **bulk buy is off**, cashier adds one ticket per click (the max per sale still applies).
