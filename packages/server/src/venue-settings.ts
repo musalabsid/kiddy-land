@@ -21,6 +21,9 @@ export type VenueSettings = {
   maxTicketsPerSale: number; // 2-12 default 12
   alertTextDefault: string; // template: {number} {duration}
   alertTextName: string; // template: {name} {duration}
+  alertEndedEnabled: boolean;
+  alertEndedTextDefault: string; // template: {number}
+  alertEndedTextName: string; // template: {name}
 };
 
 const DEFAULTS: VenueSettings = {
@@ -37,6 +40,9 @@ const DEFAULTS: VenueSettings = {
   alertTextDefault:
     "Tiket nomor {number}, waktu bermain tinggal {duration} menit lagi.",
   alertTextName: "Anak {name}, waktu bermain tinggal {duration} menit lagi.",
+  alertEndedEnabled: false,
+  alertEndedTextDefault: "Waktu bermain habis untuk tiket {number}.",
+  alertEndedTextName: "Waktu bermain habis untuk {name}.",
 };
 
 const VALID_INTERVALS: BackupInterval[] = [
@@ -117,6 +123,20 @@ export function createVenueSettingsStore(database: LocalDatabase) {
         (raw as any).alertTextName.trim()
           ? (raw as any).alertTextName.slice(0, 200)
           : DEFAULTS.alertTextName,
+      alertEndedEnabled:
+        typeof (raw as any).alertEndedEnabled === "boolean"
+          ? (raw as any).alertEndedEnabled
+          : DEFAULTS.alertEndedEnabled,
+      alertEndedTextDefault:
+        typeof (raw as any).alertEndedTextDefault === "string" &&
+        (raw as any).alertEndedTextDefault.trim()
+          ? (raw as any).alertEndedTextDefault.slice(0, 200)
+          : DEFAULTS.alertEndedTextDefault,
+      alertEndedTextName:
+        typeof (raw as any).alertEndedTextName === "string" &&
+        (raw as any).alertEndedTextName.trim()
+          ? (raw as any).alertEndedTextName.slice(0, 200)
+          : DEFAULTS.alertEndedTextName,
     };
   };
   const update = (patch: Partial<VenueSettings>): VenueSettings => {
@@ -200,6 +220,20 @@ export function createVenueSettingsStore(database: LocalDatabase) {
           ? String(patch.alertTextName).trim().slice(0, 200) ||
             current.alertTextName
           : current.alertTextName,
+      alertEndedEnabled:
+        patch.alertEndedEnabled !== undefined
+          ? Boolean(patch.alertEndedEnabled)
+          : current.alertEndedEnabled,
+      alertEndedTextDefault:
+        patch.alertEndedTextDefault !== undefined
+          ? String(patch.alertEndedTextDefault).trim().slice(0, 200) ||
+            current.alertEndedTextDefault
+          : current.alertEndedTextDefault,
+      alertEndedTextName:
+        patch.alertEndedTextName !== undefined
+          ? String(patch.alertEndedTextName).trim().slice(0, 200) ||
+            current.alertEndedTextName
+          : current.alertEndedTextName,
     };
     if (!next.venueName.trim()) throw new Error("Venue name is required");
     writeVenueSettings(database, next);

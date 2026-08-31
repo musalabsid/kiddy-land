@@ -610,8 +610,8 @@
   "customization.maxTickets": "Max tickets per sale: {n} (2-12)",
   "customization.alertTitle": "Sound alert",
   "customization.alertDescription": "Voice warning in Indonesian: \"Tiket nomor 4, waktu bermain tinggal 5 menit lagi\"",
-  "customization.enableAlert": "Enable alert",
-  "customization.enableAlertDescription": "Turn on the sound warning",
+  "customization.enableAlert": "Almost done alert",
+  "customization.enableAlertDescription": "Warn when play time is almost up",
   "customization.threshold": "Threshold: {n} minutes (3-10)",
   "customization.alertDevices": "Play on devices",
   "customization.alertDevicesHint": "Default: Cashier + Kiosk on, Owner off. Browser SpeechSynthesis id-ID, \"0004\" → \"empat\".",
@@ -620,5 +620,10 @@
   "customization.alertTextNameLabel": "Name alert text",
   "customization.alertTextHint": "Use {number} (converted to words), {name}, and {duration} placeholders.",
   "customization.alertTextInvalidDefault": "Default text must contain {number} and {duration}",
-  "customization.alertTextInvalidName": "Name text must contain {name} and {duration}"
+  "customization.alertTextInvalidName": "Name text must contain {name} and {duration}",
+  "customization.alertEndedTitle": "Session ended alert",
+  "customization.alertEndedDescription": "Warn when play time is up (time expires while child still inside)",
+  "customization.alertEndedTextHint": "Use {number} (converted to words) or {name} placeholder.",
+  "customization.alertEndedTextInvalid": "Ended alert text must contain {number} or {name}",
+  "customization.alertGlobalTitle": "Global settings"
 }

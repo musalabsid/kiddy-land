@@ -100,6 +100,13 @@ export function VenueCustomization() {
   const [alertTextName, setAlertTextName] = React.useState(
     "Anak {name}, waktu bermain tinggal {duration} menit lagi.",
   );
+  const [alertEndedEnabled, setAlertEndedEnabled] = React.useState(false);
+  const [alertEndedTextDefault, setAlertEndedTextDefault] = React.useState(
+    "Waktu bermain habis untuk tiket {number}.",
+  );
+  const [alertEndedTextName, setAlertEndedTextName] = React.useState(
+    "Waktu bermain habis untuk {name}.",
+  );
   const [currentPassword, setCurrentPassword] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
@@ -130,6 +137,14 @@ export function VenueCustomization() {
     setAlertTextName(
       (data as any).alertTextName ??
         "Anak {name}, waktu bermain tinggal {duration} menit lagi.",
+    );
+    setAlertEndedEnabled((data as any).alertEndedEnabled ?? false);
+    setAlertEndedTextDefault(
+      (data as any).alertEndedTextDefault ??
+        "Waktu bermain habis untuk tiket {number}.",
+    );
+    setAlertEndedTextName(
+      (data as any).alertEndedTextName ?? "Waktu bermain habis untuk {name}.",
     );
   }, [data]);
 
@@ -162,6 +177,15 @@ export function VenueCustomization() {
         alert(t("customization.alertTextInvalidName"));
         return;
       }
+      const endedDef = alertEndedTextDefault.trim();
+      const endedName = alertEndedTextName.trim();
+      if (
+        (!endedDef.includes("{number}") && !endedDef.includes("{name}")) ||
+        (!endedName.includes("{number}") && !endedName.includes("{name}"))
+      ) {
+        alert(t("customization.alertEndedTextInvalid"));
+        return;
+      }
       const next = await update.mutateAsync({
         venueName: venueName.trim() || "Kiddy Land",
         backupInterval,
@@ -175,6 +199,9 @@ export function VenueCustomization() {
         maxTicketsPerSale,
         alertTextDefault: def,
         alertTextName: name,
+        alertEndedEnabled,
+        alertEndedTextDefault: alertEndedTextDefault.trim(),
+        alertEndedTextName: alertEndedTextName.trim(),
       } as any);
       setVenueTheme(next.theme as VenueTheme);
     } catch (err) {
@@ -202,7 +229,10 @@ export function VenueCustomization() {
       (data as any).bulkTicketEnabled !== bulkTicketEnabled ||
       (data as any).maxTicketsPerSale !== maxTicketsPerSale ||
       (data as any).alertTextDefault !== alertTextDefault ||
-      (data as any).alertTextName !== alertTextName
+      (data as any).alertTextName !== alertTextName ||
+      (data as any).alertEndedEnabled !== alertEndedEnabled ||
+      (data as any).alertEndedTextDefault !== alertEndedTextDefault ||
+      (data as any).alertEndedTextName !== alertEndedTextName
     : true;
 
   return (
@@ -344,6 +374,54 @@ export function VenueCustomization() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
+            <div className="grid gap-3 border p-4">
+              <p className="text-sm font-semibold">
+                {t("customization.alertGlobalTitle")}
+              </p>
+              <div className="grid gap-3">
+                <label className="text-sm font-medium">
+                  {t("customization.alertDevices")}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(["Owner", "Cashier", "Kiosk"] as const).map((dev) => (
+                    <label
+                      key={dev}
+                      className="flex items-center gap-2 rounded border px-3 py-1.5 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={alertDevices.includes(dev)}
+                        onChange={(e) =>
+                          setAlertDevices((prev) =>
+                            e.target.checked
+                              ? [...prev, dev]
+                              : prev.filter((d) => d !== dev),
+                          )
+                        }
+                      />
+                      {dev}
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t("customization.alertDevicesHint")}
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">
+                    {t("customization.nameCalling")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("customization.nameCallingDescription")}
+                  </p>
+                </div>
+                <Switch
+                  checked={nameCalling}
+                  onCheckedChange={setNameCalling}
+                />
+              </div>
+            </div>
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-medium">
@@ -373,49 +451,7 @@ export function VenueCustomization() {
                 onValueChange={(v: any) =>
                   setAlertThreshold(Array.isArray(v) ? (v[0] ?? 5) : (v ?? 5))
                 }
-                disabled={!alertEnabled}
               />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">
-                {t("customization.alertDevices")}
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {(["Owner", "Cashier", "Kiosk"] as const).map((dev) => (
-                  <label
-                    key={dev}
-                    className="flex items-center gap-2 rounded border px-3 py-1.5 text-sm"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={alertDevices.includes(dev)}
-                      disabled={!alertEnabled}
-                      onChange={(e) =>
-                        setAlertDevices((prev) =>
-                          e.target.checked
-                            ? [...prev, dev]
-                            : prev.filter((d) => d !== dev),
-                        )
-                      }
-                    />
-                    {dev}
-                  </label>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t("customization.alertDevicesHint")}
-              </p>
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium">
-                  {t("customization.nameCalling")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t("customization.nameCallingDescription")}
-                </p>
-              </div>
-              <Switch checked={nameCalling} onCheckedChange={setNameCalling} />
             </div>
             <div className="grid gap-2">
               <label className="text-sm font-medium">
@@ -448,6 +484,50 @@ export function VenueCustomization() {
               <p className="text-xs text-muted-foreground">
                 {t("customization.alertTextHint")}
               </p>
+            </div>
+            <div className="border-t pt-4">
+              <div className="mb-3 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">
+                    {t("customization.alertEndedTitle")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("customization.alertEndedDescription")}
+                  </p>
+                </div>
+                <Switch
+                  checked={alertEndedEnabled}
+                  onCheckedChange={setAlertEndedEnabled}
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">
+                  {t("customization.alertTextDefaultLabel")}
+                </label>
+                <Input
+                  value={alertEndedTextDefault}
+                  onChange={(e) => setAlertEndedTextDefault(e.target.value)}
+                  maxLength={200}
+                  placeholder={"Waktu bermain habis untuk tiket {number}."}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("customization.alertEndedTextHint")}
+                </p>
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">
+                  {t("customization.alertTextNameLabel")}
+                </label>
+                <Input
+                  value={alertEndedTextName}
+                  onChange={(e) => setAlertEndedTextName(e.target.value)}
+                  maxLength={200}
+                  placeholder={"Waktu bermain habis untuk {name}."}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("customization.alertEndedTextHint")}
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

@@ -242,7 +242,8 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
   setInterval(() => {
     try {
       const cfg = venueSettings.get();
-      if (!cfg.alertEnabled) return;
+      // Either alert type can be enabled independently — run if at least one is on
+      if (!cfg.alertEnabled && !cfg.alertEndedEnabled) return;
       const threshold = cfg.alertThreshold;
       const allowedModes = new Set(
         cfg.alertDevices.map((d: string) =>
@@ -257,33 +258,35 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       const now = Date.now();
       const minutesBetween = (a: number, b: number) =>
         Math.max(0, Math.floor((b - a) / 60000));
-      for (const sale of sales.sales.values()) {
-        if (sale.operatingDate !== today) continue;
-        for (const ticket of sale.tickets) {
-          const session = lifecycle.sessions.get(ticket.id) as
-            | { enteredAt: number; status: string }
-            | undefined;
-          if (!session || session.status !== "active" || !session.enteredAt)
-            continue;
-          const included = ticket.package.includedMinutes;
-          if (included === null) continue;
-          const elapsed = minutesBetween(session.enteredAt, now);
-          const remaining = included - elapsed;
-          if (remaining === null || remaining > threshold || remaining < 0)
-            continue; // trigger once when 5..0
-          const key = `${sale.operatingDate}:${ticket.id}:${threshold}`;
-          if (alertNotified.has(key)) continue;
-          alertNotified.set(key, now);
-          // collect for staggered broadcast 15s apart (ponytail: avoid overlapping TTS)
-          (globalThis as any).__alertQueue =
-            (globalThis as any).__alertQueue ?? [];
-          (globalThis as any).__alertQueue.push({
-            dailyNumber: (ticket as any).dailyNumber ?? ticket.code,
-            childName: (ticket as any).childName,
-            threshold,
-            ticketId: ticket.id,
-            allowedModes,
-          });
+      if (cfg.alertEnabled) {
+        for (const sale of sales.sales.values()) {
+          if (sale.operatingDate !== today) continue;
+          for (const ticket of sale.tickets) {
+            const session = lifecycle.sessions.get(ticket.id) as
+              | { enteredAt: number; status: string }
+              | undefined;
+            if (!session || session.status !== "active" || !session.enteredAt)
+              continue;
+            const included = ticket.package.includedMinutes;
+            if (included === null) continue;
+            const elapsed = minutesBetween(session.enteredAt, now);
+            const remaining = included - elapsed;
+            if (remaining === null || remaining > threshold || remaining < 0)
+              continue; // trigger once when 5..0
+            const key = `${sale.operatingDate}:${ticket.id}:${threshold}`;
+            if (alertNotified.has(key)) continue;
+            alertNotified.set(key, now);
+            // collect for staggered broadcast 15s apart (ponytail: avoid overlapping TTS)
+            (globalThis as any).__alertQueue =
+              (globalThis as any).__alertQueue ?? [];
+            (globalThis as any).__alertQueue.push({
+              dailyNumber: (ticket as any).dailyNumber ?? ticket.code,
+              childName: (ticket as any).childName,
+              threshold,
+              ticketId: ticket.id,
+              allowedModes,
+            });
+          }
         }
       }
       const queue: Array<{
@@ -292,23 +295,36 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
         ticketId: string;
         allowedModes: Set<string>;
         childName?: string;
+        ended?: boolean;
       }> = (globalThis as any).__alertQueue ?? [];
       (globalThis as any).__alertQueue = [];
       queue.forEach((item) => {
         const delay = Math.max(0, lastAlertAt + 15_000 - Date.now());
         lastAlertAt = Date.now() + delay;
         setTimeout(() => {
-          const payload = {
-            type: "alert",
-            kind: "5min",
-            dailyNumber: item.dailyNumber,
-            childName: item.childName,
-            nameCalling: cfg.nameCalling,
-            threshold: item.threshold,
-            ticketId: item.ticketId,
-            textDefault: cfg.alertTextDefault,
-            textName: cfg.alertTextName,
-          };
+          const payload = item.ended
+            ? {
+                type: "alert",
+                kind: "ended",
+                dailyNumber: item.dailyNumber,
+                childName: item.childName,
+                nameCalling: cfg.nameCalling,
+                threshold: 0,
+                ticketId: item.ticketId,
+                textDefault: cfg.alertEndedTextDefault,
+                textName: cfg.alertEndedTextName,
+              }
+            : {
+                type: "alert",
+                kind: "5min",
+                dailyNumber: item.dailyNumber,
+                childName: item.childName,
+                nameCalling: cfg.nameCalling,
+                threshold: item.threshold,
+                ticketId: item.ticketId,
+                textDefault: cfg.alertTextDefault,
+                textName: cfg.alertTextName,
+              };
           let sent = false;
           for (const [deviceId, info] of (
             identity as any
@@ -330,6 +346,36 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
             );
         }, delay);
       });
+      // Session ended: alert once when time is up (elapsed >= included), active session only
+      if (cfg.alertEndedEnabled) {
+        for (const sale of sales.sales.values()) {
+          if (sale.operatingDate !== today) continue;
+          for (const ticket of sale.tickets) {
+            const session = lifecycle.sessions.get(ticket.id) as
+              | { enteredAt: number; status: string }
+              | undefined;
+            if (!session || session.status !== "active" || !session.enteredAt)
+              continue;
+            const included = ticket.package.includedMinutes;
+            if (included === null) continue;
+            const elapsed = minutesBetween(session.enteredAt, now);
+            if (elapsed < included) continue;
+            const key = `${sale.operatingDate}:${ticket.id}:ended`;
+            if (alertNotified.has(key)) continue;
+            alertNotified.set(key, now);
+            (globalThis as any).__alertQueue =
+              (globalThis as any).__alertQueue ?? [];
+            (globalThis as any).__alertQueue.push({
+              dailyNumber: (ticket as any).dailyNumber ?? ticket.code,
+              childName: (ticket as any).childName,
+              threshold: 0,
+              ticketId: ticket.id,
+              allowedModes,
+              ended: true,
+            });
+          }
+        }
+      }
       // cleanup old keys (>24h)
       for (const [k, v] of alertNotified)
         if (now - v > 24 * 60 * 60 * 1000) alertNotified.delete(k);

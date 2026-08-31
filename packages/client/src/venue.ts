@@ -23,6 +23,9 @@ export type VenueSettings = {
   maxTicketsPerSale: number;
   alertTextDefault: string;
   alertTextName: string;
+  alertEndedEnabled: boolean;
+  alertEndedTextDefault: string;
+  alertEndedTextName: string;
 };
 export type PublicVenue = Pick<
   VenueSettings,
@@ -37,6 +40,9 @@ export type PublicVenue = Pick<
   | "maxTicketsPerSale"
   | "alertTextDefault"
   | "alertTextName"
+  | "alertEndedEnabled"
+  | "alertEndedTextDefault"
+  | "alertEndedTextName"
 >;
 
 export function useVenueSettings() {

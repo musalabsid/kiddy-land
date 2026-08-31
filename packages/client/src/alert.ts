@@ -138,6 +138,7 @@ export function useAlertSound(enabled?: boolean) {
       const daily = String(detail.dailyNumber ?? "");
       const thr = Number(detail.threshold ?? 5);
       const thrWord = toIndonesianWords(Math.max(1, thr));
+      const isEnded = detail.kind === "ended";
       // name calling: read child name ("Anak {name} ..."); fallback to dailyNumber when missing
       let subject = "";
       const rawName = detail.nameCalling ? String(detail.childName ?? "") : "";
@@ -154,18 +155,22 @@ export function useAlertSound(enabled?: boolean) {
       const template = isName
         ? String(detail.textName ?? "")
         : String(detail.textDefault ?? "");
-      const fallback = isName
-        ? "Anak " +
-          subject +
-          ", waktu bermain tinggal " +
-          thrWord +
-          " menit lagi."
-        : "Tiket nomor " +
-          subject +
-          ", waktu bermain tinggal " +
-          thrWord +
-          " menit lagi.";
-      const text = template.includes("{duration}")
+      const fallback = isEnded
+        ? isName
+          ? "Waktu bermain habis untuk " + subject + "."
+          : "Waktu bermain habis untuk tiket " + subject + "."
+        : isName
+          ? "Anak " +
+            subject +
+            ", waktu bermain tinggal " +
+            thrWord +
+            " menit lagi."
+          : "Tiket nomor " +
+            subject +
+            ", waktu bermain tinggal " +
+            thrWord +
+            " menit lagi.";
+      const text = template.trim()
         ? template
             .replace("{name}", subject)
             .replace("{number}", subject)
