@@ -1,6 +1,6 @@
 import * as React from "react";
 import { usePublicProducts, usePublicTicket, type PublicProduct, type PublicTicketResult } from "@kiddy-land/client/react";
-import { usePublicVenue } from "@kiddy-land/client";
+import { usePublicVenue, useAlertSound } from "@kiddy-land/client";
 import { useClient } from "@kiddy-land/client/react";
 import { formatIdr } from "@kiddy-land/localization";
 import { useLocale } from "@workspace/ui/lib/i18n";
@@ -10,6 +10,7 @@ import { BarcodeScanner } from "@workspace/ui/components/barcode-scanner";
 import { ScanLine, Package } from "lucide-react";
 
 export function PublicKiosk() {
+  useAlertSound();
   const { t, locale } = useLocale();
   const client = useClient();
   const [isScanning, setIsScanning] = React.useState(false);

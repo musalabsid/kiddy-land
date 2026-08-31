@@ -32,15 +32,25 @@ function playBell(): Promise<void> {
   }
 }
 
-// Autoplay policy: WS alerts are not user gestures — unlock audio after first interaction
+// Autoplay policy: WS alerts are not user gestures — unlock audio + TTS after first interaction
 const unlockAudio = () => {
   try {
     const ctx = new AudioContext();
     void ctx.resume();
     void ctx.close();
-    window.removeEventListener("pointerdown", unlockAudio);
-    window.removeEventListener("keydown", unlockAudio);
   } catch {}
+  try {
+    const ss = window.speechSynthesis;
+    if (ss) {
+      if (ss.paused) ss.resume();
+      // prime TTS with a silent utterance so speak() is allowed outside gestures later
+      const prime = new SpeechSynthesisUtterance(" ");
+      prime.volume = 0;
+      ss.speak(prime);
+    }
+  } catch {}
+  window.removeEventListener("pointerdown", unlockAudio);
+  window.removeEventListener("keydown", unlockAudio);
 };
 
 export function useAlertSound(enabled?: boolean) {
@@ -56,21 +66,30 @@ export function useAlertSound(enabled?: boolean) {
 
   React.useEffect(() => {
     if (enabled === false) return;
-    const speak =
-      (text: string) => {
-        if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-        try { if (window.speechSynthesis.paused) window.speechSynthesis.resume(); } catch {}
-        const utter = new SpeechSynthesisUtterance(text);
-        utter.lang = "id-ID"; utter.rate = 0.95;
-        let voices = window.speechSynthesis.getVoices();
-        const doSpeak = () => { const idVoice = voices.find(v => v.lang.startsWith("id")); if (idVoice) utter.voice = idVoice; window.speechSynthesis.speak(utter); };
-        if (!voices.length) {
-          window.speechSynthesis.addEventListener("voiceschanged", () => { voices = window.speechSynthesis.getVoices(); doSpeak(); }, { once: true });
-          setTimeout(doSpeak, 500);
-        } else {
-          doSpeak();
-        }
+    const safeSpeakText = (text: string) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+      const ss = window.speechSynthesis;
+      try { if (ss.paused) ss.resume(); } catch {}
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = "id-ID"; utter.rate = 0.95;
+      let done = false;
+      let poll: ReturnType<typeof setInterval> | undefined;
+      const attempt = () => {
+        if (done) return; done = true;
+        if (poll) clearInterval(poll);
+        const voices = ss.getVoices();
+        const idVoice = voices.find((v) => v.lang.toLowerCase().startsWith("id")) ?? voices[0];
+        if (idVoice) utter.voice = idVoice;
+        try { ss.speak(utter); } catch {}
       };
+      const onVoices = () => { ss.removeEventListener("voiceschanged", onVoices); attempt(); };
+      if (ss.getVoices().length) { attempt(); return; }
+      ss.addEventListener("voiceschanged", onVoices);
+      let tries = 0;
+      poll = setInterval(() => {
+        if (ss.getVoices().length || ++tries >= 30) { ss.removeEventListener("voiceschanged", onVoices); attempt(); }
+      }, 300);
+    };
     // Server sends type:"alert" with dailyNumber/threshold (5-min timer) — bridged by RealtimeSync
     const handler = (ev: Event) => {
       const detail = (ev as CustomEvent).detail as any;
@@ -83,7 +102,7 @@ export function useAlertSound(enabled?: boolean) {
       const thr = Number(detail.threshold ?? 5);
       const thrWord = toIndonesianWords(Math.max(1, thr));
       const text = "Tiket nomor " + human + ", waktu bermain tinggal " + thrWord + " menit lagi.";
-      const safeSpeak = () => { try { speak(text); } catch {} };
+      const safeSpeak = () => { try { safeSpeakText(text); } catch {} };
       playBell().then(() => setTimeout(safeSpeak, 800)).catch(safeSpeak);
     };
     window.addEventListener("kiddy-land-alert", handler as any);
