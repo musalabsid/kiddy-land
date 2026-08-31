@@ -9,8 +9,7 @@ export default defineConfig({
       description: "User Guide - Local venue operation",
       themeConfig: {
         nav: [
-          { text: "Guide", link: "/guide/" },
-          { text: "Network", link: "/network/windows-static-ip" },
+          { text: "Download v0.1.1", link: "https://github.com/musalabsid/kiddy-land/releases" },
         ],
         sidebar: [
           {
@@ -69,8 +68,7 @@ export default defineConfig({
       description: "Panduan Pengguna - Operasi venue lokal",
       themeConfig: {
         nav: [
-          { text: "Panduan", link: "/id/guide/" },
-          { text: "Jaringan", link: "/id/network/windows-static-ip" },
+          { text: "Unduh v0.1.1", link: "https://github.com/musalabsid/kiddy-land/releases" },
         ],
         sidebar: [
           {
