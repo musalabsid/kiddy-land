@@ -242,12 +242,14 @@
 @layer base {
   input[type="date"],
   input[type="time"],
-  input[type="datetime-local"] {
+  input[type="datetime-local"],
+  select {
     color-scheme: light;
   }
   .dark input[type="date"],
   .dark input[type="time"],
-  .dark input[type="datetime-local"] {
+  .dark input[type="datetime-local"],
+  .dark select {
     color-scheme: dark;
   }
   input[type="date"]::-webkit-calendar-picker-indicator,

@@ -402,7 +402,9 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
       origin: `http://${host}:${port}`,
       registry,
       httpsUrl: () =>
-        httpsPort && tlsMaterial ? `https://${host}:${httpsPort}` : undefined,
+        httpsPort && tlsMaterial
+          ? `https://${getLanIp() ?? host}:${httpsPort}`
+          : undefined,
       lanIp: getLanIp,
     },
     calendar,

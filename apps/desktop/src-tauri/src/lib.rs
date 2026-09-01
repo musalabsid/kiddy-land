@@ -6,6 +6,7 @@ use tauri::Manager;
 struct HostState {
     process: Mutex<Option<Child>>,
     keep_running: Mutex<bool>,
+    data_dir: Mutex<Option<String>>,
 }
 
 fn resolve_sidecar_path() -> Option<std::path::PathBuf> {
@@ -33,26 +34,45 @@ fn resolve_sidecar_path() -> Option<std::path::PathBuf> {
 fn web_dist_from_resources() -> Option<String> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
-            let cands = [dir.join("resources/web/dist"), dir.join("../resources/web/dist"), dir.join("web/dist"), std::path::Path::new("../../../apps/web/dist").to_path_buf(), std::path::Path::new("../../apps/web/dist").to_path_buf()];
-            for c in cands { if c.exists() { return Some(c.to_string_lossy().to_string()); } }
+            // Tauri bundles resources next to the binary (Windows) or in ../lib/<app>/resources (Linux)
+            let cands = vec![
+                dir.join("web-dist"),
+                dir.join("resources/web-dist"),
+                dir.join("../lib/desktop/web-dist"),
+                dir.join("../lib/kiddy-land/web-dist"),
+                dir.join("../lib/Kiddy Land/web-dist"),
+                dir.join("../resources/web-dist"),
+                dir.join("web/dist"),
+                std::path::Path::new("../../../apps/web/dist").to_path_buf(),
+                std::path::Path::new("../../apps/web/dist").to_path_buf(),
+            ];
+            for c in &cands {
+                if c.join("index.html").exists() {
+                    return Some(c.to_string_lossy().to_string());
+                }
+            }
         }
     }
     None
 }
 
-fn spawn_host() -> Result<Child, String> {
+fn spawn_host(data_dir: Option<&str>) -> Result<Child, String> {
     // In release/sidecar mode, prefer bundled binary; fallback to `bun run` for dev
     if !cfg!(debug_assertions) {
         if let Some(bin) = resolve_sidecar_path() {
             let web_dist = web_dist_from_resources();
             let mut cmd = Command::new(bin);
-            cmd.stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).env("KIDDY_LAND_HTTPS", "1");
+            cmd.stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).env("KIDDY_LAND_HTTPS", "1").env("KIDDY_LAND_HOST", "0.0.0.0");
             if let Some(wd) = web_dist { cmd.env("KIDDY_LAND_WEB_DIST", wd); }
+            if let Some(dd) = data_dir { cmd.env("KIDDY_LAND_DATA_DIR", dd); }
             if let Ok(c) = cmd.spawn() { return Ok(c); }
         }
     }
     // Dev fallback: requires bun + source tree (cargo tauri dev)
-    Command::new("bun").args(["run", "--cwd", "../../packages/server", "start"]).env("KIDDY_LAND_HTTPS", "1").stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| e.to_string())
+    let mut dev = Command::new("bun");
+    dev.args(["run", "--cwd", "../../packages/server", "start"]).env("KIDDY_LAND_HTTPS", "1").env("KIDDY_LAND_HOST", "0.0.0.0");
+    if let Some(dd) = data_dir { dev.env("KIDDY_LAND_DATA_DIR", dd); }
+    dev.stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null()).spawn().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -75,7 +95,8 @@ fn start_host(state: tauri::State<'_, HostState>) -> Result<(), String> {
     if let Some(child) = process.as_mut() {
         if child.try_wait().map_err(|e| e.to_string())?.is_none() { return Ok(()); }
     }
-    let child = spawn_host()?;
+    let data_dir = state.data_dir.lock().map_err(|e| e.to_string())?.clone();
+    let child = spawn_host(data_dir.as_deref())?;
     *process = Some(child);
     *state.keep_running.lock().map_err(|_| "Host state unavailable")? = true;
     Ok(())
@@ -89,12 +110,19 @@ fn host_running(state: tauri::State<'_, HostState>) -> Result<bool, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let process = spawn_host().expect("could not start Local Server host");
     tauri::Builder::default()
-        .manage(HostState { process: Mutex::new(Some(process)), keep_running: Mutex::new(true) })
+        .manage(HostState { process: Mutex::new(None), keep_running: Mutex::new(true), data_dir: Mutex::new(None) })
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![stop_host, start_host, host_running])
-        .setup(|app| { if let Some(window) = app.get_webview_window("main") { let _ = window.set_title("Kiddy Land — Local Operation Center"); } Ok(()) })
+        .setup(|app| {
+            let data_dir = app.path().app_data_dir().ok().map(|d| d.to_string_lossy().to_string());
+            let child = spawn_host(data_dir.as_deref()).expect("could not start Local Server host");
+            let state = app.state::<HostState>();
+            *state.process.lock().map_err(|e| e.to_string())? = Some(child);
+            *state.data_dir.lock().map_err(|e| e.to_string())? = data_dir;
+            if let Some(window) = app.get_webview_window("main") { let _ = window.set_title("Kiddy Land — Local Operation Center"); }
+            Ok(())
+        })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let _ = window.hide();

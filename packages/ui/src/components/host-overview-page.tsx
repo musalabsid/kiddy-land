@@ -267,10 +267,14 @@ export function HostOverviewPage({
                     : "Devices are offline. Start the host to reconnect cashier, scanner and kiosk on this LAN."}
                 </p>
                 <p className="font-mono text-[11px] break-all">
-                  {(status as any).httpsUrl ??
-                    status.origin ??
-                    origin ??
-                    t("host.stopUnavailable")}
+                  {(() => {
+                    const s = status as any;
+                    const base = s?.httpsUrl ?? s?.origin ?? origin ?? "";
+                    const ip = s?.lanIp;
+                    if (ip && base.includes("0.0.0.0"))
+                      return base.replace("0.0.0.0", ip);
+                    return base ?? t("host.stopUnavailable");
+                  })()}
                 </p>
               </div>
             </div>
