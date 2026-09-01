@@ -124,9 +124,10 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            // X = quit: kill sidecar server so the app fully exits
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let _ = window.hide();
                 api.prevent_close();
+                let _ = window.app_handle().exit(0);
             }
         })
         .build(tauri::generate_context!()).expect("error while building tauri application")

@@ -10,7 +10,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           {
-            text: "Download v0.1.2",
+            text: "Download v0.1.3",
             link: "https://github.com/musalabsid/kiddy-land/releases",
           },
         ],
@@ -72,7 +72,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           {
-            text: "Unduh v0.1.2",
+            text: "Unduh v0.1.3",
             link: "https://github.com/musalabsid/kiddy-land/releases",
           },
         ],
