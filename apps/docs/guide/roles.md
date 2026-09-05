@@ -25,3 +25,5 @@ Owner-only pages are protected by the server, not just hidden in the sidebar —
 **Pairing:** On the login screen the device picks **Cashier / Scanner / Kiosk** (3 options). Inventory devices require an invitation from **Owner → Devices** with the **Staff** role. The Owner Dashboard is created during first-time host setup, not by pairing.
 
 **Change role/mode?** Revoke the device and create a new pairing with the desired mode/role.
+
+**Logout** on Cashier/Scanner/Kiosk removes the device from the Owner's device list (it must be re-paired with a new QR). Closing the app instead just disconnects it — the device stays registered.

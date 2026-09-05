@@ -85,6 +85,15 @@ function RealtimeSync() {
         window.dispatchEvent(
           new CustomEvent("kiddy-land-notification", { detail: event }),
         );
+        // device-connected/disconnected/removed: refresh the paired-devices list on this screen too
+        if (
+          event.kind === "device-connected" ||
+          event.kind === "device-disconnected" ||
+          event.kind === "device-removed"
+        )
+          void queryClient.invalidateQueries({
+            queryKey: ["pairing", "devices"],
+          });
         // five-minute-remaining alerts also drive voice (kiddy-land-alert) with dailyNumber/threshold
         if (event.kind === "five-minute-remaining" && event.dailyNumber)
           window.dispatchEvent(

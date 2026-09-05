@@ -8,7 +8,9 @@ export type NotificationKind =
   | "five-minute-remaining"
   | "ticket-expired"
   | "inventory-low"
-  | "device-connected";
+  | "device-connected"
+  | "device-disconnected"
+  | "device-removed";
 export type NotificationAlert = {
   id: string;
   type: "notification";
@@ -26,6 +28,8 @@ const defaultRoutes: Record<NotificationKind, readonly DeviceMode[]> = {
   "ticket-expired": ["Cashier", "Scanner"],
   "inventory-low": ["Owner Dashboard"],
   "device-connected": ["Cashier", "Scanner", "Inventory", "Owner Dashboard"],
+  "device-disconnected": ["Owner Dashboard"],
+  "device-removed": ["Owner Dashboard"],
 };
 
 export function createNotificationService(
@@ -95,6 +99,20 @@ export function createNotificationService(
       `device-connected:${deviceId}:${Date.now()}`,
     );
   }
+  function deviceDisconnected(deviceId: string) {
+    publish(
+      "device-disconnected",
+      "A device disconnected",
+      `device-disconnected:${deviceId}:${Date.now()}`,
+    );
+  }
+  function deviceRemoved(deviceId: string) {
+    publish(
+      "device-removed",
+      "A device was removed",
+      `device-removed:${deviceId}:${Date.now()}`,
+    );
+  }
   function check() {
     const now = Date.now();
     for (const session of lifecycle.sessions.values())
@@ -141,6 +159,8 @@ export function createNotificationService(
     configureRoutes,
     publish,
     deviceConnected,
+    deviceDisconnected,
+    deviceRemoved,
     check,
     settings,
     routes,

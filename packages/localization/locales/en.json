@@ -625,5 +625,7 @@
   "customization.alertEndedDescription": "Warn when play time is up (time expires while child still inside)",
   "customization.alertEndedTextHint": "Use {number} (converted to words) or {name} placeholder.",
   "customization.alertEndedTextInvalid": "Ended alert text must contain {number} or {name}",
-  "customization.alertGlobalTitle": "Global settings"
+  "customization.alertGlobalTitle": "Global settings",
+  "reports.downloadSuccess": "{format} report downloaded",
+  "reports.downloadFailed": "Report download failed"
 }

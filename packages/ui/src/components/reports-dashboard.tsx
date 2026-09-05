@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const reportFilterSchema = z
@@ -123,14 +124,24 @@ export function ReportsDashboard() {
   const download = async (format: "csv" | "pdf") => {
     const valid = reportFilterSchema.safeParse({ from, to });
     if (!valid.success) return;
-    const blob = await client.download(
-      reportExportUrl("", kind, filters, format),
-    );
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = kind + "-report." + format;
-    a.click();
-    URL.revokeObjectURL(a.href);
+    try {
+      const blob = await client.download(
+        reportExportUrl("", kind, filters, format),
+      );
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = kind + "-report." + format;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      toast.success(
+        t("reports.downloadSuccess").replace(
+          "{format}",
+          String(format).toUpperCase(),
+        ),
+      );
+    } catch {
+      toast.error(t("reports.downloadFailed"));
+    }
   };
   const submitDownload = (format: "csv" | "pdf") => {
     void handleSubmit(() => download(format))();
@@ -184,7 +195,11 @@ export function ReportsDashboard() {
                   className="h-10 w-full border border-input bg-background px-3 text-sm"
                   type="date"
                   value={from}
-                  onChange={(e) => updateDate("from", e.target.value)}
+                  onChange={(e) => {
+                    updateDate("from", e.target.value);
+                    // close the native date picker popup after committing a date
+                    setTimeout(() => e.currentTarget.blur(), 0);
+                  }}
                   aria-invalid={errors.from ? true : undefined}
                 />
               </FormField>
@@ -199,7 +214,11 @@ export function ReportsDashboard() {
                   className="h-10 w-full border border-input bg-background px-3 text-sm"
                   type="date"
                   value={to}
-                  onChange={(e) => updateDate("to", e.target.value)}
+                  onChange={(e) => {
+                    updateDate("to", e.target.value);
+                    // close the native date picker popup after committing a date
+                    setTimeout(() => e.currentTarget.blur(), 0);
+                  }}
                   aria-invalid={errors.to ? true : undefined}
                 />
               </FormField>

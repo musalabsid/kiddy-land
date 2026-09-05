@@ -1,5 +1,7 @@
 # Quick Start (5 min)
 
+> 🎬 **Video tutorial:** [Kiddy Land video walkthrough](https://www.youtube.com/playlist?list=PLe125EcIbh3A) — watch along while setting up.
+
 1. **Install the Host app** on the Owner's PC — download from
    [GitHub Releases](https://github.com/musalabsid/kiddy-land/releases) (see Install).
 2. **Launch** → create the Owner account → **Host Overview** opens.

@@ -436,9 +436,25 @@ export function createLocalServer(options: LocalServerOptions): LocalServer {
         );
         if (staticResponse) return staticResponse;
         const apiResponse = await app.fetch(request, env);
-        // Vite's SPA routes (/sales, /inventory, …) are client-side routes.
-        // Serve index.html on an otherwise-unmatched GET so browser refreshes
-        // do not become server 404s. Real API responses keep their status.
+        // SPA routes (/sales, /members, /inventory, ...) share paths with API
+        // routes. A browser page load sends no Authorization header (token is
+        // in memory, restored after hydration); API fetches always send it.
+        // Serve index.html for auth-guarded API collisions so refreshing a
+        // page keeps the SPA (session restores client-side). Real API 200s
+        // (public endpoints) keep their response.
+        const hasAuthHeader = Boolean(request.headers.get("authorization"));
+        const isSpaPageRequest =
+          request.method === "GET" &&
+          !url.pathname.includes(".") &&
+          !hasAuthHeader &&
+          (apiResponse.status === 401 ||
+            apiResponse.status === 403 ||
+            apiResponse.status === 404);
+        if (isSpaPageRequest) {
+          return (
+            (await serveStaticFromDist("/", options.webDist!)) ?? apiResponse
+          );
+        }
         const isKnownGetApiPath =
           /^(\/ready|\/health|\/overview|\/auth\/(bootstrap-status|session|capability\/[^/]+)|\/pairing\/devices|\/products(?:\/[^/]+(?:\/image)?)?|\/inventory\/(movements|low-stock|exceptions|counts)|\/members(?:\/[^/]+)?|\/membership\/(events|discounts)|\/calendar\/(config|schedule|packages\/[^/]+\/snapshot)|\/notifications\/(settings|routes)|\/reports\/(financial|playground|inventory|membership|live)|\/backups|\/venue\/settings|\/public\/venue)$/.test(
             url.pathname,

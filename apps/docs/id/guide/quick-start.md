@@ -1,5 +1,7 @@
 # Mulai Cepat (5 menit)
 
+> 🎬 **Tutorial video:** [Video panduan Kiddy Land](https://www.youtube.com/playlist?list=PLe125EcIbh3A) — ikuti sambil menyiapkan.
+
 1. **Install aplikasi Host** di PC Owner — unduh dari
    [GitHub Releases](https://github.com/musalabsid/kiddy-land/releases) (lihat Instalasi).
 2. **Jalankan** → buat akun Owner → **Host Overview** terbuka.

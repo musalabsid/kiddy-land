@@ -172,6 +172,7 @@ export function usePairingMutation() {
 
 export function useLogout() {
   const client = useApiClient();
+  const queryClient = useQueryClient();
   const session = useAuthStore((state) => state.session);
   const clear = useAuthStore((state) => state.clear);
   return () => {
@@ -180,7 +181,15 @@ export function useLogout() {
       session?.device.mode === "Owner Dashboard" &&
       session.user?.role === "Owner";
     if (deviceId && !isOwnerDevice)
-      void client.delete(`/pairing/devices/${deviceId}`).catch(() => undefined);
+      void client
+        .delete(`/pairing/devices/${deviceId}`)
+        .catch(() => undefined)
+        .finally(() => {
+          // keep the owner's paired-devices list in sync when a device logs out
+          void queryClient.invalidateQueries({
+            queryKey: ["pairing", "devices"],
+          });
+        });
     client.setToken(undefined);
     clear();
     writeStoredSession(undefined);

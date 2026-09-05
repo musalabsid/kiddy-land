@@ -625,5 +625,7 @@
   "customization.alertEndedDescription": "Peringatkan saat waktu bermain habis (waktu habis saat anak masih di dalam)",
   "customization.alertEndedTextHint": "Gunakan placeholder {number} (dikonversi ke kata) atau {name}.",
   "customization.alertEndedTextInvalid": "Teks peringatan habis harus berisi {number} atau {name}",
-  "customization.alertGlobalTitle": "Pengaturan global"
+  "customization.alertGlobalTitle": "Pengaturan global",
+  "reports.downloadSuccess": "Laporan {format} berhasil diunduh",
+  "reports.downloadFailed": "Gagal mengunduh laporan"
 }

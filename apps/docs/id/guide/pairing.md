@@ -12,6 +12,17 @@ Lalu tap **Scan QR** → arahkan ke QR dari Host, atau tempel token manual → k
 
 Perangkat **Inventaris** tidak ada di pilihan login — dapatkan undangan dari **Pemilik → Perangkat** (nama karyawan + peran **Staf**) lalu scan.
 
-Perangkat ter-pairing muncul di **Owner → Perangkat** dengan nama karyawan. Cabut vs Hapus sama-sama mematikan sesi; Dasbor Pemilik dilindungi (tidak bisa dihapus).
+## Siklus hidup perangkat
+
+Perangkat ter-pairing muncul di **Owner → Perangkat** dengan nama karyawan. Daftar diperbarui **secara langsung**:
+
+- **Terhubung** — perangkat pairing/login → toast "Perangkat terhubung" + langsung muncul di daftar.
+- **Terputus** — aplikasi perangkat ditutup atau kehilangan jaringan → toast "Perangkat terputus"; daftar menampilkannya sebagai offline (tidak dihapus otomatis).
+- **Logout** — Kasir/Pemindai/Kiosk menekan **Logout** → perangkat **dihapus** dari daftar dan harus pairing ulang dengan QR baru.
+- **Cabut / Hapus** — aksi dari sisi Pemilik mematikan sesi; sama seperti logout untuk perangkat.
+
+Dasbor Pemilik dilindungi (tidak bisa dihapus).
+
+## Setelah perbaikan
 
 Jika banner **IP Host berubah** muncul, tampilkan QR lagi dan scan ulang di tiap HP (sekali).

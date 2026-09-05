@@ -25,3 +25,5 @@ Halaman khusus Pemilik dilindungi oleh server, bukan hanya disembunyikan di side
 **Pairing:** Di layar login perangkat memilih **Kasir / Pemindai / Kiosk** (3 pilihan). Perangkat Inventaris butuh undangan dari **Pemilik → Perangkat** dengan peran **Staf**. Dasbor Pemilik dibuat saat setup host pertama, bukan via pairing.
 
 **Ganti peran/mode?** Cabut perangkat lalu buat pairing baru dengan mode/peran yang diinginkan.
+
+**Logout** di Kasir/Pemindai/Kiosk menghapus perangkat dari daftar perangkat Pemilik (harus pairing ulang dengan QR baru). Menutup aplikasi hanya memutuskan koneksi — perangkat tetap terdaftar.

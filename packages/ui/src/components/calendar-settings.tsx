@@ -345,7 +345,11 @@ export function CalendarSettings() {
                   id="calendar-date"
                   className={inputCls}
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    // close the native date picker popup after committing a date
+                    setTimeout(() => e.currentTarget.blur(), 0);
+                  }}
                 />
               </FormField>
               {schedule.data && (

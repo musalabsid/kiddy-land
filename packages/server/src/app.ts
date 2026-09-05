@@ -1686,8 +1686,10 @@ export function createApp(
               (ws as unknown as { __unregister?: () => void }).__unregister =
                 unregister;
             },
-            onClose: (_event, ws) =>
-              (ws as unknown as { __unregister?: () => void }).__unregister?.(),
+            onClose: (_event, ws) => {
+              (ws as unknown as { __unregister?: () => void }).__unregister?.();
+              notifications?.deviceDisconnected(decision.deviceId);
+            },
             onMessage: (event, ws) => {
               if (event.data === "refresh")
                 ws.send(
@@ -1819,7 +1821,9 @@ export function createApp(
       if (!isOwnerAdmin && !isSelf) return c.json({ error: "Forbidden" }, 403);
       if (targetId === identity.ownerDevice()?.id)
         return c.json({ error: "Cannot delete the owner device" }, 409);
-      return identity.deleteDevice(targetId)
+      const removed = identity.deleteDevice(targetId);
+      if (removed) notifications?.deviceRemoved(targetId);
+      return removed
         ? c.json({ ok: true })
         : c.json({ error: "Device not found" }, 404);
     });

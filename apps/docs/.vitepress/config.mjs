@@ -10,7 +10,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           {
-            text: "Download v0.1.3",
+            text: "Download v0.1.4",
             link: "https://github.com/musalabsid/kiddy-land/releases",
           },
         ],
@@ -72,7 +72,7 @@ export default defineConfig({
       themeConfig: {
         nav: [
           {
-            text: "Unduh v0.1.3",
+            text: "Unduh v0.1.4",
             link: "https://github.com/musalabsid/kiddy-land/releases",
           },
         ],
@@ -133,6 +133,11 @@ export default defineConfig({
   themeConfig: {
     socialLinks: [
       { icon: "github", link: "https://github.com/musalabsid/kiddy-land" },
+      {
+        icon: "youtube",
+        link: "https://www.youtube.com/playlist?list=PLe125EcIbh3A",
+        ariaLabel: "Video tutorials",
+      },
     ],
   },
 });
